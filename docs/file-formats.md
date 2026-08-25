@@ -451,7 +451,7 @@ Stores saved bookmarks. Present in all cache directories (EPUB, FB2, HTML, TXT, 
 
 ```
 Offset  Size             Description
-0x00    1                Bookmark count (uint8_t, max 20)
+0x00    1                Bookmark count (uint8_t, firmware maximum 50)
 0x01    72 * count       Bookmark entries
 ```
 
@@ -464,6 +464,8 @@ Offset  Size  Description
 0x04    4     Flat page (uint32_t) — absolute page number (used by TXT/Markdown/XTC formats)
 0x08    64    Label (char[64]) — null-terminated bookmark title
 ```
+
+Firmware that supports a maximum of 20 bookmarks loads only the first 20 entries. If this firmware saves the file, the save operation deletes the other entries.
 
 ### `bookmarks.txt`
 

@@ -47,9 +47,6 @@
 
 namespace papyrix {
 
-static_assert(ui::BookmarkListView::MAX_ITEMS == BookmarkManager::MAX_BOOKMARKS,
-              "Bookmark manager and view capacities must match");
-
 static constexpr int kCacheTaskStackSize = 12288;
 static constexpr int kCacheTaskStopTimeoutMs = 10000;  // 10s - generous for slow SD operations
 
@@ -846,7 +843,8 @@ void ReaderState::enter(Core& core) {
   currentSectionPage_ = progress.sectionPage;
   currentPage_ = progress.flatPage;
 
-  bookmarkCount_ = BookmarkManager::load(core, core.content.cacheDir(), bookmarks_, BookmarkManager::MAX_BOOKMARKS);
+  bookmarkCount_ =
+      BookmarkManager::load(core.storage, core.content.cacheDir(), bookmarks_, BookmarkManager::MAX_BOOKMARKS);
 
   // If at start of book and showImages enabled, begin at cover
   // Skip for XTC — uses flat page indexing, no cover page concept in reader
@@ -3064,8 +3062,7 @@ void ReaderState::renderBookmarkOverlay(Core& core) {
     const int end = std::min(bookmarkView_.scrollOffset + visibleCount, static_cast<int>(bookmarkView_.itemCount));
     for (int i = bookmarkView_.scrollOffset; i < end; i++) {
       const int y = startY + (i - bookmarkView_.scrollOffset) * itemHeight;
-      ui::chapterItem(renderer_, theme, theme.uiFontId, y, bookmarkView_.items[i].title, bookmarkView_.items[i].depth,
-                      i == bookmarkView_.selected, false);
+      ui::chapterItem(renderer_, theme, theme.uiFontId, y, bookmarks_[i].label, 0, i == bookmarkView_.selected, false);
     }
   }
 
@@ -3200,14 +3197,13 @@ void ReaderState::jumpToBookmark(Core& core, int index) {
 }
 
 void ReaderState::saveBookmarks(Core& core) {
-  BookmarkManager::save(core, core.content.cacheDir(), core.content.metadata().type, bookmarks_, bookmarkCount_);
+  BookmarkManager::save(core.storage, core.content.cacheDir(), core.content.metadata().type, bookmarks_,
+                        bookmarkCount_);
 }
 
 void ReaderState::populateBookmarkView() {
   bookmarkView_.clear();
-  for (int i = 0; i < bookmarkCount_ && i < ui::BookmarkListView::MAX_ITEMS; i++) {
-    bookmarkView_.addItem(bookmarks_[i].label, 0);
-  }
+  bookmarkView_.setItemCount(static_cast<int16_t>(bookmarkCount_));
 }
 
 int ReaderState::bookmarkVisibleCount() const {

@@ -1,39 +1,12 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <string>
 
 #include "BookmarkManager.h"
 #include "ContentTypes.h"
-#include "Types.h"
-
-// Provide findAt implementation directly to avoid pulling in Core.h and all its
-// transitive dependencies via BookmarkManager.cpp.  save()/load() are not tested
-// here (they require Storage I/O), so the linker won't look for them.
-namespace papyrix {
-
-int BookmarkManager::findAt(const Bookmark* bookmarks, int count,
-                            ContentType type, int spineIndex, int sectionPage,
-                            uint32_t flatPage) {
-  for (int i = 0; i < count; i++) {
-    if (type == ContentType::Epub || type == ContentType::Fb2) {
-      if (bookmarks[i].spineIndex == spineIndex &&
-          bookmarks[i].sectionPage == sectionPage) {
-        return i;
-      }
-    } else if (type == ContentType::Xtc) {
-      if (bookmarks[i].flatPage == flatPage) {
-        return i;
-      }
-    } else {
-      if (bookmarks[i].sectionPage == sectionPage) {
-        return i;
-      }
-    }
-  }
-  return -1;
-}
-
-}  // namespace papyrix
+#include "SDCardManager.h"
+#include "drivers/Storage.h"
 
 using namespace papyrix;
 
@@ -123,8 +96,27 @@ static void test_bookmark_struct_size() {
 }
 
 static void test_max_bookmarks_constant() {
-  assert(BookmarkManager::MAX_BOOKMARKS == 20);
-  std::cout << "  PASS: MAX_BOOKMARKS is 20" << std::endl;
+  assert(BookmarkManager::MAX_BOOKMARKS == 50);
+  std::cout << "  PASS: MAX_BOOKMARKS is 50" << std::endl;
+}
+
+static void test_load_terminates_label() {
+  SdMan.reset();
+  drivers::Storage storage;
+  assert(storage.init().ok());
+
+  Bookmark stored{};
+  memset(stored.label, 'A', sizeof(stored.label));
+  std::string bytes(1, '\x01');
+  bytes.append(reinterpret_cast<const char*>(&stored), sizeof(stored));
+  SdMan.registerFile("/cache/bookmarks.bin", bytes);
+
+  Bookmark loaded{};
+  assert(BookmarkManager::load(storage, "/cache", &loaded, 1) == 1);
+  assert(loaded.label[sizeof(loaded.label) - 2] == 'A');
+  assert(loaded.label[sizeof(loaded.label) - 1] == '\0');
+
+  std::cout << "  PASS: load terminates bookmark labels" << std::endl;
 }
 
 int main() {
@@ -137,6 +129,7 @@ int main() {
   test_findAt_empty();
   test_bookmark_struct_size();
   test_max_bookmarks_constant();
+  test_load_terminates_label();
 
   std::cout << "All BookmarkManager tests passed!" << std::endl;
   return 0;

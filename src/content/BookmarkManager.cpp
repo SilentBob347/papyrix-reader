@@ -7,13 +7,14 @@
 #include <cstdio>
 #include <cstring>
 
-#include "../core/Core.h"
+#include "../drivers/Storage.h"
 
 #define TAG "BOOKMARK"
 
 namespace papyrix {
 
-bool BookmarkManager::save(Core& core, const char* cacheDir, ContentType type, const Bookmark* bookmarks, int count) {
+bool BookmarkManager::save(drivers::Storage& storage, const char* cacheDir, ContentType type, const Bookmark* bookmarks,
+                           int count) {
   if (!cacheDir || cacheDir[0] == '\0') return false;
   if (count < 0 || count > MAX_BOOKMARKS) return false;
 
@@ -23,7 +24,7 @@ bool BookmarkManager::save(Core& core, const char* cacheDir, ContentType type, c
   snprintf(tmpPath, sizeof(tmpPath), "%s.tmp", path);
 
   FsFile file;
-  auto result = core.storage.openWrite(tmpPath, file);
+  auto result = storage.openWrite(tmpPath, file);
   if (!result.ok()) {
     LOG_ERR(TAG, "Failed to open tmp bookmarks %s", tmpPath);
     return false;
@@ -41,19 +42,19 @@ bool BookmarkManager::save(Core& core, const char* cacheDir, ContentType type, c
   if (actualBytes != expectedBytes) {
     LOG_ERR(TAG, "Short bookmarks write %u/%u; discarding tmp", static_cast<unsigned>(actualBytes),
             static_cast<unsigned>(expectedBytes));
-    core.storage.remove(tmpPath);
+    storage.remove(tmpPath);
     return false;
   }
-  if (!core.storage.commitFile(tmpPath, path).ok()) {
+  if (!storage.commitFile(tmpPath, path).ok()) {
     LOG_ERR(TAG, "Failed to commit bookmarks file %s", path);
-    core.storage.remove(tmpPath);
+    storage.remove(tmpPath);
     return false;
   }
   LOG_DBG(TAG, "Saved %d bookmarks", count);
 
   // Human-readable export is non-critical; direct write is acceptable.
   snprintf(path, sizeof(path), "%s/bookmarks.txt", cacheDir);
-  result = core.storage.openWrite(path, file);
+  result = storage.openWrite(path, file);
   if (!result.ok()) {
     LOG_ERR(TAG, "Failed to export bookmarks.txt");
     return true;
@@ -79,14 +80,14 @@ bool BookmarkManager::save(Core& core, const char* cacheDir, ContentType type, c
   return true;
 }
 
-int BookmarkManager::load(Core& core, const char* cacheDir, Bookmark* bookmarks, int maxCount) {
+int BookmarkManager::load(drivers::Storage& storage, const char* cacheDir, Bookmark* bookmarks, int maxCount) {
   if (!cacheDir || cacheDir[0] == '\0') return 0;
 
   char path[280];
   snprintf(path, sizeof(path), "%s/bookmarks.bin", cacheDir);
 
   FsFile file;
-  auto result = core.storage.openRead(path, file);
+  auto result = storage.openRead(path, file);
   if (!result.ok()) {
     LOG_DBG(TAG, "No saved bookmarks found");
     return 0;
@@ -121,6 +122,9 @@ int BookmarkManager::load(Core& core, const char* cacheDir, Bookmark* bookmarks,
       LOG_ERR(TAG, "Failed to read bookmarks data");
       file.close();
       return 0;
+    }
+    for (int i = 0; i < toLoad; i++) {
+      bookmarks[i].label[sizeof(bookmarks[i].label) - 1] = '\0';
     }
   }
 

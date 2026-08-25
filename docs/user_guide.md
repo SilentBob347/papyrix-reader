@@ -438,7 +438,7 @@ Use **Left/Right** (or **Volume Up/Down**) to move the selection cursor through 
 
 #### Details
 
-- Each book supports a maximum of **20 bookmarks**. If you add a bookmark when the limit is reached, the action is ignored with no message.
+- Each book can have a maximum of **50 bookmarks**. The device does not add a bookmark when the book has 50 bookmarks. It does not show a message.
 - Duplicate bookmarks at the same position are not permitted.
 - Bookmark labels include the chapter title and page number (for example, "Chapter 1, p.42").
 - You can also add bookmarks with the **Power button** when **Short Power Button** is set to **Bookmark** in Settings.

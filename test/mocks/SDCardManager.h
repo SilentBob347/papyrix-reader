@@ -266,6 +266,21 @@ class SDCardManager {
     return true;
   }
 
+  template <typename Progress>
+  bool removeDir(const char* path, Progress progress) {
+    (void)progress;
+    return removeDir(path);
+  }
+
+  size_t readFileToBuffer(const char* path, char* buffer, size_t bufferSize) {
+    if (!buffer || bufferSize == 0) return 0;
+    FsFile file = open(path, O_RDONLY);
+    if (!file) return 0;
+    const int bytesRead = file.read(buffer, bufferSize);
+    file.close();
+    return bytesRead > 0 ? static_cast<size_t>(bytesRead) : 0;
+  }
+
   static SDCardManager& getInstance() {
     static SDCardManager instance;
     return instance;

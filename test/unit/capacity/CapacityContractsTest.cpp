@@ -71,8 +71,13 @@ int main() {
                   "Books opens Files with Left");
   runner.expectEq(static_cast<int>(Button::Right), static_cast<int>(RecentState::INFO_BUTTON),
                   "Books opens Info with Right");
-  runner.expectEq(BookmarkManager::MAX_BOOKMARKS, ui::BookmarkListView::MAX_ITEMS,
-                  "Bookmark manager and view capacities match");
+  constexpr size_t legacyBookmarkStorage = 20 * sizeof(Bookmark) + 20 * 65;
+  constexpr size_t bookmarkStorage = BookmarkManager::MAX_BOOKMARKS * sizeof(Bookmark);
+  runner.expectEq(50, BookmarkManager::MAX_BOOKMARKS, "Each book supports 50 bookmarks");
+  runner.expectTrue(BookmarkManager::MAX_BOOKMARKS <= 255, "Bookmark count fits the binary file count");
+  runner.expectTrue(sizeof(ui::BookmarkListView) < sizeof(Bookmark), "Bookmark view does not duplicate label storage");
+  runner.expectTrue(bookmarkStorage <= legacyBookmarkStorage + 1024,
+                    "Bookmark storage adds no more than 1 KB of permanent RAM");
 
   return runner.allPassed() ? 0 : 1;
 }

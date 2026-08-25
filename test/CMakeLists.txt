@@ -638,7 +638,14 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/lib/Utf8/src/Utf8.cpp
       ${TEST_HELPERS}
     )
-  elseif(TEST_NAME STREQUAL "CapacityContractsTest")
+  elseif(TEST_NAME STREQUAL "BookmarkManagerTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/src/content/BookmarkManager.cpp
+      ${PROJECT_ROOT}/src/drivers/Storage.cpp
+      ${TEST_HELPERS}
+    )
+  elseif(TEST_NAME STREQUAL "CapacityContractsTest" OR TEST_NAME STREQUAL "BookmarkListViewTest")
     add_executable(${TEST_NAME} ${TEST_SRC} ${TEST_HELPERS})
     target_include_directories(${TEST_NAME} PRIVATE
       ${PROJECT_ROOT}/lib/I18n/src
