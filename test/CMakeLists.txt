@@ -32,6 +32,7 @@ include_directories(
   ${PROJECT_ROOT}/lib/Utf8/src
   ${PROJECT_ROOT}/lib/Serialization/src
   ${PROJECT_ROOT}/lib/AsyncTask/src
+  ${PROJECT_ROOT}/lib/EInkDisplay/include
   ${PROJECT_ROOT}/lib/Memory/src
   ${PROJECT_ROOT}/lib/RenderTypes/src
   ${PROJECT_ROOT}/lib/Epub/src/Epub
@@ -866,6 +867,83 @@ foreach(TEST_SRC ${TEST_SOURCES})
     target_include_directories(${TEST_NAME} BEFORE PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/unit/navigation/mocks
     )
+  elseif(TEST_NAME STREQUAL "X3DisplayProbeTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/X3DisplayProbeClassifier.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/EInkDisplay/include
+    )
+  elseif(TEST_NAME STREQUAL "X3ControllerPolicyTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/src/drivers/X3ControllerPolicy.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/EInkDisplay/include
+    )
+  elseif(TEST_NAME STREQUAL "Uc8279SpiBusTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8279SpiBus.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/EInkDisplay/src
+    )
+  elseif(TEST_NAME STREQUAL "Uc8279X3DriverTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8279X3Driver.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/EInkDisplay/include
+      ${PROJECT_ROOT}/lib/EInkDisplay/src
+    )
+  elseif(TEST_NAME STREQUAL "X3PowerTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/src/drivers/X3Power.cpp
+      ${PROJECT_ROOT}/lib/SDCardManager/src/SDPowerControl.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/SDCardManager/include
+    )
+  elseif(TEST_NAME STREQUAL "SDPowerControlTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/SDCardManager/src/SDPowerControl.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/SDCardManager/include
+    )
+  elseif(TEST_NAME STREQUAL "GfxRendererBackgroundHintTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/GfxRenderer/src/GfxRenderer.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} BEFORE PRIVATE
+      ${PROJECT_ROOT}/lib/GfxRenderer/src
+      ${PROJECT_ROOT}/lib/ExternalFont/src
+      ${PROJECT_ROOT}/lib/ThaiShaper/src
+    )
+    if(MSVC)
+      target_compile_options(${TEST_NAME} PRIVATE /Gy)
+      target_link_options(${TEST_NAME} PRIVATE /OPT:REF)
+    elseif(APPLE)
+      target_compile_options(${TEST_NAME} PRIVATE -ffunction-sections -fdata-sections)
+      target_link_options(${TEST_NAME} PRIVATE -Wl,-dead_strip)
+    else()
+      target_compile_options(${TEST_NAME} PRIVATE -ffunction-sections -fdata-sections)
+      target_link_options(${TEST_NAME} PRIVATE -Wl,--gc-sections)
+    endif()
   else()
     add_executable(${TEST_NAME} ${TEST_SRC} ${TEST_HELPERS})
   endif()

@@ -6,6 +6,7 @@ lib/EpdFont/fontsrc
 *.generated.h
 CLAUDE.md
 .claude/
+docs/superpowers/
 node_modules/
 scripts/node_modules/
 tmp/*

@@ -15,10 +15,8 @@
 #include <Logging.h>
 #include <Markdown.h>
 #include <SDCardManager.h>
-#include <SPI.h>
 #include <Txt.h>
 #include <Xtc.h>
-#include <driver/gpio.h>
 #include <esp_heap_caps.h>
 #include <esp_sleep.h>
 
@@ -29,6 +27,7 @@
 #include "../ThemeManager.h"
 #include "../config.h"
 #include "../core/Core.h"
+#include "../drivers/DeepSleep.h"
 #include "../drivers/Device.h"
 #include "../images/PapyrixLogo.h"
 
@@ -122,10 +121,7 @@ void SleepState::enter(Core& core) {
     core.network.shutdown();
   }
 
-  // Power down peripherals before deep sleep to minimize current draw
-  SdMan.end();
   LittleFS.end();
-  SPI.end();
 
   // Configure wake-up source (power button)
   esp_deep_sleep_enable_gpio_wakeup(1ULL << InputManager::POWER_BUTTON_PIN, ESP_GPIO_WAKEUP_GPIO_LOW);
@@ -133,21 +129,13 @@ void SleepState::enter(Core& core) {
   // Wait for power button release before entering deep sleep
   waitForPowerRelease();
 
-  disableGpioPullsForSleep();
-
   LOG_INF(TAG, "Entering deep sleep");
-
-  // Enter deep sleep - this never returns
-  esp_deep_sleep_start();
+  drivers::enterDeepSleepWithHardwareShutdown();
 }
 
-void SleepState::exit(Core& core) {
-  // This should never be called - enter() calls esp_deep_sleep_start() and never returns
-  LOG_ERR(TAG, "SleepState::exit (unexpected)");
-}
+void SleepState::exit(Core& core) { LOG_ERR(TAG, "SleepState::exit (unexpected)"); }
 
 StateTransition SleepState::update(Core& core) {
-  // This should never be called - enter() calls esp_deep_sleep_start() and never returns
   LOG_ERR(TAG, "SleepState::update (unexpected - enter() should not return)");
   return StateTransition::stay(StateId::Sleep);
 }

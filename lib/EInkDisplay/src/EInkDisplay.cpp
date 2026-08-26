@@ -1,6 +1,10 @@
 #include "EInkDisplay.h"
 
 #include <Logging.h>
+#include <driver/gpio.h>
+
+#include "Uc8279SpiBus.h"
+#include "Uc8279X3Driver.h"
 
 #define TAG "DISPLAY"
 
@@ -240,14 +244,26 @@ void EInkDisplay::setDisplayDimensions(uint16_t width, uint16_t height) {
   displayWidthBytes = width / 8;
   bufferSize = displayWidthBytes * height;
   _x3Mode = false;
+  displayController_ = papyrix::eink::DisplayController::SSD1677;
 }
 
-void EInkDisplay::setDisplayX3() {
+void EInkDisplay::setDisplayX3(papyrix::eink::DisplayController controller) {
   setDisplayDimensions(X3_DISPLAY_WIDTH, X3_DISPLAY_HEIGHT);
   _x3Mode = true;
+  displayController_ = controller;
+}
+
+void EInkDisplay::setBackgroundHint(bool darkBackground) {
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    papyrix::eink::uc8279X3Driver().setBackgroundHint(darkBackground);
+  }
 }
 
 void EInkDisplay::requestResync(uint8_t settlePasses) {
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    papyrix::eink::uc8279X3Driver().requestResync();
+    return;
+  }
   _x3ForceFullSyncNext = _x3Mode;
   _x3ForcedConditionPassesNext = _x3Mode ? settlePasses : 0;
 }
@@ -301,15 +317,16 @@ void EInkDisplay::begin() {
 
   LOG_INF(TAG, "Initializing e-ink display driver...");
 
-  // Initialize SPI with custom pins. X3 controller doesn't tolerate faster SPI.
   SPI.begin(_sclk, -1, _mosi, _cs);
-  const uint32_t spiHz = _x3Mode ? 10000000 : 40000000;
+  const uint32_t spiHz =
+      displayController_ == papyrix::eink::DisplayController::UC8279_X3 ? 20000000 : (_x3Mode ? 10000000 : 40000000);
   spiSettings = SPISettings(spiHz, MSBFIRST, SPI_MODE0);
   LOG_INF(TAG, "SPI initialized at %lu Hz, Mode 0", spiHz);
 
   // Setup GPIO pins
   pinMode(_cs, OUTPUT);
   pinMode(_dc, OUTPUT);
+  if (_x3Mode) gpio_hold_dis(static_cast<gpio_num_t>(_rst));
   pinMode(_rst, OUTPUT);
   pinMode(_busy, INPUT);
 
@@ -317,6 +334,13 @@ void EInkDisplay::begin() {
   digitalWrite(_dc, HIGH);
 
   LOG_INF(TAG, "GPIO pins configured");
+
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().begin(bus);
+    LOG_INF(TAG, "UC8279 X3 controller initialized");
+    return;
+  }
 
   // Reset display
   resetDisplay();
@@ -336,7 +360,7 @@ void EInkDisplay::resetDisplay() {
   digitalWrite(_rst, HIGH);
   delay(20);
   digitalWrite(_rst, LOW);
-  delay(2);
+  delay(_x3Mode ? 10 : 2);
   digitalWrite(_rst, HIGH);
   delay(20);
   LOG_DBG(TAG, "Display reset complete");
@@ -666,6 +690,12 @@ void IRAM_ATTR EInkDisplay::writeRamBufferInverted(uint8_t ramBuffer, const uint
 }
 
 void EInkDisplay::displayBufferDriveAll(bool turnOffScreen) {
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().requestResync();
+    papyrix::eink::uc8279X3Driver().display(bus, frameBuffer, papyrix::eink::Uc8279RefreshMode::Fast, turnOffScreen);
+    return;
+  }
   if (_x3Mode) {
     requestResync();
     displayBuffer(FAST_REFRESH, turnOffScreen);
@@ -702,6 +732,11 @@ void EInkDisplay::swapBuffers() {
 #endif
 
 void EInkDisplay::grayscaleRevert() {
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().grayscaleRevert(bus);
+    return;
+  }
   if (!inGrayscaleMode) {
     return;
   }
@@ -715,6 +750,11 @@ void EInkDisplay::grayscaleRevert() {
 }
 
 void EInkDisplay::copyGrayscaleLsbBuffers(const uint8_t* lsbBuffer) {
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().copyGrayscaleLsb(bus, lsbBuffer);
+    return;
+  }
   if (!lsbBuffer) {
     _x3GrayState.lsbValid = false;
     return;
@@ -739,6 +779,11 @@ void EInkDisplay::copyGrayscaleLsbBuffers(const uint8_t* lsbBuffer) {
 }
 
 void EInkDisplay::copyGrayscaleMsbBuffers(const uint8_t* msbBuffer) {
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().copyGrayscaleMsb(bus, msbBuffer);
+    return;
+  }
   if (!msbBuffer) {
     return;
   }
@@ -779,6 +824,11 @@ void EInkDisplay::copyGrayscaleBuffers(const uint8_t* lsbBuffer, const uint8_t* 
  * grayscale display.
  */
 void EInkDisplay::cleanupGrayscaleBuffers(const uint8_t* bwBuffer) {
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().cleanupGrayscale(bus, bwBuffer);
+    return;
+  }
   if (_x3Mode) {
     if (!bwBuffer) {
       return;
@@ -818,6 +868,14 @@ void EInkDisplay::cleanupGrayscaleBuffers(const uint8_t* bwBuffer) {
 #endif
 
 void EInkDisplay::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    const auto ucMode = mode == FULL_REFRESH   ? papyrix::eink::Uc8279RefreshMode::Full
+                        : mode == HALF_REFRESH ? papyrix::eink::Uc8279RefreshMode::Half
+                                               : papyrix::eink::Uc8279RefreshMode::Fast;
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().display(bus, frameBuffer, ucMode, turnOffScreen);
+    return;
+  }
   if (!_x3Mode && !isScreenOn && mode == FAST_REFRESH) {
     // Force half refresh if screen is off — FAST_REFRESH requires valid
     // previous frame data in RED RAM which may be stale after power-off.
@@ -1055,6 +1113,13 @@ void EInkDisplay::displayWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h, 
     return;
   }
 
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    // The UC8279 driver does not support a safe small-window update.
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().display(bus, frameBuffer, papyrix::eink::Uc8279RefreshMode::Fast, turnOffScreen);
+    return;
+  }
+
   // displayWindow is not supported while the rest of the screen has grayscale content, revert it
   grayscaleRevert();
 
@@ -1106,6 +1171,11 @@ void EInkDisplay::displayWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h, 
 }
 
 void EInkDisplay::displayGrayBuffer(const bool turnOffScreen) {
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().displayGray(bus, turnOffScreen);
+    return;
+  }
   if (_x3Mode) {
     // X3 AA pipeline: LSB->0x10 + MSB->0x13, trigger 0x12 with X3 LUT bank.
     drawGrayscale = false;
@@ -1183,6 +1253,14 @@ void EInkDisplay::displayGrayBuffer(const bool turnOffScreen) {
 }
 
 void EInkDisplay::refreshDisplay(const RefreshMode mode, const bool turnOffScreen) {
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    const auto ucMode = mode == FULL_REFRESH   ? papyrix::eink::Uc8279RefreshMode::Full
+                        : mode == HALF_REFRESH ? papyrix::eink::Uc8279RefreshMode::Half
+                                               : papyrix::eink::Uc8279RefreshMode::Fast;
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().display(bus, frameBuffer, ucMode, turnOffScreen);
+    return;
+  }
   if (_x3Mode) {
     displayBuffer(mode, turnOffScreen);
     return;
@@ -1275,6 +1353,23 @@ void EInkDisplay::setCustomLUT(const bool enabled, const unsigned char* lutData)
 
 void EInkDisplay::deepSleep() {
   LOG_INF(TAG, "Preparing display for deep sleep...");
+
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
+    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
+    papyrix::eink::uc8279X3Driver().deepSleep(bus);
+    return;
+  }
+
+  if (_x3Mode) {
+    if (isScreenOn) {
+      sendCommand(0x02);
+      waitForRefresh(" X3 display power-down");
+      isScreenOn = false;
+    }
+    sendCommand(0x07);
+    sendData(0xA5);
+    return;
+  }
 
   // First, power down the display properly
   // This shuts down the analog power rails and clock

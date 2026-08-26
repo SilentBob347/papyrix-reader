@@ -38,18 +38,37 @@ struct SPISettings {
 
 // Minimal SPI mock
 struct MockSPI {
+  static constexpr size_t RECORD_CAPACITY = 64;
+
+  size_t beginTransactionCount = 0;
+  size_t endTransactionCount = 0;
+  uint8_t transferValues[RECORD_CAPACITY]{};
+  size_t transferCount = 0;
+  size_t writeSizes[RECORD_CAPACITY]{};
+  size_t writeCount = 0;
+
   void begin(int sclk = -1, int miso = -1, int mosi = -1, int ssel = -1) {
     (void)sclk;
     (void)miso;
     (void)mosi;
     (void)ssel;
   }
-  void beginTransaction(const SPISettings&) {}
-  void endTransaction() {}
-  void transfer(uint8_t) {}
+  void beginTransaction(const SPISettings&) { beginTransactionCount++; }
+  void endTransaction() { endTransactionCount++; }
+  void transfer(uint8_t value) {
+    if (transferCount < RECORD_CAPACITY) transferValues[transferCount] = value;
+    transferCount++;
+  }
   void writeBytes(const uint8_t* data, size_t length) {
     (void)data;
-    (void)length;
+    if (writeCount < RECORD_CAPACITY) writeSizes[writeCount] = length;
+    writeCount++;
+  }
+  void reset() {
+    beginTransactionCount = 0;
+    endTransactionCount = 0;
+    transferCount = 0;
+    writeCount = 0;
   }
 };
 
@@ -67,9 +86,36 @@ extern MockSPI SPI;
 class String;
 
 // Arduino GPIO and timing stubs
-inline void pinMode(int, int) {}
-inline void digitalWrite(int, int) {}
-inline int digitalRead(int) { return 0; }
+enum class TestGpioEventType : uint8_t { PinMode, DigitalWrite, HoldDisable, HoldEnable, DeepSleepHold, Delay };
+
+struct TestGpioEvent {
+  TestGpioEventType type;
+  int pin;
+  int value;
+};
+
+constexpr size_t TEST_GPIO_EVENT_CAPACITY = 64;
+extern TestGpioEvent testGpioEvents[TEST_GPIO_EVENT_CAPACITY];
+extern size_t testGpioEventCount;
+void testRecordGpioEvent(TestGpioEventType type, int pin, int value);
+void testResetGpioEvents();
+
+inline void pinMode(int pin, int mode) { testRecordGpioEvent(TestGpioEventType::PinMode, pin, mode); }
+inline void digitalWrite(int pin, int value) { testRecordGpioEvent(TestGpioEventType::DigitalWrite, pin, value); }
+using TestDigitalReadHook = int (*)(int);
+inline TestDigitalReadHook& testDigitalReadHook() {
+  static TestDigitalReadHook hook = nullptr;
+  return hook;
+}
+inline void testSetDigitalReadHook(TestDigitalReadHook hook) { testDigitalReadHook() = hook; }
+inline int digitalRead(int pin) { return testDigitalReadHook() ? testDigitalReadHook()(pin) : 0; }
+extern bool testManualMillisEnabled;
+extern unsigned long testManualMillisValue;
+inline void testSetManualMillis(unsigned long value) {
+  testManualMillisEnabled = true;
+  testManualMillisValue = value;
+}
+inline void testUseRealtimeMillis() { testManualMillisEnabled = false; }
 inline uint32_t& testDelayCallCount() {
   static uint32_t value = 0;
   return value;
@@ -85,6 +131,8 @@ inline void testResetDelayStats() {
 inline void delay(unsigned long ms) {
   testDelayCallCount()++;
   testDelayTotalMs() += static_cast<uint32_t>(ms);
+  if (testManualMillisEnabled) testManualMillisValue += ms;
+  testRecordGpioEvent(TestGpioEventType::Delay, -1, static_cast<int>(ms));
 }
 inline uint32_t analogReadMilliVolts(uint8_t) { return 0; }
 inline uint32_t g_mockCpuFreqMhz = 160;

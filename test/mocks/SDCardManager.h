@@ -13,6 +13,7 @@ class SDCardManager {
  public:
   SDCardManager() = default;
   bool begin() { return true; }
+  void end() {}
   bool ready() const { return true; }
 
   void registerFile(const std::string& path, const std::string& data) {

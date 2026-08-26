@@ -540,6 +540,7 @@ static unsigned long renderStartMs = 0;
 
 void GfxRenderer::clearScreen(const uint8_t color) const {
   renderStartMs = millis();
+  if (renderMode == BW) darkBackground_ = color == 0x00;
   einkDisplay.clearScreen(color);
 }
 
@@ -606,6 +607,7 @@ void GfxRenderer::invertScreen() const {
   for (int i = 0; i < einkDisplay.getBufferSize(); i++) {
     frameBuffer[i] = ~frameBuffer[i];
   }
+  if (renderMode == BW) darkBackground_ = !darkBackground_;
 }
 
 void GfxRenderer::displayBufferDriveAll(bool turnOffScreen) const {
@@ -613,6 +615,7 @@ void GfxRenderer::displayBufferDriveAll(bool turnOffScreen) const {
     LOG_DBG(TAG, "Render took %lu ms", millis() - renderStartMs);
     renderStartMs = 0;
   }
+  einkDisplay.setBackgroundHint(darkBackground_);
   einkDisplay.displayBufferDriveAll(turnOffScreen);
 }
 
@@ -621,6 +624,7 @@ void GfxRenderer::displayBuffer(const EInkDisplay::RefreshMode refreshMode, bool
     LOG_DBG(TAG, "Render took %lu ms", millis() - renderStartMs);
     renderStartMs = 0;
   }
+  einkDisplay.setBackgroundHint(darkBackground_);
   einkDisplay.displayBuffer(refreshMode, turnOffScreen);
 }
 
@@ -658,6 +662,7 @@ void GfxRenderer::displayWindow(int x, int y, int width, int height, bool turnOf
   int alignedEnd = (physX + physW + 7) & ~7;
   physX = physX & ~7;
   physW = alignedEnd - physX;
+  einkDisplay.setBackgroundHint(darkBackground_);
   einkDisplay.displayWindow(physX, physY, physW, physH, turnOffScreen);
 }
 

@@ -4,6 +4,24 @@ This guide helps developers repair problems on the Xteink X4 / X3 with Papyrix f
 
 ---
 
+## X3 Display Controller Diagnostics
+
+X3 production units can use a UC8253 or UC8279d display controller. The firmware detects the controller. It stores a conclusive result.
+
+After a live controller probe, the firmware writes the raw probe data to the serial log with the `DEVICE` tag:
+
+```
+display probe: VER1=.. .. .. .. .. FLG1=..
+display probe: VER2=.. .. .. .. .. FLG2=..
+display probe MTP: ..
+display probe verdict: uc8279-confirmed | uc8253-stable-default | inconclusive
+display controller: UC8279_X3 (probe, cached)
+```
+
+The probe runs only when no valid cache or override exists. Clear the `epd_det` key in the `papyrix_hw` NVS namespace to run the probe again.
+
+If an X3 screen stays blank or shows an incorrect image, attach the serial log to the issue report. Report the results for full refresh, fast refresh, grayscale, sleep, and wake.
+
 ## Soft-Brick Recovery
 
 > **Note:** Soft-brick must not occur during usual operation. This section is only for developers who flash custom firmware.

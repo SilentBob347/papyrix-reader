@@ -136,7 +136,7 @@ Value `0x09` sets the internal oscillator frequency. This sets the duration of e
 
 ### SPI Speed
 
-X3 has a limit of 10 MHz SPI (20 MHz causes pixel damage). X4 operates at 40 MHz. Each 52KB frame transfer takes approximately 42ms on X3 compared to approximately 12ms on X4.
+The UC8253 X3 uses 10 MHz SPI (20 MHz caused pixel damage in testing). The UC8279d X3 uses 20 MHz. X4 operates at 40 MHz. Each 52KB frame transfer takes approximately 42ms on a UC8253 X3, 21ms on a UC8279d X3, and approximately 12ms on X4.
 
 ---
 

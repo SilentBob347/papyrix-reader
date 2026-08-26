@@ -3,7 +3,7 @@
 Shared hardware documentation for the **Xteink X4** and the **Xteink X3** e-readers that run Papyrix firmware. For device-specific specifications (display, battery, pins), see:
 
 - [Xteink X4 Specifications](x4-specifications.md) — 4.26" 800×480 panel, ADC battery, 40 MHz SPI
-- [Xteink X3 Specifications](x3-specifications.md) — 3.68" 792×528 panel, BQ27220 fuel gauge, 10 MHz SPI
+- [Xteink X3 Specifications](x3-specifications.md) — 3.68" 792×528 panel, BQ27220 fuel gauge, 10 MHz (UC8253) / 20 MHz (UC8279d) SPI
 
 ---
 
@@ -24,7 +24,7 @@ Shared hardware documentation for the **Xteink X4** and the **Xteink X3** e-read
 **Xteink X3:**
 - **Display** — 3.68" 792×528 (approximately 259 PPI)
 - **Battery** — LiPo (BQ27220 fuel gauge)
-- **SPI Clock** — 10 MHz
+- **SPI Clock** — 10 MHz (UC8253) / 20 MHz (UC8279d)
 - **Detection** — I²C probe at start
 
 One firmware binary supports the two devices. The firmware finds the device type at start (see [Device Auto-Detection](#device-auto-detection)).
@@ -62,7 +62,7 @@ One firmware binary supports the two devices. The firmware finds the device type
 
 ## Device Auto-Detection
 
-The firmware finds the device type at start. It uses a two-pass I²C probe for X3-specific chips. This runs in `Device::probe()` before display initialization or battery/USB detection.
+The firmware finds the device type at start. It uses a two-pass I²C probe for X3-specific chips. This runs in `Device::probeDeviceType()` before display initialization or battery and USB detection.
 
 ### Probe Sequence
 
@@ -78,11 +78,17 @@ The firmware finds the device type at start. It uses a two-pass I²C probe for X
 
 ### Caching and Override
 
-- Result cached in NVS (`papyrix_hw` namespace, key `dev_det`) so later starts can skip the probe
-- Manual override available through NVS key `dev_ovr` (for development)
-- Probe order: override → cache → full probe → default to X4
+The firmware stores the device type in the `dev_det` key of the `papyrix_hw` NVS namespace. The `dev_ovr` key sets a manual override. The firmware checks the override first. It checks the cache second. It then runs the full probe. It uses X4 if the probe result is not clear.
 
 Source: `src/drivers/Device.h`, `src/drivers/Device.cpp`
+
+### X3 Display Controller Selection
+
+Device type detection does not identify the display controller. For an X3, the firmware checks `epd_ovr` first. It then checks `epd_det` and `epd_ver`. It runs the live probe when no valid selection exists.
+
+UI mode and Reader mode use separate boots. Both modes use the same NVS cache. A valid cache prevents a repeated display probe.
+
+The firmware selects UC8253 after an inconclusive probe. It does not cache this result. Refer to [Xteink X3 Specifications § Controller Detection](x3-specifications.md#controller-detection) for the classification rules.
 
 ---
 
@@ -233,7 +239,7 @@ C++20 (`-std=gnu++2a`)
 
 In `lib/`:
 
-- **EInkDisplay** — `lib/EInkDisplay/` — SSD1677 driver (supports X4 panels and X3 panels)
+- **EInkDisplay** — `lib/EInkDisplay/` — SSD1677 driver for X4 and UC8253 or UC8279d drivers for X3
 - **InputManager** — `lib/InputManager/` — Button handling
 - **BatteryMonitor** — `lib/BatteryMonitor/` — Battery ADC (X4) / BQ27220 fuel gauge (X3)
 - **SDCardManager** — `lib/SDCardManager/` — SD card interface

@@ -5,6 +5,7 @@
 #include <InputManager.h>
 #include <LittleFS.h>  // Must be before SdFat includes to avoid FILE_READ/FILE_WRITE redefinition
 #include <SDCardManager.h>
+#include <SDPowerControl.h>
 #include <SPI.h>
 #include <builtinFonts/reader_2b.h>
 #include <builtinFonts/reader_bold_2b.h>
@@ -36,7 +37,9 @@
 #include "ThemeManager.h"
 #include "config.h"
 #include "content/ContentTypes.h"
+#include "drivers/DeepSleep.h"
 #include "drivers/Device.h"
+#include "drivers/X3Power.h"
 #include "ui/Elements.h"
 
 #define TAG "MAIN"
@@ -64,17 +67,15 @@
 #include "ui/views/BootSleepViews.h"
 
 #define SPI_FQ 40000000
-// Display SPI pins (custom pins for XteinkX4, not hardware SPI defaults)
-#define EPD_SCLK 8   // SPI Clock
-#define EPD_MOSI 10  // SPI MOSI (Master Out Slave In)
-#define EPD_CS 21    // Chip Select
-#define EPD_DC 4     // Data/Command
-#define EPD_RST 5    // Reset
-#define EPD_BUSY 6   // Busy
+// Display SPI pins (shared with the SD card, not hardware SPI defaults)
+constexpr int8_t EPD_SCLK = papyrix::sd::SD_CLOCK_PIN;
+constexpr int8_t EPD_MOSI = papyrix::sd::SD_MOSI_PIN;
+#define EPD_CS 21   // Chip Select
+#define EPD_DC 4    // Data/Command
+#define EPD_RST 5   // Reset
+#define EPD_BUSY 6  // Busy
 
 #define UART0_RXD 20  // Used for USB connection detection
-
-#define SD_SPI_MISO 7
 
 constexpr uint32_t kSerialBaudRate = 115200;
 constexpr uint32_t kSerialEnumerationDelayMs = 250;
@@ -143,10 +144,8 @@ static EpdFontFamily& readerFontFamilyLarge() {
 }
 
 bool isUsbConnected() {
-  // X3 has no USB-detect line on UART0_RXD (pin 20 is the I²C SDA on X3),
-  // so on X3 we read the BQ27220 fuel gauge — positive current = USB is
-  // supplying charge. earlyInit() runs Device::probe() before any caller of
-  // this function, so the variant is always known by the time we get here.
+  // X3 uses GPIO20 (UART0_RXD) for I²C SDA, so it has no USB-detect line.
+  // earlyInit() resolves the device type before this function runs.
   if (papyrix::drivers::Device::instance().isX3()) {
     return batteryMonitor.isCharging();
   }
@@ -228,8 +227,7 @@ void verifyWakeupLongPress(esp_reset_reason_t resetReason) {
     // Button released too early. Returning to sleep.
     // IMPORTANT: Re-arm the wakeup trigger before sleeping again
     esp_deep_sleep_enable_gpio_wakeup(1ULL << InputManager::POWER_BUTTON_PIN, ESP_GPIO_WAKEUP_GPIO_LOW);
-    disableGpioPullsForSleep();
-    esp_deep_sleep_start();
+    papyrix::drivers::enterDeepSleepWithHardwareShutdown();
   }
 }
 
@@ -261,7 +259,7 @@ void setupReaderFontForSize(papyrix::Settings::FontSize fontSize) {
 
 void setupDisplayAndFonts(bool allReaderSizes = true) {
   if (papyrix::drivers::Device::instance().isX3()) {
-    einkDisplay.setDisplayX3();
+    einkDisplay.setDisplayX3(papyrix::drivers::Device::instance().displayController());
   }
   einkDisplay.begin();
   renderer.begin();
@@ -345,24 +343,20 @@ bool earlyInit() {
   pinMode(UART0_RXD, INPUT);
   inputManager.begin();
 
-  // Detect hardware variant (X3 vs X4) before getWakeupInfo() — on X3,
-  // isUsbConnected() must route through the BQ27220 fuel gauge, otherwise
-  // a power-button cold boot reads pin 20 (I²C SDA, floats HIGH on X3) as
-  // "USB connected" and the usbColdBoot fast-path sleeps the device. Probe
-  // only touches I²C and NVS (no SPI/SD/display), so it's safe to run here.
-  papyrix::drivers::Device::instance().probe();
+  auto& device = papyrix::drivers::Device::instance();
+  device.probeDeviceType();
 
-  // Detect USB cold-boot before any heavy init (USB CDC, SD, settings) so a USB hotplug
-  // on a powered-off device returns to sleep without a multi-second wake-up.
   const auto wakeup = getWakeupInfo();
   if (wakeup.usbColdBoot) {
     esp_deep_sleep_enable_gpio_wakeup(1ULL << InputManager::POWER_BUTTON_PIN, ESP_GPIO_WAKEUP_GPIO_LOW);
-    disableGpioPullsForSleep();
-    esp_deep_sleep_start();
+    papyrix::drivers::enterDeepSleepWithHardwareShutdown();
   }
 
-  // Initialize SPI and SD card before wakeup verification so settings are available
-  SPI.begin(EPD_SCLK, SD_SPI_MISO, EPD_MOSI, EPD_CS);
+  const int8_t sdPowerPin = device.isX3() ? papyrix::drivers::X3_SD_POWER_PIN : papyrix::drivers::NO_POWER_PIN;
+  if (device.isX3()) papyrix::sd::prepareSdForDisplayProbe(sdPowerPin);
+  device.selectDisplayController();
+
+  SPI.begin(EPD_SCLK, papyrix::sd::SD_MISO_PIN, EPD_MOSI, EPD_CS);
   if (!SdMan.begin()) {
     LOG_ERR(TAG, "SD card initialization failed");
     setupDisplayAndFonts();

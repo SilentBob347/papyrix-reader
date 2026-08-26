@@ -8,7 +8,7 @@
 // Lazily constructs the right BatteryMonitor for this device:
 // - X4: ADC on BAT_GPIO0
 // - X3: BQ27220 fuel gauge on I²C (SDA=20, SCL=0)
-// First call must follow Device::probe() (called in earlyInit before any UI render).
+// First call must follow Device::probeDeviceType() in earlyInit.
 inline BatteryMonitor& getBatteryMonitor() {
   static BatteryMonitor instance = papyrix::drivers::Device::instance().isX3()
                                        ? BatteryMonitor(BatteryMonitor::Bq27220Config{20, 0, 400000})

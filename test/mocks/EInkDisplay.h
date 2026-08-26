@@ -1,5 +1,7 @@
 #pragma once
 
+#include <DisplayController.h>
+
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -21,7 +23,7 @@ class EInkDisplay {
 
   EInkDisplay(int8_t, int8_t, int8_t, int8_t, int8_t, int8_t) { memset(frameBuffer_, 0xFF, MAX_BUFFER_SIZE); }
 
-  void setDisplayX3() {
+  void setDisplayX3(papyrix::eink::DisplayController = papyrix::eink::DisplayController::UC8253) {
     displayWidth_ = X3_DISPLAY_WIDTH;
     displayHeight_ = X3_DISPLAY_HEIGHT;
     displayWidthBytes_ = X3_DISPLAY_WIDTH_BYTES;
@@ -34,6 +36,8 @@ class EInkDisplay {
   uint16_t getDisplayWidthBytes() const { return displayWidthBytes_; }
   uint32_t getBufferSize() const { return bufferSize_; }
   void clearScreen(uint8_t color = 0xFF) { memset(frameBuffer_, color, bufferSize_); }
+  void setBackgroundHint(bool darkBackground) { darkBackground_ = darkBackground; }
+  bool backgroundHint() const { return darkBackground_; }
   void displayBuffer(RefreshMode, bool) {}
   void displayBufferDriveAll(bool = false) {}
   void displayWindow(int, int, int, int, bool) {}
@@ -68,4 +72,5 @@ class EInkDisplay {
   std::vector<uint8_t> cleanupBuffer_;
   int displayGrayCount_ = 0;
   int cleanupCount_ = 0;
+  bool darkBackground_ = false;
 };

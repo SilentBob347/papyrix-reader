@@ -4,10 +4,11 @@
 
 #include <cstring>
 
+#include "SDPowerControl.h"
+
 #define TAG "SD"
 
 namespace {
-constexpr uint8_t SD_CS = 12;
 constexpr uint32_t SPI_FQ = 40000000;
 }  // namespace
 
@@ -16,7 +17,7 @@ SDCardManager SDCardManager::instance;
 SDCardManager::SDCardManager() : sd() {}
 
 bool SDCardManager::begin() {
-  if (!sd.begin(SD_CS, SPI_FQ)) {
+  if (!sd.begin(papyrix::sd::SD_CHIP_SELECT_PIN, SPI_FQ)) {
     LOG_ERR(TAG, "SD card not detected");
     initialized = false;
   } else {

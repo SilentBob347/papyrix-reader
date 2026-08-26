@@ -3,6 +3,7 @@
 #include <SdFat.h>
 #include <WString.h>
 
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>

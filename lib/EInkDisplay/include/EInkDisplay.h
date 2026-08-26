@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include <DisplayController.h>
 #include <SPI.h>
 
 #if __has_include(<esp_attr.h>)
@@ -25,7 +26,8 @@ class EInkDisplay {
   };
 
   // Set X3 panel geometry and mode (must be called before begin())
-  void setDisplayX3();
+  void setDisplayX3(papyrix::eink::DisplayController controller = papyrix::eink::DisplayController::UC8253);
+  void setBackgroundHint(bool darkBackground);
 
   // Initialize the display hardware and driver
   void begin();
@@ -111,6 +113,7 @@ class EInkDisplay {
 
   // X3 state machine
   bool _x3Mode = false;
+  papyrix::eink::DisplayController displayController_ = papyrix::eink::DisplayController::SSD1677;
   bool _x3RedRamSynced = false;
   enum class X3LutSet : uint8_t { NONE, FULL, TURBO, IMG, GRAY };
   X3LutSet _x3LoadedLuts = X3LutSet::NONE;

@@ -17,7 +17,7 @@ Result<void> Display::init() {
   }
 
   if (Device::instance().isX3()) {
-    display.setDisplayX3();
+    display.setDisplayX3(Device::instance().displayController());
   }
   display.begin();
   initialized_ = true;
