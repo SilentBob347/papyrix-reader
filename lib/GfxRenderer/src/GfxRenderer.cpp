@@ -538,6 +538,12 @@ void GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, con
 
 static unsigned long renderStartMs = 0;
 
+static void logRenderTime() {
+  if (renderStartMs == 0) return;
+  LOG_DBG(TAG, "Render took %lu ms", millis() - renderStartMs);
+  renderStartMs = 0;
+}
+
 void GfxRenderer::clearScreen(const uint8_t color) const {
   renderStartMs = millis();
   if (renderMode == BW) darkBackground_ = color == 0x00;
@@ -611,19 +617,13 @@ void GfxRenderer::invertScreen() const {
 }
 
 void GfxRenderer::displayBufferDriveAll(bool turnOffScreen) const {
-  if (renderStartMs > 0) {
-    LOG_DBG(TAG, "Render took %lu ms", millis() - renderStartMs);
-    renderStartMs = 0;
-  }
+  logRenderTime();
   einkDisplay.setBackgroundHint(darkBackground_);
   einkDisplay.displayBufferDriveAll(turnOffScreen);
 }
 
 void GfxRenderer::displayBuffer(const EInkDisplay::RefreshMode refreshMode, bool turnOffScreen) const {
-  if (renderStartMs > 0) {
-    LOG_DBG(TAG, "Render took %lu ms", millis() - renderStartMs);
-    renderStartMs = 0;
-  }
+  logRenderTime();
   einkDisplay.setBackgroundHint(darkBackground_);
   einkDisplay.displayBuffer(refreshMode, turnOffScreen);
 }
@@ -1014,7 +1014,10 @@ void GfxRenderer::copyGrayscaleLsbBuffers() const { einkDisplay.copyGrayscaleLsb
 
 void GfxRenderer::copyGrayscaleMsbBuffers() const { einkDisplay.copyGrayscaleMsbBuffers(frameBuffer); }
 
-void GfxRenderer::displayGrayBuffer(bool turnOffScreen) const { einkDisplay.displayGrayBuffer(turnOffScreen); }
+void GfxRenderer::displayGrayBuffer(bool turnOffScreen) const {
+  logRenderTime();
+  einkDisplay.displayGrayBuffer(turnOffScreen);
+}
 
 void GfxRenderer::freeBwBufferChunks() {
   for (auto& bwBufferChunk : bwBufferChunks) {
@@ -1100,7 +1103,10 @@ void GfxRenderer::restoreBwBuffer() {
  * Cleanup grayscale buffers using the current frame buffer.
  * Use this when BW buffer was re-rendered instead of stored/restored.
  */
-void GfxRenderer::cleanupGrayscaleWithFrameBuffer() const { einkDisplay.cleanupGrayscaleBuffers(frameBuffer); }
+void GfxRenderer::cleanupGrayscaleWithFrameBuffer() const {
+  logRenderTime();
+  einkDisplay.cleanupGrayscaleBuffers(frameBuffer);
+}
 
 void GfxRenderer::renderChar(const EpdFontFamily& fontFamily, const uint32_t cp, int* x, const int* y,
                              const bool pixelState, const EpdFontFamily::Style style, const int fontId) const {
