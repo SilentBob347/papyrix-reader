@@ -115,7 +115,7 @@ class EInkDisplay {
   bool _x3Mode = false;
   papyrix::eink::DisplayController displayController_ = papyrix::eink::DisplayController::SSD1677;
   bool _x3RedRamSynced = false;
-  enum class X3LutSet : uint8_t { NONE, FULL, TURBO, IMG, GRAY };
+  enum class X3LutSet : uint8_t { NONE, FULL, HALF, TURBO, IMG, GRAY };
   X3LutSet _x3LoadedLuts = X3LutSet::NONE;
   struct X3GrayState {
     bool lastBaseWasPartial = false;

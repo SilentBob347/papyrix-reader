@@ -78,7 +78,7 @@ The firmware allocates a static buffer of `MAX_BUFFER_SIZE = 52,272` bytes. This
 
 ### Refresh Modes
 
-The UC8253 uses the existing X3 Full, Turbo, Image, and Grayscale LUT sets. See [X3 LUT Waveforms](x3-lut-waveforms.md) for timing data and register-level documentation.
+The UC8253 uses the X3 Full, Half, Turbo, Image, and Grayscale LUT sets. Fast refreshes use Turbo. Half refreshes use the Half scrub bank without a flash. Full refreshes use Image, then one no-op Turbo pass. See [X3 LUT Waveforms](x3-lut-waveforms.md) for timing data and register-level documentation.
 
 The UC8279d uses an external GC waveform for full and half refreshes. It uses an external DU waveform for fast refreshes after it has a valid previous-frame baseline. The first two black-and-white refreshes use GC. A resynchronization refresh also uses GC. The driver uses a full-frame fast refresh for a window request. It does not support a safe small window update.
 

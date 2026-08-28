@@ -66,6 +66,17 @@ Phase 0 drives the primary pixel transition. Phase 1 is a settle pass (one more 
 
 WW/BB get a short refresh pulse in sub-phase B. This prevents ghosting that collects on pixels that do not change.
 
+### `lut_x3_*_half` — Scrub Refresh
+
+Used for: the periodic anti-ghost refresh and a fast request while the panel analog power is off.
+
+```
+Phase 0: TP=(6,1,6,6) RP=1 = 19 frame groups
+Phase 1: TP=(4,1,1,0) RP=1 =  6 frame groups
+```
+
+WW equals BW and WB equals BB. The waveform does not depend on the previous pixel state. The driver writes only RAM 0x13 and uses CDI `0xA9 0x07`. The full-sync path does not use this bank.
+
 ### `lut_x3_*_turbo` — Balanced Fast Refresh
 
 Used for: fast differential page turns (the default fast path on X3).
@@ -118,6 +129,7 @@ All variants use the same VS voltage patterns as `_full`. Only timing is differe
 
 - **`_full`** — 26 groups, approximately 472ms, no ghosting. Used for quality/full refresh.
 - **`_turbo` (balanced)** — 19 groups, approximately 382ms, small ghosting. Default fast path.
+- **`_half` (scrub)** — 25 groups, approximately 455ms, no flash. WW equals BW and WB equals BB. Each pixel drives to its target level. Used for the periodic anti-ghost refresh (`HALF_REFRESH`) and for a fast request while the panel analog power is off. Source: FreeInk SDK `lut_x3_*_half`.
 - **v1 (TP 3,1,3,3 + 3,1)** — 14 groups, approximately 317ms, moderate ghosting. Tested. You can use it.
 - **DU (TP 3,1,2,0)** — 6 groups, approximately 215ms, large ghosting. Tested. Too strong for reading.
 
@@ -149,5 +161,9 @@ The UC8253 X3 uses 10 MHz SPI (20 MHz caused pixel damage in testing). The UC827
 4. CMD 0x12 — trigger refresh, wait for BUSY           ~382ms
 5. Sync RAM 0x10 with current frame (for next diff)    ~42ms
 ```
+
+A half refresh uses the same flow with the `_half` LUTs and CDI `0xA9 0x07`.
+
+A full refresh sends CMD 0x04 again. The driver waits for BUSY only when the screen was off. After a full refresh, the driver runs one no-op turbo pass on the same frame. This pass cleans the first differential refresh that follows.
 
 The controller reads RAM 0x13 (new) and RAM 0x10 (old) for each pixel. It selects the matching LUT (WW/BW/WB/BB) and applies the waveform.

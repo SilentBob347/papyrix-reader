@@ -216,6 +216,28 @@ const uint8_t lut_x3_bb_turbo[] PROGMEM = {0x10, 0x04, 0x02, 0x04, 0x04, 0x01, 0
                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+// X3 half LUTs: scrub bank (WW == BW, WB == BB) from the FreeInk SDK.
+const uint8_t lut_x3_vcom_half[] PROGMEM = {0x00, 0x06, 0x01, 0x06, 0x06, 0x01, 0x00, 0x04, 0x01, 0x01, 0x00,
+                                            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t lut_x3_ww_half[] PROGMEM = {0xAA, 0x06, 0x01, 0x06, 0x06, 0x01, 0xA0, 0x04, 0x01, 0x01, 0x00,
+                                          0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t lut_x3_bw_half[] PROGMEM = {0xAA, 0x06, 0x01, 0x06, 0x06, 0x01, 0xA0, 0x04, 0x01, 0x01, 0x00,
+                                          0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t lut_x3_wb_half[] PROGMEM = {0x55, 0x06, 0x01, 0x06, 0x06, 0x01, 0x50, 0x04, 0x01, 0x01, 0x00,
+                                          0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t lut_x3_bb_half[] PROGMEM = {0x55, 0x06, 0x01, 0x06, 0x06, 0x01, 0x50, 0x04, 0x01, 0x01, 0x00,
+                                          0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
 // X3 AA LUTs: fast partial-style set tuned to preserve X3 polarity behavior.
 const uint8_t lut_x3_vcom_fast[] PROGMEM = {0x00, 0x18, 0x18, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
                                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -304,7 +326,7 @@ void EInkDisplay::begin() {
   memset(frameBuffer0, 0xFF, bufferSize);
   _x3RedRamSynced = false;
   _x3LoadedLuts = X3LutSet::NONE;
-  _x3InitialFullSyncsRemaining = _x3Mode ? 2 : 0;
+  _x3InitialFullSyncsRemaining = _x3Mode ? 1 : 0;
   _x3ForceFullSyncNext = false;
   _x3ForcedConditionPassesNext = 0;
   _x3GrayState = {};
@@ -876,7 +898,7 @@ void EInkDisplay::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
     papyrix::eink::uc8279X3Driver().display(bus, frameBuffer, ucMode, turnOffScreen);
     return;
   }
-  if (!_x3Mode && !isScreenOn && mode == FAST_REFRESH) {
+  if (!isScreenOn && mode == FAST_REFRESH && !(_x3Mode && turnOffScreen)) {
     // Force half refresh if screen is off — FAST_REFRESH requires valid
     // previous frame data in RED RAM which may be stale after power-off.
     // FULL/HALF rebuild RED RAM themselves so they don't need coercion.
@@ -890,9 +912,6 @@ void EInkDisplay::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
     // X3 update policy: RED RAM (0x10) on the controller stores the previous
     // frame for differential updates, eliminating the 52 KB _x3PrevFrame
     // software buffer.  CMD04 re-powers the charge pump when needed.
-    // On X3, treat HALF refresh as fast differential mode.
-    // Reader uses HALF as a cadence hint, but forcing full here makes turns too slow.
-    const bool fastMode = (mode != FULL_REFRESH);
     uint8_t row[128];
     auto sendCommandDataX3 = [&](uint8_t cmd, const uint8_t* data, uint16_t len) {
       SPI.beginTransaction(spiSettings);
@@ -934,9 +953,11 @@ void EInkDisplay::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
     };
 
     const bool forcedFullSync = _x3ForceFullSyncNext;
-    const bool doFullSync = !fastMode || !_x3RedRamSynced || _x3InitialFullSyncsRemaining > 0 || forcedFullSync;
+    const bool doFullSync =
+        mode == FULL_REFRESH || !_x3RedRamSynced || _x3InitialFullSyncsRemaining > 0 || forcedFullSync;
+    const bool doHalfSync = mode == HALF_REFRESH && !doFullSync;
 
-    LOG_DBG(TAG, "X3_OEM_%s", doFullSync ? "FULL" : "FAST");
+    LOG_DBG(TAG, "X3_OEM_%s", doFullSync ? "FULL" : doHalfSync ? "HALF" : "FAST");
     _x3GrayState.lastBaseWasPartial = !doFullSync;
 
     if (doFullSync) {
@@ -954,6 +975,20 @@ void EInkDisplay::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
       sendMirroredPlane(frameBuffer, true);
       sendCommand(0x10);
       sendMirroredPlane(frameBuffer, true);
+
+      sendCommandDataByteX3(0x50, 0xA9, 0x07);
+    } else if (doHalfSync) {
+      if (_x3LoadedLuts != X3LutSet::HALF) {
+        sendCommandDataX3(0x20, lut_x3_vcom_half, 42);
+        sendCommandDataX3(0x21, lut_x3_ww_half, 42);
+        sendCommandDataX3(0x22, lut_x3_bw_half, 42);
+        sendCommandDataX3(0x23, lut_x3_wb_half, 42);
+        sendCommandDataX3(0x24, lut_x3_bb_half, 42);
+        _x3LoadedLuts = X3LutSet::HALF;
+      }
+
+      sendCommand(0x13);
+      sendMirroredPlane(frameBuffer, false);
 
       sendCommandDataByteX3(0x50, 0xA9, 0x07);
     } else {
@@ -974,9 +1009,10 @@ void EInkDisplay::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
       sendCommandDataByteX3(0x50, 0x29, 0x07);
     }
 
-    if (!isScreenOn || doFullSync) {
+    const bool wasOff = !isScreenOn;
+    if (wasOff || doFullSync) {
       sendCommand(0x04);
-      waitForRefresh(" X3_CMD04");
+      if (wasOff) waitForRefresh(" X3_CMD04");
       isScreenOn = true;
     }
 
@@ -984,17 +1020,14 @@ void EInkDisplay::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
     sendCommand(0x12);
     waitForRefresh(" X3_CMD12");
 
-    // Power off analog rails immediately after refresh if requested,
-    // before RAM bookkeeping (which only needs SPI, not the charge pump).
-    // This mirrors X4 behavior where power-off is part of the refresh cycle.
-    if (turnOffScreen) {
+    if (turnOffScreen && !doFullSync) {
       sendCommand(0x02);
       waitForRefresh(" X3_CMD02_POWEROFF");
       isScreenOn = false;
       _x3LoadedLuts = X3LutSet::NONE;
     }
 
-    if (!fastMode) delay(200);
+    if (mode != FAST_REFRESH) delay(200);
 
     // One-time light settle after the first major full-sync improves early
     // page-turn quality on X3 without paying the old 6-pass cost.
@@ -1049,6 +1082,29 @@ void EInkDisplay::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
     sendCommand(0x10);
     sendMirroredPlane(frameBuffer, false);
     _x3RedRamSynced = true;
+
+    if (doFullSync) {
+      if (_x3LoadedLuts != X3LutSet::TURBO) {
+        sendCommandDataX3(0x20, lut_x3_vcom_turbo, 42);
+        sendCommandDataX3(0x21, lut_x3_ww_turbo, 42);
+        sendCommandDataX3(0x22, lut_x3_bw_turbo, 42);
+        sendCommandDataX3(0x23, lut_x3_wb_turbo, 42);
+        sendCommandDataX3(0x24, lut_x3_bb_turbo, 42);
+        _x3LoadedLuts = X3LutSet::TURBO;
+      }
+      sendCommandDataByteX3(0x50, 0x29, 0x07);
+      sendCommand(0x13);
+      sendMirroredPlane(frameBuffer, false);
+      LOG_DBG(TAG, "X3_OEM_TRIGGER=0x12(settle)");
+      sendCommand(0x12);
+      waitForRefresh(" X3_CMD12(settle)");
+      if (turnOffScreen) {
+        sendCommand(0x02);
+        waitForRefresh(" X3_CMD02_POWEROFF");
+        isScreenOn = false;
+        _x3LoadedLuts = X3LutSet::NONE;
+      }
+    }
 
     if (doFullSync && _x3InitialFullSyncsRemaining > 0) {
       _x3InitialFullSyncsRemaining--;
