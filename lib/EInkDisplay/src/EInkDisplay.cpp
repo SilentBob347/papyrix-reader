@@ -1169,10 +1169,9 @@ void EInkDisplay::displayWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h, 
     return;
   }
 
-  if (displayController_ == papyrix::eink::DisplayController::UC8279_X3) {
-    // The UC8279 driver does not support a safe small-window update.
-    papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
-    papyrix::eink::uc8279X3Driver().display(bus, frameBuffer, papyrix::eink::Uc8279RefreshMode::Fast, turnOffScreen);
+  if (_x3Mode) {
+    // The X3 controllers do not support a safe small-window update.
+    displayBuffer(FAST_REFRESH, turnOffScreen);
     return;
   }
 
