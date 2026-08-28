@@ -415,7 +415,7 @@ EPUB chapters cache one chapter at a time, so `~` usually clears when the curren
 
 ### 4.1 Reader Menu
 
-Press **Confirm** while you read to open the Reader Menu. The menu has three options:
+Press **Confirm** while you read to open the Reader Menu. The menu is not available on the cover page. Turn to the first text page first. The menu has three options:
 
 - **Chapters** — Open the Table of Contents / Chapter Selection screen
 - **Bookmarks** — Open the Bookmarks overlay for the current book

@@ -2881,6 +2881,7 @@ void ReaderState::exitToUI(Core& core) {
 // ============================================================================
 
 void ReaderState::enterMenuMode(Core& core) {
+  if (currentSpineIndex_ == 0 && currentSectionPage_ == -1) return;
   if (!stopBackgroundCaching()) return;
   menuView_.show();
   menuMode_ = true;
