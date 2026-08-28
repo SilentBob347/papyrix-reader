@@ -15,6 +15,7 @@ enum class EventType : uint8_t {
   ButtonLongPress,
   ButtonRepeat,
   ButtonRelease,
+  Tap,
 
   // System events
   BatteryLow,
@@ -32,6 +33,7 @@ struct Event {
   EventType type;
   union {
     Button button;
+    TouchPoint touch;
     Error error;
     uint8_t data;
   };
@@ -63,6 +65,13 @@ struct Event {
     Event e;
     e.type = EventType::ButtonRelease;
     e.button = btn;
+    return e;
+  }
+
+  static Event tap(TouchPoint point) {
+    Event e;
+    e.type = EventType::Tap;
+    e.touch = point;
     return e;
   }
 

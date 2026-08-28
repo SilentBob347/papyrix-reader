@@ -6,7 +6,7 @@
 #include "BookmarkManager.h"
 #include "ContentTypes.h"
 #include "SDCardManager.h"
-#include "drivers/Storage.h"
+#include "hal/Storage.h"
 
 using namespace papyrix;
 
@@ -102,7 +102,7 @@ static void test_max_bookmarks_constant() {
 
 static void test_load_terminates_label() {
   SdMan.reset();
-  drivers::Storage storage;
+  hal::Storage storage;
   assert(storage.init().ok());
 
   Bookmark stored{};

@@ -29,6 +29,7 @@ enum class StrId : uint8_t {
   // Menu items
   STR_SETTINGS,
   STR_READER,
+  STR_SCREEN,
   STR_DEVICE,
   STR_CLEANUP,
   STR_SYSTEM_INFO,
@@ -43,6 +44,7 @@ enum class StrId : uint8_t {
 
   // Screen titles
   STR_READER_SETTINGS,
+  STR_SCREEN_SETTINGS,
   STR_DEVICE_SETTINGS,
   STR_FILES,
   STR_NETWORK_MODE,
@@ -76,6 +78,7 @@ enum class StrId : uint8_t {
   STR_FRONT_BUTTONS,
   STR_SIDE_BUTTONS,
   STR_FULL_BOOK_PROCESS,
+  STR_TOUCH_PAGE_TURNS,
 
   // Settings enum values
   STR_ON,
@@ -264,6 +267,8 @@ enum class StrId : uint8_t {
   STR_RESTORE_FILE_Q,
   STR_DELETE_PERMANENTLY_Q,
   STR_CANNOT_DELETE_TRASH,
+  STR_BRIGHTNESS,
+  STR_WARMTH,
 
   STR__COUNT
 };

@@ -1,6 +1,6 @@
 # Web Server Guide
 
-This guide shows how to connect your Papyrix Reader to WiFi and how to use the built-in web server to upload books from your computer or phone.
+The built-in web server provides file upload and management through Wi-Fi.
 
 ## Overview
 
@@ -89,15 +89,15 @@ After the connection, the screen shows:
 
 ### From a Computer
 
-1. Make sure your computer is connected to the **same WiFi network** as your Papyrix Reader.
-2. Open a web browser (Chrome is recommended).
+1. Connect the computer to the **same WiFi network** as the reader.
+2. Open a web browser.
 3. Type the IP address shown on your device into the address bar of the browser.
    - Example: `http://192.168.1.102/`
 4. Press Enter.
 
 ### From a Phone or Tablet
 
-1. Make sure your phone/tablet is connected to the **same WiFi network** as your Papyrix Reader.
+1. Connect the phone or tablet to the **same WiFi network** as the reader.
 2. Open your mobile browser (Safari, Chrome, or other).
 3. Type the IP address into the address bar.
    - Example: `http://192.168.1.102/`
@@ -243,11 +243,11 @@ The Firmware tab manages firmware update files for the device.
 
 **Solutions:**
 
-1. Make sure the two devices are on the **same WiFi network**.
+1. Connect both devices to the **same WiFi network**.
    - Check your computer/phone WiFi settings.
-   - Make sure the Papyrix Reader shows "Connected" status.
+   - Check that the reader shows "Connected".
 2. Check the IP address again.
-   - Make sure you typed it correctly.
+   - Check the address for typing errors.
    - Include `http://` at the start.
 3. Try to set VPN to off if you use one.
 4. Some networks have "client isolation" on. Check with your network administrator.
@@ -269,8 +269,8 @@ The Firmware tab manages firmware update files for the device.
 
 **Solutions:**
 
-1. Make sure the file is a supported format (`.epub`, `.fb2`, `.html`, `.txt`, `.md`, and more).
-2. Make sure the SD card has sufficient free space.
+1. Check that the file uses a supported format.
+2. Check the free space on the SD card.
 3. Try to upload a smaller file first to test.
 4. Refresh the browser page and try again.
 
@@ -290,7 +290,7 @@ The Firmware tab manages firmware update files for the device.
 ## Security Notes
 
 - The web server runs on port 80 (standard HTTP).
-- **No authentication is necessary** - a person on the same network can open the interface.
+- The server has no authentication. Anyone on the same network can access it.
 - The web server is only available while the WiFi screen shows "Connected".
 - The web server stops when you exit the WiFi screen.
 - For security, use only trusted private networks.
@@ -307,17 +307,6 @@ The Firmware tab manages firmware update files for the device.
 
 ---
 
-## Tips and Best Practices
-
-1. **Organize with folders** - Create folders before you upload to keep your library organized.
-2. **Check signal strength** - Stronger signals (`|||` or `||||`) give faster, more reliable uploads.
-3. **Upload more than one file** - You can upload files one at a time. The page refreshes after each upload.
-4. **Use names that you can identify** - Name your folders clearly (for example, "SciFi", "Mystery", "Non-Fiction").
-5. **Keep credentials saved** - Save your WiFi password for a fast connection later.
-6. **Exit when you are done** - Press **Back** to exit the WiFi screen and save battery.
-
----
-
 ## Exiting WiFi Mode
 
 When you are done with file upload:
@@ -326,8 +315,6 @@ When you are done with file upload:
 2. The web server stops.
 3. WiFi disconnects.
 4. **The device restarts** to get memory back.
-
-> **Note:** The restart is necessary. The ESP32 WiFi stack fragments memory in a way that you cannot recover. With no restart, XTC books can fail to load with a "Memory error". The restart is fast. Your uploaded files are immediately available in the file browser.
 
 ---
 

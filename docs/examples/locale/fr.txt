@@ -29,6 +29,7 @@ NO=Non
 # Menu items
 SETTINGS=Param.
 READER=Lecteur
+SCREEN=Écran
 DEVICE=Appareil
 CLEANUP=Nettoyage
 SYSTEM_INFO=Infos système
@@ -43,6 +44,7 @@ LANGUAGE=Langue
 
 # Screen titles
 READER_SETTINGS=Paramètres du lecteur
+SCREEN_SETTINGS=Paramètres de l'écran
 DEVICE_SETTINGS=Paramètres de l'appareil
 FILES=Fichiers
 NETWORK_MODE=Mode réseau
@@ -76,6 +78,7 @@ SUNLIGHT_FADING_FIX=Anti-décoloration
 FRONT_BUTTONS=Boutons avant
 SIDE_BUTTONS=Boutons latéraux
 FULL_BOOK_PROCESS=Traiter le livre
+TOUCH_PAGE_TURNS=Tourner les pages au toucher
 
 # Settings enum values
 ON=OUI
@@ -261,3 +264,5 @@ MOVE_TO_TRASH_Q=Déplacer ce fichier vers la corbeille ?
 RESTORE_FILE_Q=Restaurer dans le dossier d’origine ?
 DELETE_PERMANENTLY_Q=Supprimer définitivement ce fichier ?
 CANNOT_DELETE_TRASH=Impossible de supprimer le dossier corbeille
+BRIGHTNESS=Luminosité
+WARMTH=Chaleur

@@ -1,6 +1,6 @@
 # X3 E-Ink LUT Waveform Reference
 
-This document describes the SSD1677 look-up table (LUT) waveforms on the Xteink X3 (792x528, 3.68" e-ink panel).
+The UC8253 controller uses these look-up table (LUT) waveforms on the Xteink X3 792 × 528 panel.
 
 ---
 
@@ -116,24 +116,6 @@ One phase with set drive strengths for each transition to make 4 gray levels:
 - WW (dark gray): short VDL pulse in sub-phase B
 - BW (light gray): VDL pulse in sub-phase A
 - WB/BB: GND hold
-
-### `lut_x3_*_fast` — Reserved (Not Used)
-
-Defined but not loaded in a code path. One phase with TP=(24,24,1,0) = 49 frame groups (approximately 890ms). This is slower than `_full`. Kept as a reference.
-
----
-
-## Hardware-Tested Speed Variants
-
-All variants use the same VS voltage patterns as `_full`. Only timing is different:
-
-- **`_full`** — 26 groups, approximately 472ms, no ghosting. Used for quality/full refresh.
-- **`_turbo` (balanced)** — 19 groups, approximately 382ms, small ghosting. Default fast path.
-- **`_half` (scrub)** — 25 groups, approximately 455ms, no flash. WW equals BW and WB equals BB. Each pixel drives to its target level. Used for the periodic anti-ghost refresh (`HALF_REFRESH`) and for a fast request while the panel analog power is off. Source: FreeInk SDK `lut_x3_*_half`.
-- **v1 (TP 3,1,3,3 + 3,1)** — 14 groups, approximately 317ms, moderate ghosting. Tested. You can use it.
-- **DU (TP 3,1,2,0)** — 6 groups, approximately 215ms, large ghosting. Tested. Too strong for reading.
-
----
 
 ## Controller Configuration
 

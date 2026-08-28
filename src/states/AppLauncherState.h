@@ -31,6 +31,7 @@ class AppLauncherState : public State {
 
   ui::AppMenuView menuView_;
 
+  void activateMenuItem(Core& core);
   void launchApp(Core& core);
   void stopApp(Core& core);
   void showOverlay();

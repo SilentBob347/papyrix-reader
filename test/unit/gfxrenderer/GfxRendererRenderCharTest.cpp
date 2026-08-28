@@ -1,6 +1,6 @@
 #include "test_utils.h"
 
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <algorithm>
 #include <cstring>
 
@@ -17,7 +17,7 @@ class GfxRenderer {
     LandscapeCounterClockwise
   };
 
-  explicit GfxRenderer(EInkDisplay& display) : einkDisplay(display), orientation(Portrait), renderMode(BW) {}
+  explicit GfxRenderer(papyrix::hal::Display& display) : einkDisplay(display), orientation(Portrait), renderMode(BW) {}
 
   void begin() { frameBuffer = einkDisplay.getFrameBuffer(); }
   void setOrientation(const Orientation o) { orientation = o; }
@@ -54,14 +54,14 @@ class GfxRenderer {
     switch (orientation) {
       case Portrait:
         rotatedX = y;
-        rotatedY = EInkDisplay::DISPLAY_HEIGHT - 1 - x;
+        rotatedY = papyrix::hal::Display::DISPLAY_HEIGHT - 1 - x;
         break;
       case LandscapeClockwise:
-        rotatedX = EInkDisplay::DISPLAY_WIDTH - 1 - x;
-        rotatedY = EInkDisplay::DISPLAY_HEIGHT - 1 - y;
+        rotatedX = papyrix::hal::Display::DISPLAY_WIDTH - 1 - x;
+        rotatedY = papyrix::hal::Display::DISPLAY_HEIGHT - 1 - y;
         break;
       case PortraitInverted:
-        rotatedX = EInkDisplay::DISPLAY_WIDTH - 1 - y;
+        rotatedX = papyrix::hal::Display::DISPLAY_WIDTH - 1 - y;
         rotatedY = x;
         break;
       case LandscapeCounterClockwise:
@@ -70,11 +70,11 @@ class GfxRenderer {
         rotatedY = y;
         break;
     }
-    if (rotatedX < 0 || rotatedX >= static_cast<int>(EInkDisplay::DISPLAY_WIDTH) || rotatedY < 0 ||
-        rotatedY >= static_cast<int>(EInkDisplay::DISPLAY_HEIGHT)) {
+    if (rotatedX < 0 || rotatedX >= static_cast<int>(papyrix::hal::Display::DISPLAY_WIDTH) || rotatedY < 0 ||
+        rotatedY >= static_cast<int>(papyrix::hal::Display::DISPLAY_HEIGHT)) {
       return;
     }
-    const uint16_t byteIndex = rotatedY * EInkDisplay::DISPLAY_WIDTH_BYTES + (rotatedX / 8);
+    const uint16_t byteIndex = rotatedY * papyrix::hal::Display::DISPLAY_WIDTH_BYTES + (rotatedX / 8);
     const uint8_t bitPosition = 7 - (rotatedX % 8);
     if (state)
       frameBuffer[byteIndex] &= ~(1 << bitPosition);
@@ -136,9 +136,9 @@ class GfxRenderer {
 
     if (gxStart >= gxEnd || gyStart >= gyEnd) return;
 
-    const int panelW = static_cast<int>(EInkDisplay::DISPLAY_WIDTH);
-    const int panelH = static_cast<int>(EInkDisplay::DISPLAY_HEIGHT);
-    const int stride = static_cast<int>(EInkDisplay::DISPLAY_WIDTH_BYTES);
+    const int panelW = static_cast<int>(papyrix::hal::Display::DISPLAY_WIDTH);
+    const int panelH = static_cast<int>(papyrix::hal::Display::DISPLAY_HEIGHT);
+    const int stride = static_cast<int>(papyrix::hal::Display::DISPLAY_WIDTH_BYTES);
 
     auto extract = [&](int pixelPos, bool& outState) -> bool {
       if (is2Bit) {
@@ -194,18 +194,18 @@ class GfxRenderer {
   }
 
  private:
-  EInkDisplay& einkDisplay;
+  papyrix::hal::Display& einkDisplay;
   Orientation orientation;
   RenderMode renderMode;
   uint8_t* frameBuffer = nullptr;
 };
 
 static bool buffersMatch(const uint8_t* a, const uint8_t* b) {
-  return memcmp(a, b, EInkDisplay::BUFFER_SIZE) == 0;
+  return memcmp(a, b, papyrix::hal::Display::BUFFER_SIZE) == 0;
 }
 
 static bool bufferIsClean(const uint8_t* fb, uint8_t expected) {
-  for (uint32_t i = 0; i < EInkDisplay::BUFFER_SIZE; i++) {
+  for (uint32_t i = 0; i < papyrix::hal::Display::BUFFER_SIZE; i++) {
     if (fb[i] != expected) return false;
   }
   return true;
@@ -239,8 +239,8 @@ static constexpr int kGlyph2bitH = 4;
 
 // Helper to run ref + opt on both displays and compare
 struct DualRender {
-  EInkDisplay dispRef{0, 0, 0, 0, 0, 0};
-  EInkDisplay dispOpt{0, 0, 0, 0, 0, 0};
+  papyrix::hal::Display dispRef{0, 0, 0, 0, 0, 0};
+  papyrix::hal::Display dispOpt{0, 0, 0, 0, 0, 0};
   GfxRenderer gfxRef{dispRef};
   GfxRenderer gfxOpt{dispOpt};
 

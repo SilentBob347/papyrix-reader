@@ -10,6 +10,7 @@
 class GfxRenderer;
 
 namespace papyrix {
+struct Event;
 
 class PapyrixWebServer;
 
@@ -67,6 +68,7 @@ class NetworkState : public State {
   void handleConnecting(Core& core, Button button);
   void handleSavePrompt(Core& core, Button button);
   void handleServerRunning(Core& core, Button button);
+  void handleTap(Core& core, const Event& event);
 
   // Actions
   void startWifiScan(Core& core);

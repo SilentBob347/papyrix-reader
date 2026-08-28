@@ -1,8 +1,9 @@
 # SSD1677 E-Ink Display Driver Guide
 
-This is a full reference to program the SSD1677 e-paper display controller. It includes initialization, image updates, custom LUT creation, and low-level protocol data. It covers the GDEQ0426T82 (4.26" 800×480) on **Xteink X4** and the 3.68" 792×528 panel on **Xteink X3**.
-
-This document is from the GxEPD2_426_GDEQ0426T82 driver implementation. For X3-specific LUT waveforms and timing, see [X3 LUT Waveforms](x3-lut-waveforms.md).
+The SSD1677 controls the GDEQ0426T82 800 × 480 panel on Xteink X4.
+This reference uses the GxEPD2_426_GDEQ0426T82 driver implementation.
+X3 uses different controllers.
+See [X3 LUT Waveforms](x3-lut-waveforms.md) and the [UC8279d reference](x3-uc8279-driver-reference.md).
 
 ---
 
@@ -25,7 +26,6 @@ This document is from the GxEPD2_426_GDEQ0426T82 driver implementation. For X3-s
 
 - **Controller** — SSD1677
 - **X4 panel** — 800×480 (100×480 = 48,000 bytes), SPI 40 MHz (spec: 20 MHz)
-- **X3 panel** — 792×528 (99×528 = 52,272 bytes), SPI 10 MHz (the controller does not tolerate a higher speed)
 - **SPI Pins** — SCLK=8, MOSI=10, CS=21, DC=4, RST=5, BUSY=6
 - **SPI Settings** — MSB First, SPI Mode 0
 
@@ -60,46 +60,6 @@ RST=HIGH -> delay(20ms) -> RST=LOW -> delay(2ms) -> RST=HIGH -> delay(20ms)
 
 ## Initialization
 
-### Minimal Initialization Example
-
-```c
-void ssd1677_init() {
-    // 1. Software Reset
-    epd_cmd(0x12);        // SWRESET
-    epd_wait_busy();      // Wait for busy to clear
-
-    // 2. Driver Output Control (X4: 680 rows; X3: 528 rows)
-    epd_cmd(0x01);
-    epd_data(0xA7);       // X4: 680 rows -> 0x2A7, low byte (X3: 0x20F for 528)
-    epd_data(0x02);       // X4: high byte (X3: 0x02)
-    epd_data(0x00);       // GD=0, SM=0, TB=0
-
-    // 3. Data Entry Mode
-    epd_cmd(0x11);
-    epd_data(0x03);       // X+, Y+
-
-    // 4. RAM X Start/End
-    epd_cmd(0x44);
-    epd_data(0x00);       // X start = 0
-    epd_data(0x3B);       // X end = 959 / 8 = 0x3B
-
-    // 5. RAM Y Start/End
-    epd_cmd(0x45);
-    epd_data(0x00);       // Y start (low byte)
-    epd_data(0x00);       // Y start (high byte)
-    epd_data(0xA7);       // Y end (low byte)
-    epd_data(0x02);       // Y end (high byte)
-
-    // 6. Border Control
-    epd_cmd(0x3C);
-    epd_data(0xC0);       // Border = Hi-Z
-
-    // 7. Temperature Sensor (internal)
-    epd_cmd(0x18);
-    epd_data(0x80);
-}
-```
-
 ### Detailed Initialization Sequence
 
 After reset:
@@ -107,7 +67,7 @@ After reset:
 1. **0x12** — Software Reset (SWRESET), then wait BUSY
 2. **0x18** `0x80` — Temperature sensor control (internal)
 3. **0x0C** `0xAE, 0xC7, 0xC3, 0xC0, 0x40` — Booster soft start configuration
-4. **0x01** `0xDF, 0x01, 0x02` — Driver output control (479 gates = HEIGHT-1)
+4. **0x01** `0xDF, 0x01, 0x02` — Driver output control (480 gates; register value = HEIGHT-1)
 5. **0x3C** `0x01` — Border waveform control
 6. Set RAM area (see below)
 7. **0x46** `0xF7` — Auto write BW RAM (clear to white), then wait BUSY
@@ -136,7 +96,8 @@ After reset:
 
 ### RAM Area Configuration
 
-Sets the window for later RAM writes. Y-coordinates are reversed because of hardware gates orientation.
+This sets the window for later RAM writes.
+The hardware reverses Y coordinates.
 
 **Important:** X addresses are specified in **pixels**, not bytes. The controller does the byte conversion.
 
@@ -320,18 +281,6 @@ A LUT controls:
 
 **Note:** Bytes 105-109 are sent with separate voltage control commands after the primary LUT is loaded.
 
-#### X3: Five separate 42-byte LUT registers
-
-The X3 uses a different LUT architecture with five registers of 42 bytes each (7 phases):
-
-- **VCOM** (0x20) — Common voltage waveform
-- **WW** (0x21) — White → White transition
-- **BW** (0x22) — Black → White transition
-- **WB** (0x23) — White → Black transition
-- **BB** (0x24) — Black → Black transition
-
-Five LUT families are defined: full, turbo, image, grayscale, and fast. See [X3 LUT Waveforms](x3-lut-waveforms.md) for register-level data, voltage encoding, and frame timing.
-
 ### How to Build a Custom LUT
 
 **Step 1 — Define Source Voltage Waveform (WS0-WS7)**
@@ -499,9 +448,17 @@ ssd1677_init();
 ssd1677_display_frame(bw_image, red_image);
 ```
 
-### Complete Example: Fast Refresh with Double Buffering
+### Single-Buffer and Double-Buffer Operation
 
-The driver uses double buffering for fast partial updates:
+The release build defines `EINK_DISPLAY_SINGLE_BUFFER_MODE`.
+It uses one 48 KB host framebuffer for X4.
+The controller retains the previous image in RAM `0x26`.
+After a differential refresh, the driver copies the new frame to `0x26`.
+The next refresh compares the target in `0x24` with that saved image.
+
+Without this define, the driver uses two host framebuffers.
+It writes the previous host buffer to `0x26` before refresh and swaps the host buffers.
+Both modes support this API:
 
 ```cpp
 // Initialize display
@@ -521,11 +478,8 @@ display.displayBuffer(FAST_REFRESH);
 display.displayBuffer(FAST_REFRESH);
 ```
 
-**How it works:**
-1. Two internal buffers (`frameBuffer0` and `frameBuffer1`) change as current/previous
-2. On `displayBuffer()`, current buffer written to BW RAM (0x24), previous to RED RAM (0x26)
-3. Controller compares buffers and updates only pixels that changed
-4. Buffers change roles after each display
+Full and half refreshes can initialize controller RAM before activation.
+The update plan controls this operation separately from differential synchronization.
 
 ### Auto-Write Commands for Fast Clear
 
@@ -611,48 +565,24 @@ This is much faster than a write of 48,000 bytes during initialization.
 
 ---
 
-## Sunlight Fading Issue
+## Sunlight Fading
 
-### Problem
-
-The XTEINK X4 SSD1677 display driver IC is packaged as "Gold Bump Die" with no resin protection. UV radiation can damage the IC. In bright sunlight, this causes the screen to fade to white.
-
-White X4 devices are more affected than black ones. The case absorbs less UV.
-
-### Solution
-
-Power down the display VBUS after you show each page. Set the analog shutdown bits in the Display Update Control 2 command (0x22):
-
-```c
-// After refresh, power down display to prevent UV fading
-sendCommand(0x22);
-sendData(displayMode | 0x03);  // Set ANALOG_OFF_PHASE (bit 1) and CLOCK_OFF (bit 0)
-sendCommand(0x20);
-waitWhileBusy();
-```
-
-The firmware uses this as the "Sunlight Fading Fix" setting in Device Settings. When this is on:
-- Sets bits 0 and 1 in the 0x22 command after each refresh
-- Adds approximately 100-200ms overhead for each page turn (power-on cycle)
-- Screen powers on again for the next refresh
-
-The crosspoint-reader community made this repair.
-
-### Physical Alternative
-
-For permanent protection, apply UV-blocking tape on the driver IC area on the display PCB.
+Enable **Settings > Screen > Sunlight Fading Fix** if the X4 screen fades in sunlight.
+The setting adds analog and clock shutdown to each refresh sequence.
+The next refresh powers the controller on again.
+This adds a power-on cycle to each page turn.
+The crosspoint-reader community supplies this workaround.
 
 ---
 
-## Important Notes
+## Operating Constraints
 
 - You must poll the BUSY pin after reset and update
 - All RAM writes increase automatically from the data entry mode
-- SSD1677 can show BW-only or RED-only if you want
 - All X coordinates and widths must be multiples of 8 (byte boundaries)
 - Y coordinates are reversed in hardware (gates bottom-to-top)
 - RAM increases automatically after each byte transfer
-- Total RAM size: 48,000 bytes on X4 (800×480/8), 52,272 bytes on X3 (792×528/8)
+- X4 RAM size is 48,000 bytes (800 × 480 / 8).
 - Dual-buffer system lets you do differential partial updates
 - The first write after init must be a full refresh to clear ghost images
 - In sunlight: set "Sunlight Fading Fix" to on to prevent UV-caused screen fade

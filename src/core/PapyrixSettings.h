@@ -11,7 +11,7 @@ struct Theme;
 
 namespace papyrix {
 
-namespace drivers {
+namespace hal {
 class Storage;
 }
 
@@ -89,10 +89,11 @@ struct Settings {
   uint8_t fullBookProcess = 0;
   uint8_t showRecents = 1;        // 1=Show Books (Recent) on home, 0=show Files instead
   uint8_t recycleBinEnabled = 1;  // 1=Move deleted files to /trash, 0=delete permanently
+  uint8_t touchPageTurns = 1;
 
-  // Persistence (using drivers::Storage wrapper)
-  Result<void> load(drivers::Storage& storage);
-  Result<void> save(drivers::Storage& storage) const;
+  // Persistence (using hal::Storage wrapper)
+  Result<void> load(hal::Storage& storage);
+  Result<void> save(hal::Storage& storage) const;
 
   // Legacy persistence (uses SdMan directly - for early init before Core)
   bool loadFromFile();

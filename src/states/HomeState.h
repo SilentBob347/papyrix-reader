@@ -22,6 +22,7 @@ class HomeState : public State {
   StateTransition update(Core& core) override;
   void render(Core& core) override;
   StateId id() const override { return StateId::Home; }
+  void onUsbStateChanged(Core& core);
 
  private:
   GfxRenderer& renderer_;
@@ -34,8 +35,9 @@ class HomeState : public State {
 
   void loadLastBook(Core& core);
   void selectHomeImage(bool imagesEnabled, const std::string& thumbnailPath, const std::string& coverPath);
-  void updateBattery();
+  void updateBattery(Core& core);
 
+  StateTransition activate(Core& core, ui::HomeView::Hit hit);
   static constexpr unsigned long kBatteryPollIntervalMs = 5000;
   unsigned long lastBatteryPollMs_ = 0;
   bool renderCoverToCard();

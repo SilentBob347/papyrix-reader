@@ -42,6 +42,7 @@ static_assert(CardDimensions::calculate(480, 800).getCoverArea().width == 320);
 static_assert(CardDimensions::calculate(480, 800).getCoverArea().height == 440);
 
 struct HomeView {
+  enum class Hit : uint8_t { None, Read, Browse, Apps, Settings };
   static constexpr int MAX_TITLE_LEN = 256;
   static constexpr int MAX_AUTHOR_LEN = 96;
   static constexpr int MAX_PATH_LEN = 128;
@@ -135,6 +136,19 @@ struct HomeView {
     batteryCharging = false;
     batteryNeedsRender = false;
   }
+
+  Hit hitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, bool frontLrbc = false) const {
+    const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+    if (action == 0) return hasBook ? Hit::Read : Hit::None;
+    if (action == 1) return Hit::Browse;
+    if (action == 2) return Hit::Apps;
+    if (action == 3) return Hit::Settings;
+    const auto cover = CardDimensions::calculate(screenWidth, screenHeight);
+    const touch::Rect coverBounds{static_cast<int16_t>(cover.x), static_cast<int16_t>(cover.y),
+                                  static_cast<int16_t>(cover.width), static_cast<int16_t>(cover.height)};
+    if (hasBook && coverBounds.contains(point)) return Hit::Read;
+    return Hit::None;
+  }
 };
 
 void render(const GfxRenderer& r, const Theme& t, const HomeView& v);
@@ -144,12 +158,35 @@ struct BatteryRegion {
 };
 BatteryRegion renderBatteryOnly(const GfxRenderer& r, const Theme& t, const HomeView& v);
 
+struct RecentHit {
+  static constexpr int LIST_START_Y = 60;
+  enum class Type : uint8_t { None, Entry, Back, Open, Files, Info };
+  Type type = Type::None;
+  int index = -1;
+};
+
+inline RecentHit recentHitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, int16_t rowHeight,
+                               int rowCount, bool frontLrbc = false) {
+  const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+  if (action >= 0) {
+    constexpr RecentHit::Type actions[] = {RecentHit::Type::Back, RecentHit::Type::Open, RecentHit::Type::Files,
+                                           RecentHit::Type::Info};
+    return {actions[action], -1};
+  }
+  const int row = touch::rowAt(
+      point,
+      {0, RecentHit::LIST_START_Y, screenWidth, static_cast<int16_t>(screenHeight - RecentHit::LIST_START_Y - 50)},
+      rowHeight, rowCount);
+  return row < 0 ? RecentHit{} : RecentHit{RecentHit::Type::Entry, row};
+}
+
 // ============================================================================
 // FileListView - Paginated file browser
 // ============================================================================
 
 struct FileListView {
   static constexpr int MAX_FILES = 64;
+  static constexpr int LIST_START_Y = 65;
   static constexpr int NAME_LEN = 48;
   static constexpr int PATH_LEN = 128;
   static constexpr int PAGE_SIZE = 12;
@@ -250,6 +287,26 @@ struct FileListView {
 };
 
 void render(const GfxRenderer& r, const Theme& t, const FileListView& v);
+
+struct FileListHit {
+  static constexpr int LIST_START_Y = 60;
+  enum class Type : uint8_t { None, Entry, Back, Open, Delete };
+  Type type = Type::None;
+  int index = -1;
+};
+
+inline FileListHit fileListHitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, int16_t rowHeight,
+                                   int pageStart, int visibleCount, bool frontLrbc = false) {
+  const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+  if (action == 0) return {FileListHit::Type::Back, -1};
+  if (action == 1) return {FileListHit::Type::Open, -1};
+  if (action == 3) return {FileListHit::Type::Delete, -1};
+  const int row = touch::rowAt(
+      point,
+      {0, FileListHit::LIST_START_Y, screenWidth, static_cast<int16_t>(screenHeight - FileListHit::LIST_START_Y - 50)},
+      rowHeight, visibleCount);
+  return row < 0 ? FileListHit{} : FileListHit{FileListHit::Type::Entry, pageStart + row};
+}
 
 // ============================================================================
 // ChapterListView - Chapter/TOC selection for readers

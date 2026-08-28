@@ -24,6 +24,10 @@ struct ReaderButtonConfig {
   bool powerShortPageTurn = false;
   bool powerShortBookmark = false;
   uint32_t powerButtonDurationMs = 400;
+  bool touchPageTurns = false;
+  bool reversePageZones = false;
+  bool menuAllowed = true;
+  int16_t logicalWidth = 0;
 };
 
 // Decision-only button dispatcher for ReaderState's non-overlay mode. Owns

@@ -4,6 +4,20 @@ namespace papyrix {
 
 ReaderButtonAction ReaderButtonDispatcher::processEvent(const Event& e, const uint32_t nowMs,
                                                         const ReaderButtonConfig& config) {
+  if (e.type == EventType::Tap) {
+    if (config.logicalWidth <= 0 || e.touch.x < 0 || e.touch.x >= config.logicalWidth) {
+      return ReaderButtonAction::None;
+    }
+    const int16_t edgeWidth = static_cast<int16_t>((static_cast<int32_t>(config.logicalWidth) * 24) / 100);
+    if (e.touch.x >= edgeWidth && e.touch.x < config.logicalWidth - edgeWidth) {
+      return config.menuAllowed ? ReaderButtonAction::Menu : ReaderButtonAction::None;
+    }
+    if (!config.touchPageTurns) return ReaderButtonAction::None;
+    if (e.touch.x < edgeWidth) {
+      return config.reversePageZones ? ReaderButtonAction::Next : ReaderButtonAction::Prev;
+    }
+    return config.reversePageZones ? ReaderButtonAction::Prev : ReaderButtonAction::Next;
+  }
   switch (e.type) {
     case EventType::ButtonPress:
       switch (e.button) {

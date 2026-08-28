@@ -9,6 +9,14 @@ namespace papyrix {
 
 Result<void> Core::init() {
   logMemory("Core::init start");
+  battery.init();
+  usb.init(battery);
+  logMemory("Battery and USB initialized");
+  frontLight.init();
+  logMemory("Front light initialized");
+
+  clock.init();
+  logMemory("Clock initialized");
 
   // Storage first - needed for settings/themes
   TRY(storage.init());
@@ -17,16 +25,9 @@ Result<void> Core::init() {
   // Note: Settings are loaded earlier in setup() via loadFromFile()
   // before Core::init() is called (needed for theme/font setup)
 
-  // Display
-  TRY(display.init());
-  logMemory("Display initialized");
-
   // Input - connects to event queue
   TRY(input.init(events));
   logMemory("Input initialized");
-
-  // Network is NOT initialized here - lazy init when needed
-  // WiFi fragments heap, so we only init when entering network states
 
   logMemory("Core::init complete");
   return Ok();
@@ -35,12 +36,12 @@ Result<void> Core::init() {
 void Core::shutdown() {
   logMemory("Core::shutdown");
 
-  // Shutdown in reverse order
-  if (network.isInitialized()) {
-    network.shutdown();
+  if (wifi.isInitialized()) {
+    wifi.shutdown();
   }
+  frontLight.shutdown();
   input.shutdown();
-  display.shutdown();
+  if (!display.deepSleep()) LOG_ERR("CORE", "Display power-off failed during shutdown");
   storage.shutdown();
 }
 

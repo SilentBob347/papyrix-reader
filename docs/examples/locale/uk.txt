@@ -29,6 +29,7 @@ NO=Ні
 # Menu items
 SETTINGS=Налашт.
 READER=Читалка
+SCREEN=Екран
 DEVICE=Пристрій
 CLEANUP=Очищення
 SYSTEM_INFO=Про систему
@@ -43,6 +44,7 @@ LANGUAGE=Мова
 
 # Screen titles
 READER_SETTINGS=Читалка
+SCREEN_SETTINGS=Екран
 DEVICE_SETTINGS=Пристрій
 FILES=Файли
 NETWORK_MODE=Мережа
@@ -76,6 +78,7 @@ SUNLIGHT_FADING_FIX=Антивицв.
 FRONT_BUTTONS=Передні
 SIDE_BUTTONS=Бічні
 FULL_BOOK_PROCESS=Обробка книги
+TOUCH_PAGE_TURNS=Гортання дотиком
 
 # Settings enum values
 ON=УВІМК
@@ -261,3 +264,5 @@ MOVE_TO_TRASH_Q=У кошик?
 RESTORE_FILE_Q=Відновити?
 DELETE_PERMANENTLY_Q=Стерти назавжди?
 CANNOT_DELETE_TRASH=Кошик не видаляти
+BRIGHTNESS=Яскравість
+WARMTH=Теплота

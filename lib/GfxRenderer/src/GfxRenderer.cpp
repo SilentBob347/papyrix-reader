@@ -6,6 +6,7 @@
 #include <ScriptDetector.h>
 #include <StreamingEpdFont.h>
 #include <ThaiShaper.h>
+#include <TouchBackend.h>
 #include <Utf8.h>
 
 #include <algorithm>
@@ -135,38 +136,33 @@ bool GfxRenderer::tryResolveExternalFont() const {
 }
 
 void GfxRenderer::rotateCoordinates(const int x, const int y, int* rotatedX, int* rotatedY) const {
-  const int panelWidth = einkDisplay.getDisplayWidth();
-  const int panelHeight = einkDisplay.getDisplayHeight();
-  switch (orientation) {
-    case Portrait: {
-      // Logical portrait → panel landscape; 90° clockwise.
-      *rotatedX = y;
-      *rotatedY = panelHeight - 1 - x;
-      break;
-    }
-    case LandscapeClockwise: {
-      // Logical landscape rotated 180° (swap top/bottom and left/right).
-      *rotatedX = panelWidth - 1 - x;
-      *rotatedY = panelHeight - 1 - y;
-      break;
-    }
-    case PortraitInverted: {
-      // Logical portrait → panel landscape; 90° counter-clockwise.
-      *rotatedX = panelWidth - 1 - y;
-      *rotatedY = x;
-      break;
-    }
-    case LandscapeCounterClockwise: {
-      // Logical landscape aligned with native panel orientation.
-      *rotatedX = x;
-      *rotatedY = y;
-      break;
-    }
+  papyrix::board::PanelPoint panel{};
+  const auto displayOrientation = static_cast<papyrix::board::DisplayOrientation>(orientation);
+  if (!papyrix::board::panelFromLogical(displayOrientation, display_.getDisplayWidth(), display_.getDisplayHeight(), x,
+                                        y, panel)) {
+    *rotatedX = -1;
+    *rotatedY = -1;
+    return;
   }
+  *rotatedX = panel.x;
+  *rotatedY = panel.y;
+}
+
+bool GfxRenderer::panelToLogical(int panelX, int panelY, int* logicalX, int* logicalY) const {
+  if (!logicalX || !logicalY) return false;
+  papyrix::board::PanelPoint logical{};
+  const auto displayOrientation = static_cast<papyrix::board::DisplayOrientation>(orientation);
+  if (!papyrix::board::logicalFromPanel(displayOrientation, display_.getDisplayWidth(), display_.getDisplayHeight(),
+                                        panelX, panelY, logical)) {
+    return false;
+  }
+  *logicalX = logical.x;
+  *logicalY = logical.y;
+  return true;
 }
 
 void GfxRenderer::begin() {
-  frameBuffer = einkDisplay.getFrameBuffer();
+  frameBuffer = display_.getFrameBuffer();
   assert(frameBuffer && "GfxRenderer::begin() called before display.begin()");
 }
 
@@ -176,15 +172,15 @@ void GfxRenderer::drawPixel(const int x, const int y, const bool state) const {
   rotateCoordinates(x, y, &rotatedX, &rotatedY);
 
   // Bounds checking against physical panel dimensions
-  if (rotatedX < 0 || rotatedX >= einkDisplay.getDisplayWidth() || rotatedY < 0 ||
-      rotatedY >= einkDisplay.getDisplayHeight()) {
+  if (rotatedX < 0 || rotatedX >= display_.getDisplayWidth() || rotatedY < 0 ||
+      rotatedY >= display_.getDisplayHeight()) {
     LOG_ERR(TAG, "!! Outside range (%d, %d) -> (%d, %d)", x, y, rotatedX, rotatedY);
     return;
   }
 
   // Calculate byte position and bit position
   const size_t byteIndex =
-      static_cast<size_t>(rotatedY) * einkDisplay.getDisplayWidthBytes() + static_cast<size_t>(rotatedX / 8);
+      static_cast<size_t>(rotatedY) * display_.getDisplayWidthBytes() + static_cast<size_t>(rotatedX / 8);
   const uint8_t bitPosition = 7 - (rotatedX % 8);  // MSB first
 
   if (state) {
@@ -369,18 +365,18 @@ void GfxRenderer::fillRect(const int x, const int y, const int width, const int 
   switch (orientation) {
     case Portrait:
       physX = y;
-      physY = einkDisplay.getDisplayHeight() - 1 - (x + width - 1);
+      physY = display_.getDisplayHeight() - 1 - (x + width - 1);
       physW = height;
       physH = width;
       break;
     case LandscapeClockwise:
-      physX = einkDisplay.getDisplayWidth() - 1 - (x + width - 1);
-      physY = einkDisplay.getDisplayHeight() - 1 - (y + height - 1);
+      physX = display_.getDisplayWidth() - 1 - (x + width - 1);
+      physY = display_.getDisplayHeight() - 1 - (y + height - 1);
       physW = width;
       physH = height;
       break;
     case PortraitInverted:
-      physX = einkDisplay.getDisplayWidth() - 1 - (y + height - 1);
+      physX = display_.getDisplayWidth() - 1 - (y + height - 1);
       physY = x;
       physW = height;
       physH = width;
@@ -394,8 +390,8 @@ void GfxRenderer::fillRect(const int x, const int y, const int width, const int 
       break;
   }
 
-  const int dw = static_cast<int>(einkDisplay.getDisplayWidth());
-  const int dh = static_cast<int>(einkDisplay.getDisplayHeight());
+  const int dw = static_cast<int>(display_.getDisplayWidth());
+  const int dh = static_cast<int>(display_.getDisplayHeight());
   if (physX >= dw || physY >= dh || physX + physW <= 0 || physY + physH <= 0) return;
 
   const int x0 = std::max(physX, 0);
@@ -403,7 +399,7 @@ void GfxRenderer::fillRect(const int x, const int y, const int width, const int 
   const int x1 = std::min(physX + physW - 1, dw - 1);
   const int y1 = std::min(physY + physH - 1, dh - 1);
 
-  const int stride = einkDisplay.getDisplayWidthBytes();
+  const int stride = display_.getDisplayWidthBytes();
   const int byteStart = x0 / 8;
   const int byteEnd = x1 / 8;
 
@@ -453,7 +449,7 @@ void GfxRenderer::drawImage(const uint8_t bitmap[], const int x, const int y, co
   int rotatedX = 0;
   int rotatedY = 0;
   rotateCoordinates(x, y, &rotatedX, &rotatedY);
-  einkDisplay.drawImage(bitmap, rotatedX, rotatedY, width, height);
+  display_.drawImage(bitmap, rotatedX, rotatedY, width, height);
 }
 
 void GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, const int maxWidth,
@@ -492,9 +488,9 @@ void GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, con
   const int dxEnd = std::min(destWidth, screenW - x);
   if (dxStart >= dxEnd) return;
 
-  const int panelW = einkDisplay.getDisplayWidth();
-  const int panelH = einkDisplay.getDisplayHeight();
-  const int stride = einkDisplay.getDisplayWidthBytes();
+  const int panelW = display_.getDisplayWidth();
+  const int panelH = display_.getDisplayHeight();
+  const int stride = display_.getDisplayWidthBytes();
   const int bmpW = bitmap.getWidth();
 
   const bool preloaded = bitmap.preloadAllRows();
@@ -547,7 +543,7 @@ static void logRenderTime() {
 void GfxRenderer::clearScreen(const uint8_t color) const {
   renderStartMs = millis();
   if (renderMode == BW) darkBackground_ = color == 0x00;
-  einkDisplay.clearScreen(color);
+  display_.clearScreen(color);
 }
 
 void GfxRenderer::clearArea(const int x, const int y, const int width, const int height, const uint8_t color) const {
@@ -560,18 +556,18 @@ void GfxRenderer::clearArea(const int x, const int y, const int width, const int
   switch (orientation) {
     case Portrait:
       physX = y;
-      physY = einkDisplay.getDisplayHeight() - 1 - (x + width - 1);
+      physY = display_.getDisplayHeight() - 1 - (x + width - 1);
       physW = height;
       physH = width;
       break;
     case LandscapeClockwise:
-      physX = einkDisplay.getDisplayWidth() - 1 - (x + width - 1);
-      physY = einkDisplay.getDisplayHeight() - 1 - (y + height - 1);
+      physX = display_.getDisplayWidth() - 1 - (x + width - 1);
+      physY = display_.getDisplayHeight() - 1 - (y + height - 1);
       physW = width;
       physH = height;
       break;
     case PortraitInverted:
-      physX = einkDisplay.getDisplayWidth() - 1 - (y + height - 1);
+      physX = display_.getDisplayWidth() - 1 - (y + height - 1);
       physY = x;
       physW = height;
       physH = width;
@@ -586,16 +582,16 @@ void GfxRenderer::clearArea(const int x, const int y, const int width, const int
   }
 
   // Validate bounds - region entirely outside display
-  if (physX >= static_cast<int>(einkDisplay.getDisplayWidth()) ||
-      physY >= static_cast<int>(einkDisplay.getDisplayHeight()) || physX + physW <= 0 || physY + physH <= 0) {
+  if (physX >= static_cast<int>(display_.getDisplayWidth()) || physY >= static_cast<int>(display_.getDisplayHeight()) ||
+      physX + physW <= 0 || physY + physH <= 0) {
     return;
   }
 
   // Clamp to display boundaries
   const int x_start = std::max(physX, 0);
   const int y_start = std::max(physY, 0);
-  const int x_end = std::min(physX + physW - 1, static_cast<int>(einkDisplay.getDisplayWidth() - 1));
-  const int y_end = std::min(physY + physH - 1, static_cast<int>(einkDisplay.getDisplayHeight() - 1));
+  const int x_end = std::min(physX + physW - 1, static_cast<int>(display_.getDisplayWidth() - 1));
+  const int y_end = std::min(physY + physH - 1, static_cast<int>(display_.getDisplayHeight() - 1));
 
   // Calculate byte boundaries (8 pixels per byte)
   const int x_byte_start = x_start / 8;
@@ -604,13 +600,13 @@ void GfxRenderer::clearArea(const int x, const int y, const int width, const int
 
   // Clear each row in the region
   for (int row = y_start; row <= y_end; row++) {
-    const uint32_t buffer_offset = row * einkDisplay.getDisplayWidthBytes() + x_byte_start;
+    const uint32_t buffer_offset = row * display_.getDisplayWidthBytes() + x_byte_start;
     memset(&frameBuffer[buffer_offset], color, byte_width);
   }
 }
 
 void GfxRenderer::invertScreen() const {
-  for (int i = 0; i < einkDisplay.getBufferSize(); i++) {
+  for (int i = 0; i < display_.getBufferSize(); i++) {
     frameBuffer[i] = ~frameBuffer[i];
   }
   if (renderMode == BW) darkBackground_ = !darkBackground_;
@@ -618,14 +614,16 @@ void GfxRenderer::invertScreen() const {
 
 void GfxRenderer::displayBufferDriveAll(bool turnOffScreen) const {
   logRenderTime();
-  einkDisplay.setBackgroundHint(darkBackground_);
-  einkDisplay.displayBufferDriveAll(turnOffScreen);
+  papyrix::board::suppressTouchUntilIdle();
+  display_.setBackgroundHint(darkBackground_);
+  display_.displayBufferDriveAll(turnOffScreen);
 }
 
-void GfxRenderer::displayBuffer(const EInkDisplay::RefreshMode refreshMode, bool turnOffScreen) const {
+void GfxRenderer::displayBuffer(const papyrix::hal::Display::RefreshMode refreshMode, bool turnOffScreen) const {
   logRenderTime();
-  einkDisplay.setBackgroundHint(darkBackground_);
-  einkDisplay.displayBuffer(refreshMode, turnOffScreen);
+  papyrix::board::suppressTouchUntilIdle();
+  display_.setBackgroundHint(darkBackground_);
+  display_.displayBuffer(refreshMode, turnOffScreen);
 }
 
 void GfxRenderer::displayWindow(int x, int y, int width, int height, bool turnOffScreen) const {
@@ -633,19 +631,19 @@ void GfxRenderer::displayWindow(int x, int y, int width, int height, bool turnOf
   switch (orientation) {
     case Portrait:
       physX = y;
-      physY = einkDisplay.getDisplayHeight() - x - width;
+      physY = display_.getDisplayHeight() - x - width;
       physW = height;
       physH = width;
       break;
     case PortraitInverted:
-      physX = einkDisplay.getDisplayWidth() - y - height;
+      physX = display_.getDisplayWidth() - y - height;
       physY = x;
       physW = height;
       physH = width;
       break;
     case LandscapeClockwise:
-      physX = einkDisplay.getDisplayWidth() - x - width;
-      physY = einkDisplay.getDisplayHeight() - y - height;
+      physX = display_.getDisplayWidth() - x - width;
+      physY = display_.getDisplayHeight() - y - height;
       physW = width;
       physH = height;
       break;
@@ -662,8 +660,9 @@ void GfxRenderer::displayWindow(int x, int y, int width, int height, bool turnOf
   int alignedEnd = (physX + physW + 7) & ~7;
   physX = physX & ~7;
   physW = alignedEnd - physX;
-  einkDisplay.setBackgroundHint(darkBackground_);
-  einkDisplay.displayWindow(physX, physY, physW, physH, turnOffScreen);
+  papyrix::board::suppressTouchUntilIdle();
+  display_.setBackgroundHint(darkBackground_);
+  display_.displayWindow(physX, physY, physW, physH, turnOffScreen);
 }
 
 std::string GfxRenderer::truncatedText(const int fontId, const char* text, const int maxWidth,
@@ -909,13 +908,13 @@ int GfxRenderer::getScreenWidth() const {
     case Portrait:
     case PortraitInverted:
       // 480px wide in portrait logical coordinates
-      return einkDisplay.getDisplayHeight();
+      return display_.getDisplayHeight();
     case LandscapeClockwise:
     case LandscapeCounterClockwise:
       // 800px wide in landscape logical coordinates
-      return einkDisplay.getDisplayWidth();
+      return display_.getDisplayWidth();
   }
-  return einkDisplay.getDisplayHeight();
+  return display_.getDisplayHeight();
 }
 
 int GfxRenderer::getScreenHeight() const {
@@ -923,13 +922,13 @@ int GfxRenderer::getScreenHeight() const {
     case Portrait:
     case PortraitInverted:
       // 800px tall in portrait logical coordinates
-      return einkDisplay.getDisplayWidth();
+      return display_.getDisplayWidth();
     case LandscapeClockwise:
     case LandscapeCounterClockwise:
       // 480px tall in landscape logical coordinates
-      return einkDisplay.getDisplayHeight();
+      return display_.getDisplayHeight();
   }
-  return einkDisplay.getDisplayWidth();
+  return display_.getDisplayWidth();
 }
 
 int GfxRenderer::getSpaceWidth(const int fontId) const {
@@ -981,42 +980,20 @@ bool GfxRenderer::fontSupportsGrayscale(const int fontId) const {
   return data != nullptr && data->is2Bit;
 }
 
-void GfxRenderer::drawButtonHints(const int fontId, const char* btn1, const char* btn2, const char* btn3,
-                                  const char* btn4, const bool black) const {
-  const int screenWidth = getScreenWidth();
-  const int pageHeight = getScreenHeight();
-  constexpr int numButtons = 4;
-  constexpr int buttonHeight = 46;
-  constexpr int buttonY = 50;
-  constexpr int textYOffset = 10;
-  const int totalGap = std::max(0, screenWidth - numButtons * BUTTON_HINT_WIDTH);
-  const char* labels[] = {btn1, btn2, btn3, btn4};
-
-  for (int i = 0; i < numButtons; i++) {
-    if (labels[i] != nullptr && labels[i][0] != '\0') {
-      const int x = totalGap * (i + 1) / (numButtons + 1) + i * BUTTON_HINT_WIDTH;
-      drawRect(x, pageHeight - buttonY, BUTTON_HINT_WIDTH, buttonHeight, black);
-      const std::string label = truncatedText(fontId, labels[i], BUTTON_HINT_MAX_TEXT_WIDTH);
-      const int textWidth = getTextWidth(fontId, label.c_str());
-      const int textX = x + (BUTTON_HINT_WIDTH - 1 - textWidth) / 2;
-      drawText(fontId, textX, pageHeight - buttonY + textYOffset, label.c_str(), black);
-    }
-  }
-}
-
 uint8_t* GfxRenderer::getFrameBuffer() const { return frameBuffer; }
 
-size_t GfxRenderer::getBufferSize() const { return einkDisplay.getBufferSize(); }
+size_t GfxRenderer::getBufferSize() const { return display_.getBufferSize(); }
 
-void GfxRenderer::grayscaleRevert() const { einkDisplay.grayscaleRevert(); }
+void GfxRenderer::grayscaleRevert() const { display_.grayscaleRevert(); }
 
-void GfxRenderer::copyGrayscaleLsbBuffers() const { einkDisplay.copyGrayscaleLsbBuffers(frameBuffer); }
+void GfxRenderer::copyGrayscaleLsbBuffers() const { display_.copyGrayscaleLsbBuffers(frameBuffer); }
 
-void GfxRenderer::copyGrayscaleMsbBuffers() const { einkDisplay.copyGrayscaleMsbBuffers(frameBuffer); }
+void GfxRenderer::copyGrayscaleMsbBuffers() const { display_.copyGrayscaleMsbBuffers(frameBuffer); }
 
 void GfxRenderer::displayGrayBuffer(bool turnOffScreen) const {
   logRenderTime();
-  einkDisplay.displayGrayBuffer(turnOffScreen);
+  papyrix::board::suppressTouchUntilIdle();
+  display_.displayGrayBuffer(turnOffScreen);
 }
 
 void GfxRenderer::freeBwBufferChunks() {
@@ -1035,7 +1012,7 @@ void GfxRenderer::freeBwBufferChunks() {
  * Returns true if buffer was stored successfully, false if allocation failed.
  */
 bool GfxRenderer::storeBwBuffer() {
-  const size_t bufferSize = einkDisplay.getBufferSize();
+  const size_t bufferSize = display_.getBufferSize();
 
   // Allocate and copy each chunk. The last chunk may be partial when
   // bufferSize isn't a multiple of BW_BUFFER_CHUNK_SIZE (X3: 52272 / 8000 → 7 chunks).
@@ -1073,7 +1050,7 @@ bool GfxRenderer::storeBwBuffer() {
  * Uses chunked restoration to match chunked storage.
  */
 void GfxRenderer::restoreBwBuffer() {
-  const size_t bufferSize = einkDisplay.getBufferSize();
+  const size_t bufferSize = display_.getBufferSize();
 
   // Validate that every required chunk (slots within bufferSize) is present.
   for (size_t i = 0; i < BW_BUFFER_NUM_CHUNKS; i++) {
@@ -1093,7 +1070,7 @@ void GfxRenderer::restoreBwBuffer() {
     memcpy(frameBuffer + offset, bwBufferChunks[i], chunkSize);
   }
 
-  einkDisplay.cleanupGrayscaleBuffers(frameBuffer);
+  display_.cleanupGrayscaleBuffers(frameBuffer);
 
   freeBwBufferChunks();
   LOG_DBG(TAG, "Restored and freed BW buffer chunks");
@@ -1105,7 +1082,7 @@ void GfxRenderer::restoreBwBuffer() {
  */
 void GfxRenderer::cleanupGrayscaleWithFrameBuffer() const {
   logRenderTime();
-  einkDisplay.cleanupGrayscaleBuffers(frameBuffer);
+  display_.cleanupGrayscaleBuffers(frameBuffer);
 }
 
 void GfxRenderer::renderChar(const EpdFontFamily& fontFamily, const uint32_t cp, int* x, const int* y,
@@ -1174,9 +1151,9 @@ void GfxRenderer::renderChar(const EpdFontFamily& fontFamily, const uint32_t cp,
     const int gyEnd = std::min(static_cast<int>(height), screenH - logTop);
 
     if (gxStart < gxEnd && gyStart < gyEnd) {
-      const int panelW = einkDisplay.getDisplayWidth();
-      const int panelH = einkDisplay.getDisplayHeight();
-      const int stride = einkDisplay.getDisplayWidthBytes();
+      const int panelW = display_.getDisplayWidth();
+      const int panelH = display_.getDisplayHeight();
+      const int stride = display_.getDisplayWidthBytes();
 
       for (int gy = gyStart; gy < gyEnd; gy++) {
         const int sY = logTop + gy;
@@ -1293,9 +1270,9 @@ void GfxRenderer::renderExternalGlyph(const uint32_t cp, int* x, const int y, co
   const int gyEnd = std::min(h, screenH - logTop);
 
   if (gxStart < gxEnd && gyStart < gyEnd) {
-    const int panelW = einkDisplay.getDisplayWidth();
-    const int panelH = einkDisplay.getDisplayHeight();
-    const int stride = einkDisplay.getDisplayWidthBytes();
+    const int panelW = display_.getDisplayWidth();
+    const int panelH = display_.getDisplayHeight();
+    const int stride = display_.getDisplayWidthBytes();
 
     for (int gy = gyStart; gy < gyEnd; gy++) {
       const int sY = logTop + gy;
@@ -1497,9 +1474,9 @@ void GfxRenderer::renderThaiCluster(const EpdFontFamily& fontFamily, const ThaiS
     const int xEnd = std::min(static_cast<int>(width), screenWidth - logLeft);
     const int yStart = std::max(0, -logTop);
     const int yEnd = std::min(static_cast<int>(height), screenHeight - logTop);
-    const int panelW = einkDisplay.getDisplayWidth();
-    const int panelH = einkDisplay.getDisplayHeight();
-    const int stride = einkDisplay.getDisplayWidthBytes();
+    const int panelW = display_.getDisplayWidth();
+    const int panelH = display_.getDisplayHeight();
+    const int stride = display_.getDisplayWidthBytes();
 
     for (int bitmapY = yStart; bitmapY < yEnd; bitmapY++) {
       const int screenY = logTop + bitmapY;

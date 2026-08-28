@@ -39,12 +39,12 @@ bool renderCoverFromBmp(GfxRenderer& renderer, const std::string& bmpPath, int m
   renderer.drawBitmap(bitmap, rect.x, rect.y, rect.width, rect.height);
 
   if (pagesPerRefreshValue == 0) {
-    renderer.displayBuffer(EInkDisplay::FAST_REFRESH, turnOffScreen);
+    renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH, turnOffScreen);
   } else if (pagesUntilFullRefresh <= 1) {
-    renderer.displayBuffer(EInkDisplay::HALF_REFRESH, turnOffScreen);
+    renderer.displayBuffer(papyrix::hal::Display::HALF_REFRESH, turnOffScreen);
     pagesUntilFullRefresh = pagesPerRefreshValue;
   } else {
-    renderer.displayBuffer(EInkDisplay::FAST_REFRESH, turnOffScreen);
+    renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH, turnOffScreen);
     pagesUntilFullRefresh--;
   }
 

@@ -80,6 +80,28 @@ StateTransition RecentState::update(Core& core) {
       }
       continue;
     }
+    if (e.type == EventType::Tap && currentScreen_ == Screen::Browse) {
+      const ui::RecentHit hit = ui::recentHitTest(
+          {e.touch.x, e.touch.y}, renderer_.getScreenWidth(), renderer_.getScreenHeight(), rowHeight(),
+          static_cast<int>(displayedCount()), core.settings.frontButtonLayout == Settings::FrontLRBC);
+      if (hit.type == ui::RecentHit::Type::Entry) {
+        selected_ = static_cast<size_t>(hit.index);
+        needsRender_ = true;
+        return openSelected(core);
+      }
+      if (hit.type == ui::RecentHit::Type::Open) return openSelected(core);
+      if (hit.type == ui::RecentHit::Type::Files) return StateTransition::to(StateId::FileList);
+      if (hit.type == ui::RecentHit::Type::Info) showSelectedStats();
+      if (hit.type == ui::RecentHit::Type::Back) return StateTransition::to(StateId::Home);
+      continue;
+    }
+    if (e.type == EventType::Tap && currentScreen_ == Screen::Stats) {
+      const auto hit =
+          statsView_.hitTest({e.touch.x, e.touch.y}, renderer_.getScreenWidth(), renderer_.getScreenHeight(),
+                             core.settings.frontButtonLayout == Settings::FrontLRBC);
+      if (hit == ui::BookStatsView::Hit::None) continue;
+      e = Event::buttonPress(hit == ui::BookStatsView::Hit::Back ? Button::Back : Button::Center);
+    }
     if (e.type != EventType::ButtonPress) continue;
 
     if (currentScreen_ == Screen::Stats) {
@@ -125,7 +147,6 @@ void RecentState::render(Core& core) {
   } else {
     renderBrowse(core);
   }
-  core.display.markDirty();
 }
 
 void RecentState::showSelectedStats() {
@@ -164,7 +185,7 @@ void RecentState::renderBrowse(Core& core) {
     const size_t count = displayedCount();
 
     for (size_t i = 0; i < count; i++) {
-      const int y = RecentBooksStore::LIST_START_Y + static_cast<int>(i) * rowPitch;
+      const int y = ui::RecentHit::LIST_START_Y + static_cast<int>(i) * rowPitch;
       const bool selected = i == selected_;
       if (selected) renderer_.fillRect(x, y, w, rowPitch - 2, theme.selectionFillBlack);
 

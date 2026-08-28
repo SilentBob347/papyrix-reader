@@ -1,16 +1,16 @@
 #include "test_utils.h"
 
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <GfxRenderer.h>
 #include <Theme.h>
 
 #include "ui/WrappedText.h"
 
-uint8_t GfxRenderer::frameBuffer_[EInkDisplay::BUFFER_SIZE];
+uint8_t GfxRenderer::frameBuffer_[papyrix::hal::Display::BUFFER_SIZE];
 
 int main() {
   TestUtils::TestRunner runner("WrappedTextTest");
-  EInkDisplay display(0, 0, 0, 0, 0, 0);
+  papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
   GfxRenderer renderer(display);
 
   renderer.setWrappedTextResult({"first", "second"});

@@ -29,6 +29,7 @@ NO=Nein
 # Menu items
 SETTINGS=Einstell.
 READER=Leser
+SCREEN=Bildschirm
 DEVICE=Gerät
 CLEANUP=Bereinigung
 SYSTEM_INFO=Systeminfo
@@ -43,6 +44,7 @@ LANGUAGE=Sprache
 
 # Screen titles
 READER_SETTINGS=Leser-Einstellungen
+SCREEN_SETTINGS=Bildschirm
 DEVICE_SETTINGS=Geräte-Einstellungen
 FILES=Dateien
 NETWORK_MODE=Netzwerkmodus
@@ -76,6 +78,7 @@ SUNLIGHT_FADING_FIX=Anti-Verblassen
 FRONT_BUTTONS=Vordere Tasten
 SIDE_BUTTONS=Seitliche Tasten
 FULL_BOOK_PROCESS=Gesamtes Buch
+TOUCH_PAGE_TURNS=Blättern per Touch
 
 # Settings enum values
 ON=AN
@@ -261,3 +264,5 @@ MOVE_TO_TRASH_Q=Diese Datei in den Papierkorb verschieben?
 RESTORE_FILE_Q=Im ursprünglichen Ordner wiederherstellen?
 DELETE_PERMANENTLY_Q=Diese Datei endgültig löschen?
 CANNOT_DELETE_TRASH=Der Papierkorb-Ordner kann nicht gelöscht werden
+BRIGHTNESS=Helligkeit
+WARMTH=Farbwärme

@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <GfxRenderer.h>
+#include <HardwareIdentity.h>
 #include <I18n.h>
 #include <LittleFS.h>  // Must be before SdFat includes to avoid FILE_READ/FILE_WRITE redefinition
 #include <Logging.h>
@@ -9,7 +10,6 @@
 
 #include <algorithm>
 
-#include "../Battery.h"
 #include "../content/RecentBooksStore.h"
 #include "../core/FirmwareUpdater.h"
 #include "../core/TrashPaths.h"
@@ -23,7 +23,7 @@
 
 namespace papyrix {
 
-static_assert(ui::ReaderSettingsView::MAX_THEMES == MAX_CACHED_THEMES,
+static_assert(ui::ScreenSettingsView::MAX_THEMES == MAX_CACHED_THEMES,
               "Theme manager and settings view capacities must match");
 
 SettingsState::SettingsState(GfxRenderer& renderer)
@@ -38,6 +38,7 @@ SettingsState::SettingsState(GfxRenderer& renderer)
       pendingAction_(ACTION_NONE),
       menuView_{},
       readerView_{},
+      screenView_{},
       deviceView_{},
       cleanupView_{},
       confirmView_{},
@@ -53,6 +54,7 @@ void SettingsState::enter(Core& core) {
   returnScreen_ = SettingsScreen::Menu;  // Reset for next normal entry
 
   ui::ReaderSettingsView::initDefs();
+  ui::ScreenSettingsView::initDefs();
   ui::DeviceSettingsView::initDefs();
 
   // Reset all views to ensure clean state
@@ -60,6 +62,8 @@ void SettingsState::enter(Core& core) {
   menuView_.needsRender = true;
   readerView_.selected = 0;
   readerView_.needsRender = true;
+  screenView_.selected = 0;
+  screenView_.needsRender = true;
   deviceView_.selected = 0;
   deviceView_.needsRender = true;
   cleanupView_.selected = 0;
@@ -84,9 +88,76 @@ void SettingsState::exit(Core& core) {
   core.settings.save(core.storage);
 }
 
+void SettingsState::handleTap(Core& core, const Event& event) {
+  const int width = renderer_.getScreenWidth();
+  const int height = renderer_.getScreenHeight();
+  const int rowHeight = THEME.itemHeight + THEME.itemSpacing;
+  const bool frontLrbc = core.settings.frontButtonLayout == Settings::FrontLRBC;
+  int rowCount = 0;
+  if (currentScreen_ == SettingsScreen::Menu) rowCount = ui::SettingsMenuView::ITEM_COUNT;
+  if (currentScreen_ == SettingsScreen::Reader) rowCount = readerView_.visibleCount;
+  if (currentScreen_ == SettingsScreen::Screen) rowCount = screenView_.visibleCount;
+  if (currentScreen_ == SettingsScreen::Device) rowCount = deviceView_.visibleCount;
+  if (currentScreen_ == SettingsScreen::Cleanup) rowCount = ui::CleanupMenuView::ITEM_COUNT;
+
+  if (currentScreen_ == SettingsScreen::ConfirmDialog) {
+    const auto layout = ui::confirmDialogBounds(renderer_, THEME, confirmView_);
+    const auto hit = confirmView_.hitTest({event.touch.x, event.touch.y}, layout, frontLrbc);
+    if (hit == ui::ConfirmDialogView::Hit::Yes) {
+      confirmView_.selection = 0;
+      handleConfirm(core);
+    } else if (hit == ui::ConfirmDialogView::Hit::No) {
+      confirmView_.selection = 1;
+      handleConfirm(core);
+    } else if (hit == ui::ConfirmDialogView::Hit::Select) {
+      handleConfirm(core);
+    } else if (hit == ui::ConfirmDialogView::Hit::Back) {
+      goBack(core);
+    }
+    return;
+  }
+
+  const auto hit =
+      ui::settingsListHitTest({event.touch.x, event.touch.y}, width, height, rowHeight, rowCount, frontLrbc);
+  if (hit.type == ui::SettingsListHit::Type::Row) {
+    if (currentScreen_ == SettingsScreen::Menu) menuView_.selected = static_cast<int8_t>(hit.index);
+    if (currentScreen_ == SettingsScreen::Reader) readerView_.selected = static_cast<int8_t>(hit.index);
+    if (currentScreen_ == SettingsScreen::Screen) screenView_.selected = static_cast<int8_t>(hit.index);
+    if (currentScreen_ == SettingsScreen::Device) deviceView_.selected = static_cast<int8_t>(hit.index);
+    if (currentScreen_ == SettingsScreen::Cleanup) cleanupView_.selected = static_cast<int8_t>(hit.index);
+    needsRender_ = true;
+    if (currentScreen_ == SettingsScreen::Menu || currentScreen_ == SettingsScreen::Cleanup) handleConfirm(core);
+  } else if (hit.type == ui::SettingsListHit::Type::Previous &&
+             (currentScreen_ == SettingsScreen::Reader || currentScreen_ == SettingsScreen::Screen ||
+              currentScreen_ == SettingsScreen::Device)) {
+    handleLeftRight(-1);
+  } else if (hit.type == ui::SettingsListHit::Type::Next &&
+             (currentScreen_ == SettingsScreen::Reader || currentScreen_ == SettingsScreen::Screen ||
+              currentScreen_ == SettingsScreen::Device)) {
+    handleLeftRight(1);
+  } else if (hit.type == ui::SettingsListHit::Type::Open &&
+             (currentScreen_ == SettingsScreen::Menu || currentScreen_ == SettingsScreen::Cleanup ||
+              currentScreen_ == SettingsScreen::FirmwareUpdate)) {
+    handleConfirm(core);
+  } else if (hit.type == ui::SettingsListHit::Type::Back) {
+    if (currentScreen_ == SettingsScreen::Menu) {
+      core.settings.save(core.storage);
+      goHome_ = true;
+    } else if (currentScreen_ != SettingsScreen::FirmwareUpdate ||
+               (firmwareView_.state != ui::FirmwareUpdateView::State::Flashing &&
+                firmwareView_.state != ui::FirmwareUpdateView::State::Validating)) {
+      goBack(core);
+    }
+  }
+}
+
 StateTransition SettingsState::update(Core& core) {
   Event e;
   while (core.events.pop(e)) {
+    if (e.type == EventType::Tap) {
+      handleTap(core, e);
+      continue;
+    }
     switch (e.type) {
       case EventType::ButtonRepeat:
       case EventType::ButtonPress:
@@ -98,6 +169,9 @@ StateTransition SettingsState::update(Core& core) {
                 break;
               case SettingsScreen::Reader:
                 readerView_.moveUp();
+                break;
+              case SettingsScreen::Screen:
+                screenView_.moveUp();
                 break;
               case SettingsScreen::Device:
                 deviceView_.moveUp();
@@ -122,6 +196,9 @@ StateTransition SettingsState::update(Core& core) {
               case SettingsScreen::Reader:
                 readerView_.moveDown();
                 break;
+              case SettingsScreen::Screen:
+                screenView_.moveDown();
+                break;
               case SettingsScreen::Device:
                 deviceView_.moveDown();
                 break;
@@ -142,6 +219,9 @@ StateTransition SettingsState::update(Core& core) {
               case SettingsScreen::Reader:
                 if (readerView_.buttons.isActive(2)) handleLeftRight(-1);
                 break;
+              case SettingsScreen::Screen:
+                if (screenView_.buttons.isActive(2)) handleLeftRight(-1);
+                break;
               case SettingsScreen::Device:
                 if (deviceView_.buttons.isActive(2)) handleLeftRight(-1);
                 break;
@@ -156,6 +236,9 @@ StateTransition SettingsState::update(Core& core) {
             switch (currentScreen_) {
               case SettingsScreen::Reader:
                 if (readerView_.buttons.isActive(3)) handleLeftRight(+1);
+                break;
+              case SettingsScreen::Screen:
+                if (screenView_.buttons.isActive(3)) handleLeftRight(+1);
                 break;
               case SettingsScreen::Device:
                 if (deviceView_.buttons.isActive(3)) handleLeftRight(+1);
@@ -276,6 +359,9 @@ void SettingsState::render(Core& core) {
       case SettingsScreen::Reader:
         viewNeedsRender = readerView_.needsRender;
         break;
+      case SettingsScreen::Screen:
+        viewNeedsRender = screenView_.needsRender;
+        break;
       case SettingsScreen::Device:
         viewNeedsRender = deviceView_.needsRender;
         break;
@@ -306,6 +392,10 @@ void SettingsState::render(Core& core) {
       ui::render(renderer_, THEME, readerView_);
       readerView_.needsRender = false;
       break;
+    case SettingsScreen::Screen:
+      ui::render(renderer_, THEME, screenView_);
+      screenView_.needsRender = false;
+      break;
     case SettingsScreen::Device:
       ui::render(renderer_, THEME, deviceView_);
       deviceView_.needsRender = false;
@@ -333,7 +423,6 @@ void SettingsState::render(Core& core) {
   }
 
   needsRender_ = false;
-  core.display.markDirty();
 }
 
 void SettingsState::openSelected() {
@@ -343,6 +432,12 @@ void SettingsState::openSelected() {
       readerView_.selected = 0;
       readerView_.needsRender = true;
       currentScreen_ = SettingsScreen::Reader;
+      break;
+    case ui::SettingsMenuView::Item::Screen:
+      loadScreenSettings();
+      screenView_.selected = 0;
+      screenView_.needsRender = true;
+      currentScreen_ = SettingsScreen::Screen;
       break;
     case ui::SettingsMenuView::Item::Device:
       loadDeviceSettings();
@@ -386,11 +481,16 @@ void SettingsState::goBack(Core& core) {
       currentScreen_ = SettingsScreen::Menu;
       menuView_.needsRender = true;
       break;
+    case SettingsScreen::Screen:
+      saveScreenSettings();
+      currentScreen_ = SettingsScreen::Menu;
+      menuView_.needsRender = true;
+      break;
     case SettingsScreen::Device:
       saveDeviceSettings();
       // Apply button layouts now that we're leaving the screen
-      core.settings.frontButtonLayout = std::min(deviceView_.values[6], uint8_t(Settings::FrontLRBC));
-      core.settings.sideButtonLayout = std::min(deviceView_.values[7], uint8_t(Settings::NextPrev));
+      core.settings.frontButtonLayout = std::min(deviceView_.values[0], uint8_t(Settings::FrontLRBC));
+      core.settings.sideButtonLayout = std::min(deviceView_.values[1], uint8_t(Settings::NextPrev));
       ui::setFrontButtonLayout(core.settings.frontButtonLayout);
       core.input.resyncState();
       currentScreen_ = SettingsScreen::Menu;
@@ -431,9 +531,8 @@ void SettingsState::handleConfirm(Core& core) {
       break;
 
     case SettingsScreen::Device:
-      deviceView_.cycleValue(1);
-      saveDeviceSettings();
-      needsRender_ = true;
+    case SettingsScreen::Screen:
+      handleLeftRight(1);
       break;
 
     case SettingsScreen::Cleanup:
@@ -556,9 +655,25 @@ void SettingsState::handleConfirm(Core& core) {
 }
 
 void SettingsState::handleLeftRight(int delta) {
+  if (currentScreen_ == SettingsScreen::Screen && screenView_.lightSelected()) {
+    const uint8_t value = screenView_.adjustedLightValue(delta);
+    const bool brightness = screenView_.settingIndex(screenView_.selected) == 1;
+    const uint8_t previous = brightness ? core_->frontLight.brightness() : core_->frontLight.warmth();
+    if (value == previous) return;
+    const bool saved = brightness ? core_->frontLight.setBrightness(value) : core_->frontLight.setWarmth(value);
+    screenView_.values[1] = core_->frontLight.brightness();
+    screenView_.values[2] = core_->frontLight.warmth();
+    if (!saved) LOG_ERR(TAG, "Could not save front light setting");
+    needsRender_ = true;
+    return;
+  }
   if (currentScreen_ == SettingsScreen::Reader) {
     readerView_.cycleValue(delta);
     saveReaderSettings();
+    needsRender_ = true;
+  } else if (currentScreen_ == SettingsScreen::Screen) {
+    screenView_.cycleValue(delta);
+    saveScreenSettings();
     needsRender_ = true;
   } else if (currentScreen_ == SettingsScreen::Device) {
     deviceView_.cycleValue(delta);
@@ -568,166 +683,93 @@ void SettingsState::handleLeftRight(int delta) {
 }
 
 void SettingsState::loadReaderSettings() {
-  auto& settings = core_->settings;
-
-  // Index 0: Theme (ThemeSelect) - load available themes from SD card
-  auto themes = THEME_MANAGER.listAvailableThemes();
-  readerView_.themeCount = 0;
-  readerView_.currentThemeIndex = 0;
-  for (size_t i = 0; i < themes.size() && i < ui::ReaderSettingsView::MAX_THEMES; i++) {
-    strncpy(readerView_.themeNames[i], themes[i].c_str(), sizeof(readerView_.themeNames[i]) - 1);
-    readerView_.themeNames[i][sizeof(readerView_.themeNames[i]) - 1] = '\0';
-    if (themes[i] == settings.themeName) {
-      readerView_.currentThemeIndex = static_cast<int>(i);
-    }
-    readerView_.themeCount++;
-  }
-  readerView_.values[0] = 0;  // Not used for ThemeSelect
-
-  // Index 1: Font Size (0=Small, 1=Normal, 2=Large)
-  readerView_.values[1] = settings.fontSize;
-
-  // Index 2: Text Layout (0=Compact, 1=Standard, 2=Large)
-  readerView_.values[2] = settings.textLayout;
-
-  // Index 3: Line Spacing (0=Compact, 1=Normal, 2=Relaxed, 3=Large)
-  readerView_.values[3] = settings.lineSpacing;
-
-  // Index 4: Text Anti-Aliasing (toggle)
-  readerView_.values[4] = settings.textAntiAliasing;
-
-  // Index 5: Paragraph Alignment (0=Justified, 1=Left, 2=Center, 3=Right)
-  readerView_.values[5] = settings.paragraphAlignment;
-
-  // Index 6: Hyphenation (toggle)
-  readerView_.values[6] = settings.hyphenation;
-
-  // Index 7: Show Images (toggle)
-  readerView_.values[7] = settings.showImages;
-
-  // Index 8: Status Bar (0=None, 1=Title, 2=Chapter)
-  readerView_.values[8] = settings.statusBar;
-
-  // Index 9: Reading Orientation (0=Portrait, 1=Landscape CW, 2=Inverted, 3=Landscape CCW)
-  readerView_.values[9] = settings.orientation;
-
-  // Index 10: Full Book Process (toggle)
-  readerView_.values[10] = settings.fullBookProcess;
+  const auto& settings = core_->settings;
+  readerView_.values[0] = settings.fontSize;
+  readerView_.values[1] = settings.textLayout;
+  readerView_.values[2] = settings.lineSpacing;
+  readerView_.values[3] = settings.paragraphAlignment;
+  readerView_.values[4] = settings.hyphenation;
+  readerView_.values[5] = settings.showImages;
+  readerView_.values[6] = settings.statusBar;
+  readerView_.values[7] = settings.touchPageTurns;
+  readerView_.values[8] = settings.fullBookProcess;
+  readerView_.visibleCount =
+      ui::ReaderSettingsView::SETTING_COUNT - (board::hasTouch(board::HardwareIdentity::instance().profile()) ? 0 : 1);
 }
 
 void SettingsState::saveReaderSettings() {
   auto& settings = core_->settings;
+  settings.fontSize = readerView_.values[0];
+  settings.textLayout = readerView_.values[1];
+  settings.lineSpacing = readerView_.values[2];
+  settings.paragraphAlignment = readerView_.values[3];
+  settings.hyphenation = readerView_.values[4];
+  settings.showImages = readerView_.values[5];
+  settings.statusBar = readerView_.values[6];
+  if (readerView_.visibleCount == ui::ReaderSettingsView::SETTING_COUNT) {
+    settings.touchPageTurns = readerView_.values[7];
+  }
+  settings.fullBookProcess = readerView_.values[8];
+}
 
-  // Index 0: Theme (ThemeSelect) - apply selected theme
-  const char* selectedTheme = readerView_.getCurrentThemeName();
+void SettingsState::loadScreenSettings() {
+  const auto& settings = core_->settings;
+  auto themes = THEME_MANAGER.listAvailableThemes();
+  screenView_.themeCount = 0;
+  screenView_.currentThemeIndex = 0;
+  for (size_t i = 0; i < themes.size() && i < ui::ScreenSettingsView::MAX_THEMES; i++) {
+    strncpy(screenView_.themeNames[i], themes[i].c_str(), sizeof(screenView_.themeNames[i]) - 1);
+    screenView_.themeNames[i][sizeof(screenView_.themeNames[i]) - 1] = '\0';
+    if (themes[i] == settings.themeName) screenView_.currentThemeIndex = static_cast<int>(i);
+    screenView_.themeCount++;
+  }
+  screenView_.visibleCount = ui::ScreenSettingsView::SETTING_COUNT - (core_->frontLight.isAvailable() ? 0 : 2);
+  screenView_.values[1] = core_->frontLight.brightness();
+  screenView_.values[2] = core_->frontLight.warmth();
+  screenView_.values[3] = settings.orientation;
+  screenView_.values[4] = settings.textAntiAliasing;
+  screenView_.values[5] = settings.pagesPerRefresh;
+  screenView_.values[6] = settings.sunlightFadingFix;
+  screenView_.values[7] = settings.sleepScreen;
+}
+
+void SettingsState::saveScreenSettings() {
+  auto& settings = core_->settings;
+  const char* selectedTheme = screenView_.getCurrentThemeName();
   if (strcmp(settings.themeName, selectedTheme) != 0) {
     strncpy(settings.themeName, selectedTheme, sizeof(settings.themeName) - 1);
     settings.themeName[sizeof(settings.themeName) - 1] = '\0';
-    // Use cached theme for instant switching (no file I/O)
     if (!THEME_MANAGER.applyCachedTheme(settings.themeName)) {
       THEME_MANAGER.loadTheme(settings.themeName);
     }
     themeWasChanged_ = true;
   }
-
-  // Index 1: Font Size
-  settings.fontSize = readerView_.values[1];
-
-  // Index 2: Text Layout
-  settings.textLayout = readerView_.values[2];
-
-  // Index 3: Line Spacing
-  settings.lineSpacing = readerView_.values[3];
-
-  // Index 4: Text Anti-Aliasing
-  settings.textAntiAliasing = readerView_.values[4];
-
-  // Index 5: Paragraph Alignment
-  settings.paragraphAlignment = readerView_.values[5];
-
-  // Index 6: Hyphenation
-  settings.hyphenation = readerView_.values[6];
-
-  // Index 7: Show Images
-  settings.showImages = readerView_.values[7];
-
-  // Index 8: Status Bar
-  settings.statusBar = readerView_.values[8];
-
-  // Index 9: Reading Orientation
-  settings.orientation = readerView_.values[9];
-
-  // Index 10: Full Book Process
-  settings.fullBookProcess = readerView_.values[10];
+  settings.orientation = screenView_.values[3];
+  settings.textAntiAliasing = screenView_.values[4];
+  settings.pagesPerRefresh = screenView_.values[5];
+  settings.sunlightFadingFix = screenView_.values[6];
+  settings.sleepScreen = screenView_.values[7];
 }
 
 void SettingsState::loadDeviceSettings() {
   const auto& settings = core_->settings;
-
-  // Index 0: Auto Sleep Timeout (5 min=0, 10 min=1, 15 min=2, 30 min=3, Never=4)
-  deviceView_.values[0] = settings.autoSleepMinutes;
-
-  // Index 1: Sleep Screen (Dark=0, Light=1, Custom=2, Cover=3)
-  deviceView_.values[1] = settings.sleepScreen;
-
-  // Index 2: Startup Behavior (Last Document=0, Home=1)
-  deviceView_.values[2] = settings.startupBehavior;
-
-  // Index 3: Short Power Button (Ignore=0, Sleep=1, Page Turn=2)
-  deviceView_.values[3] = settings.shortPwrBtn;
-
-  // Index 4: Pages Per Refresh (1=0, 5=1, 10=2, 15=3, 30=4)
-  deviceView_.values[4] = settings.pagesPerRefresh;
-
-  // Index 5: Sunlight Fading Fix (toggle)
-  deviceView_.values[5] = settings.sunlightFadingFix;
-
-  // Index 6: Front Buttons (B/C/L/R=0, L/R/B/C=1)
-  deviceView_.values[6] = settings.frontButtonLayout;
-
-  // Index 7: Side Buttons (Prev/Next=0, Next/Prev=1)
-  deviceView_.values[7] = settings.sideButtonLayout;
-
-  // Index 8: Show Recents (Off=0, On=1)
-  deviceView_.values[8] = settings.showRecents;
-
-  // Index 9: Recycle Bin (Off=permanent delete, On=move files to trash)
-  deviceView_.values[9] = settings.recycleBinEnabled;
+  deviceView_.values[0] = settings.frontButtonLayout;
+  deviceView_.values[1] = settings.sideButtonLayout;
+  deviceView_.values[2] = settings.shortPwrBtn;
+  deviceView_.values[3] = settings.startupBehavior;
+  deviceView_.values[4] = settings.showRecents;
+  deviceView_.values[5] = settings.autoSleepMinutes;
+  deviceView_.values[6] = settings.recycleBinEnabled;
 }
 
 void SettingsState::saveDeviceSettings() {
   auto& settings = core_->settings;
-
-  // Index 0: Auto Sleep Timeout
-  settings.autoSleepMinutes = deviceView_.values[0];
-
-  // Index 1: Sleep Screen
-  settings.sleepScreen = deviceView_.values[1];
-
-  // Index 2: Startup Behavior
-  settings.startupBehavior = deviceView_.values[2];
-
-  // Index 3: Short Power Button
-  settings.shortPwrBtn = deviceView_.values[3];
-
-  // Index 4: Pages Per Refresh
-  settings.pagesPerRefresh = deviceView_.values[4];
-
-  // Index 5: Sunlight Fading Fix
-  settings.sunlightFadingFix = deviceView_.values[5];
-
-  // Index 8: Show Recents
-  settings.showRecents = deviceView_.values[8];
-
-  // Index 9: Recycle Bin
-  settings.recycleBinEnabled = deviceView_.values[9];
-
-  // Index 6: Front Buttons - deferred to goBack() on screen exit.
-  // Changing layout while navigating causes ghost button events because the
-  // MappedInputManager remaps physical buttons mid-press.
-
-  // Index 7: Side Buttons - deferred to goBack() on screen exit.
-  // Same as front buttons: changing layout mid-navigation causes ghost events.
+  settings.shortPwrBtn = deviceView_.values[2];
+  settings.startupBehavior = deviceView_.values[3];
+  settings.showRecents = deviceView_.values[4];
+  settings.autoSleepMinutes = deviceView_.values[5];
+  settings.recycleBinEnabled = deviceView_.values[6];
+  // Apply button layouts in goBack() to prevent remapping the active press.
 }
 
 void SettingsState::populateSystemInfo() {
@@ -745,14 +787,12 @@ void SettingsState::populateSystemInfo() {
   snprintf(uptimeStr, sizeof(uptimeStr), "%luh %lum %lus", hours, minutes, seconds);
   infoView_.setField(ui::SystemInfoView::Field::Uptime, tr(UPTIME), uptimeStr);
 
-  // Battery
-  const uint16_t millivolts = batteryMonitor.readMillivolts();
-  const uint16_t percentage = batteryMonitor.readPercentage();
+  const auto batteryStatus = core.battery.readStatus();
   char batteryStr[24];
-  if (millivolts < 100) {
+  if (!batteryStatus.percentageKnown || !batteryStatus.millivoltsKnown) {
     snprintf(batteryStr, sizeof(batteryStr), "-- (--mV)");
   } else {
-    snprintf(batteryStr, sizeof(batteryStr), "%u%% (%umV)", percentage, millivolts);
+    snprintf(batteryStr, sizeof(batteryStr), "%u%% (%umV)", batteryStatus.percentage, batteryStatus.millivolts);
   }
   infoView_.setField(ui::SystemInfoView::Field::Battery, tr(BATTERY), batteryStr);
 

@@ -1,12 +1,19 @@
 #include <Arduino.h>
-#include <EInkDisplay.h>
+#include <BoardProfiles.h>
+#include <BoardSelector.h>
+#include <BootHardware.h>
+#include <Display.h>
 #include <Epub.h>
 #include <GfxRenderer.h>
+#include <HardwareIdentity.h>
+#include <HardwareRecovery.h>
 #include <InputManager.h>
 #include <LittleFS.h>  // Must be before SdFat includes to avoid FILE_READ/FILE_WRITE redefinition
+#include <PowerPolicy.h>
 #include <SDCardManager.h>
 #include <SDPowerControl.h>
 #include <SPI.h>
+#include <TargetConfig.h>
 #include <builtinFonts/reader_2b.h>
 #include <builtinFonts/reader_bold_2b.h>
 #include <builtinFonts/reader_italic_2b.h>
@@ -14,7 +21,6 @@
 #include <builtinFonts/reader_xsmall_bold_2b.h>
 #include <builtinFonts/reader_xsmall_italic_2b.h>
 #include <builtinFonts/reader_xsmall_regular_2b.h>
-#include <driver/gpio.h>
 #include <esp_system.h>
 
 #include "core/CrashDebug.h"
@@ -31,15 +37,14 @@
 #include <builtinFonts/ui_12.h>
 #include <builtinFonts/ui_bold_12.h>
 
-#include "Battery.h"
 #include "FontManager.h"
 #include "MappedInputManager.h"
 #include "ThemeManager.h"
 #include "config.h"
 #include "content/ContentTypes.h"
-#include "drivers/DeepSleep.h"
-#include "drivers/Device.h"
-#include "drivers/X3Power.h"
+#include "hal/Power.h"
+#include "hal/Recovery.h"
+#include "hal/UsbPolicy.h"
 #include "ui/Elements.h"
 
 #define TAG "MAIN"
@@ -50,8 +55,10 @@
 #include "I18nLoader.h"
 #include "core/BootMode.h"
 #include "core/Core.h"
+#include "core/EmergencyFirmwareUpdatePolicy.h"
 #include "core/FirmwareUpdater.h"
 #include "core/StateMachine.h"
+#include "diagnostics/X4ProCharacterization.h"
 #include "images/PapyrixLogo.h"
 #include "states/AppLauncherState.h"
 #include "states/CalibreSyncState.h"
@@ -66,34 +73,18 @@
 #include "states/StartupState.h"
 #include "ui/views/BootSleepViews.h"
 
-#define SPI_FQ 40000000
-// Display SPI pins (shared with the SD card, not hardware SPI defaults)
-constexpr int8_t EPD_SCLK = papyrix::sd::SD_CLOCK_PIN;
-constexpr int8_t EPD_MOSI = papyrix::sd::SD_MOSI_PIN;
-#define EPD_CS 21   // Chip Select
-#define EPD_DC 4    // Data/Command
-#define EPD_RST 5   // Reset
-#define EPD_BUSY 6  // Busy
-
-#define UART0_RXD 20  // Used for USB connection detection
-
 constexpr uint32_t kSerialBaudRate = 115200;
 constexpr uint32_t kSerialEnumerationDelayMs = 250;
 constexpr uint32_t kSerialTxTimeoutMs = 1;
 
-EInkDisplay einkDisplay(EPD_SCLK, EPD_MOSI, EPD_CS, EPD_DC, EPD_RST, EPD_BUSY);
 InputManager inputManager;
 MappedInputManager mappedInputManager(inputManager);
-GfxRenderer renderer(einkDisplay);
 
-// Extern references for driver wrappers
-EInkDisplay& display = einkDisplay;
-MappedInputManager& mappedInput = mappedInputManager;
-
-// Core system
 namespace papyrix {
 Core core;
 }
+
+GfxRenderer renderer(papyrix::core.display);
 
 // State instances (pre-allocated, no heap per transition)
 static papyrix::StartupState startupState;
@@ -143,15 +134,6 @@ static EpdFontFamily& readerFontFamilyLarge() {
   return f;
 }
 
-bool isUsbConnected() {
-  // X3 uses GPIO20 (UART0_RXD) for I²C SDA, so it has no USB-detect line.
-  // earlyInit() resolves the device type before this function runs.
-  if (papyrix::drivers::Device::instance().isX3()) {
-    return batteryMonitor.isCharging();
-  }
-  return digitalRead(UART0_RXD) == HIGH;
-}
-
 struct WakeupInfo {
   esp_reset_reason_t resetReason;
   bool isPowerButton;
@@ -159,15 +141,15 @@ struct WakeupInfo {
 };
 
 WakeupInfo getWakeupInfo() {
-  const bool usbConnected = isUsbConnected();
+  const bool usbConnected = papyrix::core.usb.isConnected();
   const auto wakeupCause = esp_sleep_get_wakeup_cause();
   const auto resetReason = esp_reset_reason();
 
-  // Without USB: power button triggers a full power-on reset (not GPIO wakeup)
-  // With USB: power button wakes from deep sleep via GPIO
+  // Deep sleep uses the power-button wake mask on both targets.
   const bool isPowerButton =
       (!usbConnected && wakeupCause == ESP_SLEEP_WAKEUP_UNDEFINED && resetReason == ESP_RST_POWERON) ||
-      (usbConnected && wakeupCause == ESP_SLEEP_WAKEUP_GPIO && resetReason == ESP_RST_DEEPSLEEP);
+      ((wakeupCause == ESP_SLEEP_WAKEUP_GPIO || wakeupCause == ESP_SLEEP_WAKEUP_EXT1) &&
+       resetReason == ESP_RST_DEEPSLEEP);
 
   // USB plugged into a powered-off device cold-boots the chip without a button press.
   // Restricted to ESP_RST_POWERON so any other reset reason (UNKNOWN/USB/JTAG/SW/...) — including
@@ -198,11 +180,8 @@ void verifyWakeupLongPress(esp_reset_reason_t resetReason) {
   bool abort = false;
   const uint16_t requiredPressDuration = papyrix::core.settings.getPowerButtonDuration();
 
-  // Subtract the boot time already elapsed from the hold-time requirement: assume the user
-  // pressed the power button at millis()==0 (device-on event) and has held it through boot.
-  // Without this, the X3 takes longer to reach this point (Device probe, heavier display init)
-  // than the X4, so the user perceives a much longer required hold.
-  // Idea ported from crosspoint-reader src/main.cpp::verifyPowerButtonDuration.
+  // Count boot time as part of the required hold time.
+  // X3 board and display detection make its boot slower than X4.
   const uint16_t calibratedPressDuration =
       (start < requiredPressDuration) ? static_cast<uint16_t>(requiredPressDuration - start) : 1;
 
@@ -224,10 +203,7 @@ void verifyWakeupLongPress(esp_reset_reason_t resetReason) {
   }
 
   if (abort) {
-    // Button released too early. Returning to sleep.
-    // IMPORTANT: Re-arm the wakeup trigger before sleeping again
-    esp_deep_sleep_enable_gpio_wakeup(1ULL << InputManager::POWER_BUTTON_PIN, ESP_GPIO_WAKEUP_GPIO_LOW);
-    papyrix::drivers::enterDeepSleepWithHardwareShutdown();
+    papyrix::hal::enterDeepSleepWithHardwareShutdown(papyrix::core.usb.isConnected());
   }
 }
 
@@ -257,11 +233,36 @@ void setupReaderFontForSize(papyrix::Settings::FontSize fontSize) {
   }
 }
 
-void setupDisplayAndFonts(bool allReaderSizes = true) {
-  if (papyrix::drivers::Device::instance().isX3()) {
-    einkDisplay.setDisplayX3(papyrix::drivers::Device::instance().displayController());
+void initializeDisplayWithRecovery() {
+  auto& display = papyrix::core.display;
+  const auto& profile = papyrix::board::HardwareIdentity::instance().profile();
+  papyrix::hal::DisplayRecoveryPolicy policy;
+  auto result = display.begin();
+  while (result != papyrix::hal::Display::InitResult::Ok) {
+    const auto action = policy.recordFailure();
+    papyrix::crashdebug::markDisplayFailure(static_cast<uint8_t>(result), policy.failureCount());
+    LOG_ERR(TAG, "Display initialization failed: result=%u attempt=%u", static_cast<unsigned>(result),
+            static_cast<unsigned>(policy.failureCount()));
+    if (action == papyrix::hal::DisplayRecoveryAction::ResetAndRetry) {
+      result = display.recover();
+      continue;
+    }
+
+    SdMan.end();
+    papyrix::board::shutdownRecoveryRails(profile);
+    Serial.println("display and storage rails are off; USB serial remains active");
+    papyrix::board::waitForRecoveryRetry(profile);
+    papyrix::board::restoreRecoveryStorage(profile);
+    if (!SdMan.begin()) LOG_ERR(TAG, "SD card did not recover");
+    policy.recordSuccess();
+    result = display.recover();
   }
-  einkDisplay.begin();
+  policy.recordSuccess();
+  papyrix::crashdebug::clearDisplayFailure();
+}
+
+void setupDisplayAndFonts(bool allReaderSizes = true) {
+  initializeDisplayWithRecovery();
   renderer.begin();
   LOG_INF(TAG, "Display initialized");
   if (allReaderSizes) {
@@ -334,29 +335,57 @@ void showErrorScreen(const char* message) {
   renderer.displayBuffer();
 }
 
+bool showEmergencyUpdateNotice() {
+  auto& display = papyrix::core.display;
+  const auto initResult = display.begin();
+  const bool displayReady = initResult == papyrix::hal::Display::InitResult::Ok;
+  if (papyrix::emergency_update::noticeActionFor(displayReady) ==
+      papyrix::emergency_update::NoticeAction::ContinueHeadless) {
+    LOG_WRN(TAG, "Emergency update notice unavailable: display result=%u", static_cast<unsigned>(initResult));
+    return false;
+  }
+
+  renderer.begin();
+  renderer.insertFont(UI_FONT_ID, uiFontFamily);
+  renderer.excludeExternalFont(UI_FONT_ID);
+  renderer.clearScreen(papyrix::emergency_update::kNoticeBackground);
+  const int centerY = renderer.getScreenHeight() / 2;
+  renderer.drawCenteredText(UI_FONT_ID, centerY - 24, papyrix::emergency_update::kNoticeTitle,
+                            papyrix::emergency_update::kNoticeTextBlack, BOLD);
+  renderer.drawCenteredText(UI_FONT_ID, centerY + 24, papyrix::emergency_update::kNoticeWarning,
+                            papyrix::emergency_update::kNoticeTextBlack);
+  renderer.displayBuffer(papyrix::hal::Display::FULL_REFRESH, papyrix::emergency_update::kTurnOffDuringRefresh);
+  if (papyrix::emergency_update::kSleepAfterRender && !display.deepSleep()) return false;
+  LOG_INF(TAG, "Emergency update notice displayed");
+  return true;
+}
+
 // Track current boot mode for loop behavior
 static papyrix::BootMode currentBootMode = papyrix::BootMode::UI;
 
-// Early initialization - common to both boot modes
-// Returns false if critical initialization failed
+// Initialize the hardware for both boot modes.
 bool earlyInit() {
-  pinMode(UART0_RXD, INPUT);
+#if PAPYRIX_TARGET_XTEINK_C3
   inputManager.begin();
+#endif
 
-  auto& device = papyrix::drivers::Device::instance();
-  device.probeDeviceType();
+  auto& identity = papyrix::board::HardwareIdentity::instance();
+  papyrix::board::selectBoard(identity);
+  papyrix::core.battery.init();
+  papyrix::core.usb.init(papyrix::core.battery);
+  const auto& profile = identity.profile();
 
   const auto wakeup = getWakeupInfo();
   if (wakeup.usbColdBoot) {
-    esp_deep_sleep_enable_gpio_wakeup(1ULL << InputManager::POWER_BUTTON_PIN, ESP_GPIO_WAKEUP_GPIO_LOW);
-    papyrix::drivers::enterDeepSleepWithHardwareShutdown();
+    papyrix::hal::enterDeepSleepWithHardwareShutdown(true);
   }
 
-  const int8_t sdPowerPin = device.isX3() ? papyrix::drivers::X3_SD_POWER_PIN : papyrix::drivers::NO_POWER_PIN;
-  if (device.isX3()) papyrix::sd::prepareSdForDisplayProbe(sdPowerPin);
-  device.selectDisplayController();
+  papyrix::board::preparePanelProbe(papyrix::board::HardwareIdentity::instance().profile());
+  papyrix::board::selectPanel(identity);
 
-  SPI.begin(EPD_SCLK, papyrix::sd::SD_MISO_PIN, EPD_MOSI, EPD_CS);
+  if (profile.storage.transport == papyrix::board::StorageTransport::Spi) {
+    SPI.begin(profile.display.sclk, profile.storage.spiMiso, profile.display.mosi, profile.display.cs);
+  }
   if (!SdMan.begin()) {
     LOG_ERR(TAG, "SD card initialization failed");
     setupDisplayAndFonts();
@@ -369,6 +398,7 @@ bool earlyInit() {
     auto& fw = papyrix::FirmwareUpdater::instance();
     fw.findFirmwareFile(PAPYRIX_EMERGENCY_FW_FILE);
     if (fw.beginUpdate()) {
+      showEmergencyUpdateNotice();
       while (fw.pump()) {
         delay(1);
       }
@@ -393,11 +423,11 @@ bool earlyInit() {
   LOG_INF(TAG, "Starting Papyrix version " PAPYRIX_VERSION);
   papyrix::crashdebug::logBootInfo(wakeup.resetReason);
 
-  if (papyrix::drivers::Device::instance().isX4()) {
+  if (papyrix::board::HardwareIdentity::instance().board() == papyrix::board::BoardId::X4) {
     // Arduino 3.x requires the first read to attach the pin to the ADC bus
     // before per-pin attenuation can be configured.
-    (void)analogRead(BAT_GPIO0);
-    analogSetPinAttenuation(BAT_GPIO0, ADC_11db);
+    (void)analogRead(profile.battery.adcPin);
+    analogSetPinAttenuation(profile.battery.adcPin, ADC_11db);
   }
 
   // Initialize internal flash filesystem for font storage
@@ -505,7 +535,7 @@ void initReaderMode() {
   // Skip createDefaultThemeFiles() - not needed in reader mode
   LOG_INF(TAG, "Theme loaded: %s (reader mode)", THEME_MANAGER.currentThemeName());
 
-  setupDisplayAndFonts(false);  // Only active reader font size
+  setupDisplayAndFonts(false);
 
   if (needsCustomFonts) {
     applyThemeFonts();  // Custom fonts - skip for XTC/XTCH to save ~500KB+ RAM
@@ -552,12 +582,18 @@ void initReaderMode() {
 }
 
 void setup() {
-#ifdef ENABLE_SERIAL_LOG
-  // Let USB Serial/JTAG and the host enumerate before initializing HWCDC.
-  // Gating begin() on a single GPIO sample makes cold-boot logging intermittent.
+  papyrix::board::releaseDeepSleepHolds();
+  papyrix::board::earlyInit(papyrix::board::bootProfile());
+  // Let USB Serial/JTAG and the host enumerate before recovery checks.
   delay(kSerialEnumerationDelayMs);
   Serial.begin(kSerialBaudRate);
+#ifdef ENABLE_SERIAL_LOG
   logSerial.setTxTimeoutMs(kSerialTxTimeoutMs);
+#endif
+
+#if PAPYRIX_X4PRO_CHARACTERIZE
+  papyrix::diagnostics::beginX4ProCharacterization();
+  return;
 #endif
 
   // Early initialization (common to both modes)
@@ -580,9 +616,25 @@ void setup() {
 }
 
 void loop() {
+#if PAPYRIX_X4PRO_CHARACTERIZE
+  papyrix::diagnostics::updateX4ProCharacterization();
+  return;
+#endif
+
   static unsigned long maxLoopDuration = 0;
   const unsigned long loopStartTime = millis();
   static unsigned long lastMemPrint = 0;
+
+  static papyrix::hal::usb_policy::StateTracker x4UsbState;
+  if (papyrix::board::HardwareIdentity::instance().board() == papyrix::board::BoardId::X4) {
+    const bool usbConnected = papyrix::core.usb.isConnected();
+    if (x4UsbState.update(usbConnected)) {
+      LOG_INF(TAG, "X4 USB state changed: %s", usbConnected ? "connected" : "disconnected");
+      if (stateMachine.isInState(papyrix::StateId::Home)) {
+        homeState.onUsbStateChanged(papyrix::core);
+      }
+    }
+  }
 
   inputManager.update();
 
@@ -597,7 +649,7 @@ void loop() {
 
   // Auto-sleep after inactivity
   const auto autoSleepTimeout = papyrix::core.settings.getAutoSleepTimeoutMs();
-  const bool wifiActive = papyrix::core.network.isConnected() || papyrix::core.network.isAPMode();
+  const bool wifiActive = papyrix::core.wifi.isConnected() || papyrix::core.wifi.isAPMode();
   if (wifiActive) {
     papyrix::core.input.resetIdleTimer();
   }

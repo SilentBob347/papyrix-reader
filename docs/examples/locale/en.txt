@@ -29,6 +29,7 @@ NO=No
 # Menu items
 SETTINGS=Settings
 READER=Reader
+SCREEN=Screen
 DEVICE=Device
 CLEANUP=Cleanup
 SYSTEM_INFO=System Info
@@ -43,6 +44,7 @@ LANGUAGE=Language
 
 # Screen titles
 READER_SETTINGS=Reader Settings
+SCREEN_SETTINGS=Screen Settings
 DEVICE_SETTINGS=Device Settings
 FILES=Files
 NETWORK_MODE=Network Mode
@@ -76,6 +78,7 @@ SUNLIGHT_FADING_FIX=Sunlight Fading Fix
 FRONT_BUTTONS=Front Buttons
 SIDE_BUTTONS=Side Buttons
 FULL_BOOK_PROCESS=Full Book Process
+TOUCH_PAGE_TURNS=Touch page turns
 
 # Settings enum values
 ON=ON
@@ -261,3 +264,5 @@ MOVE_TO_TRASH_Q=Move this file to trash?
 RESTORE_FILE_Q=Restore to original folder?
 DELETE_PERMANENTLY_Q=Delete this file permanently?
 CANNOT_DELETE_TRASH=Cannot delete the trash folder
+BRIGHTNESS=Brightness
+WARMTH=Warmth

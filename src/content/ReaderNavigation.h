@@ -42,6 +42,8 @@ class ReaderNavigation {
   // means there is no adjacent section in the requested direction.
   static NavResult skipEmptySection(const Position& current, int spineCount, bool preferBack);
 
+  static bool isCoverPosition(int spineIndex, int sectionPage) { return spineIndex == 0 && sectionPage == -1; }
+
   // Check if cache needs extension for the given page
   static bool needsCacheExtension(const PageCache* cache, int sectionPage);
 };

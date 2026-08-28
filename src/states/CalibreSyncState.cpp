@@ -101,7 +101,7 @@ void CalibreSyncState::initializeCalibre(Core& core) {
 
   // Get IP address to display with help text
   char ip[46];
-  core.network.getIpAddress(ip, sizeof(ip));
+  core.wifi.getIpAddress(ip, sizeof(ip));
   calibreView_.setWaitingWithIP(ip);
 
   // Start discovery (broadcast to find Calibre server)
@@ -121,7 +121,7 @@ void CalibreSyncState::exit(Core& core) {
   LOG_INF(TAG, "Exiting");
 
   cleanup();
-  core.network.shutdown();
+  core.wifi.shutdown();
 }
 
 StateTransition CalibreSyncState::update(Core& core) {
@@ -160,6 +160,14 @@ StateTransition CalibreSyncState::update(Core& core) {
   // Process button events
   Event e;
   while (core.events.pop(e)) {
+    if (e.type == EventType::Tap) {
+      const auto hit =
+          calibreView_.hitTest({e.touch.x, e.touch.y}, renderer_.getScreenWidth(), renderer_.getScreenHeight(),
+                               core.settings.frontButtonLayout == Settings::FrontLRBC);
+      if (hit == ui::CalibreView::Hit::Back) handleInput(core, Button::Back);
+      if (hit == ui::CalibreView::Hit::Restart) handleInput(core, Button::Center);
+      continue;
+    }
     if (e.type != EventType::ButtonPress) continue;
     handleInput(core, e.button);
   }
@@ -184,7 +192,6 @@ void CalibreSyncState::render(Core& core) {
   ui::render(renderer_, THEME, calibreView_);
   calibreView_.needsRender = false;
   needsRender_ = false;
-  core.display.markDirty();
 }
 
 void CalibreSyncState::handleInput(Core& /* core */, Button button) {

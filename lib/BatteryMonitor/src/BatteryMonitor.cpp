@@ -48,10 +48,8 @@ uint16_t BatteryMonitor::readBq27220Soc_() const {
 
   _lastSocPollMs = now;
   if (!ok || soc > 100) {
-    // Pre-first-success fallback is 100, not 0: a transient I²C glitch on the
-    // very first read otherwise seeds the EMA in readSmoothedPercentage() at 0%
-    // and trips low-battery UI. A fully-discharged battery wouldn't have booted
-    // the device anyway, so 100 is the safer default until we get real data.
+    // Use a safe pre-first-success value so a transient I2C error cannot
+    // trigger the low-battery UI before the first valid gauge sample.
     return _haveBqReading ? _lastGoodSoc : 100;
   }
   _lastGoodSoc = soc;
@@ -86,36 +84,32 @@ uint16_t BatteryMonitor::readBq27220Mv_() const {
 }
 
 uint16_t BatteryMonitor::readPercentage() const {
-  if (_mode == Mode::Bq27220) {
-    return readBq27220Soc_();
-  }
+#if PAPYRIX_TARGET_X4PRO
+  uint16_t percentage = 0;
+  return readCw2017Soc_(&percentage) ? percentage : 0;
+#else
+  if (_mode == Mode::Bq27220) return readBq27220Soc_();
   return percentageFromMillivolts(readMillivolts());
-}
-
-uint16_t BatteryMonitor::readSmoothedPercentage() const {
-  const uint16_t raw = readPercentage();
-  if (!_smoothInitialized) {
-    _smoothedScaled = raw * 10;
-    _smoothInitialized = true;
-  } else {
-    _smoothedScaled = (_smoothedScaled * 9 + raw * 10) / 10;
-  }
-  return _smoothedScaled / 10;
+#endif
 }
 
 uint16_t BatteryMonitor::readMillivolts() const {
-  if (_mode == Mode::Bq27220) {
-    return readBq27220Mv_();
-  }
-  const uint16_t mv = readRawMillivolts();
-  return static_cast<uint16_t>(mv * _dividerMultiplier);
+#if PAPYRIX_TARGET_X4PRO
+  uint16_t millivolts = 0;
+  return readCw2017Mv_(&millivolts) ? millivolts : 0;
+#else
+  if (_mode == Mode::Bq27220) return readBq27220Mv_();
+  return static_cast<uint16_t>(readRawMillivolts() * _dividerMultiplier);
+#endif
 }
 
 uint16_t BatteryMonitor::readRawMillivolts() const {
-  if (_mode == Mode::Bq27220) {
-    return readBq27220Mv_();
-  }
+#if PAPYRIX_TARGET_X4PRO
+  return readMillivolts();
+#else
+  if (_mode == Mode::Bq27220) return readBq27220Mv_();
   return analogReadMilliVolts(_adcPin);
+#endif
 }
 
 double BatteryMonitor::readVolts() const { return static_cast<double>(readMillivolts()) / 1000.0; }
@@ -147,6 +141,36 @@ bool BatteryMonitor::readBq27220Current_(int16_t* outMa) const {
   _haveBqCurrent = true;
   *outMa = _lastGoodCurrentMa;
   return true;
+}
+
+BatteryMonitor::Status BatteryMonitor::readStatus() const {
+  Status status;
+#if !PAPYRIX_TARGET_X4PRO
+  if (_mode == Mode::Adc) {
+    status.supported = true;
+    status.millivolts = readMillivolts();
+    status.millivoltsKnown = true;
+    status.percentage = percentageFromMillivolts(status.millivolts);
+    status.percentageKnown = true;
+    return status;
+  }
+#endif
+  status.supported = true;
+#if PAPYRIX_TARGET_X4PRO
+  status.percentageKnown = readCw2017Soc_(&status.percentage);
+  status.millivoltsKnown = readCw2017Mv_(&status.millivolts);
+#else
+  status.percentage = readPercentage();
+  status.millivolts = readMillivolts();
+  status.percentageKnown = true;
+  status.millivoltsKnown = true;
+  if (_mode == Mode::Bq27220) {
+    int16_t current = 0;
+    status.chargingKnown = readBq27220Current_(&current);
+    status.charging = status.chargingKnown && current > 0;
+  }
+#endif
+  return status;
 }
 
 bool BatteryMonitor::isCharging() const {

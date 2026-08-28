@@ -1,6 +1,8 @@
 # Xteink X4 Specifications
 
-These hardware specifications are for the Xteink X4 e-reader. For shared hardware (ESP32-C3, buttons, SD card, build config), see [Device Specifications](device-specifications.md).
+These hardware specifications are for the Xteink X4 e-reader.
+See [Device Specifications](device-specifications.md) for firmware selection and device services.
+The [Pin Summary](#pin-summary) below lists the X4 connections.
 
 ---
 
@@ -132,6 +134,17 @@ percentage = -144.9390*V^3 + 1655.8629*V^2 - 6158.8520*V + 7501.3202
 ```
 V is battery voltage (limited to the 0-100% range).
 
+Each status read derives voltage and raw percentage from one ADC sample. The
+X4 HAL limits samples to one every five seconds and applies a 9:1 exponential
+moving average in tenths of a percent. It keeps the filtered estimate in RTC
+memory across UI, Reader, and deep-sleep restarts. A true power-on discards the
+retained estimate. A missing marker, an invalid range, or a raw-to-retained
+difference above 25 percentage points also resets the estimate to the raw
+value. Home, Reader, Clock, and System Info use this one filtered status.
+
+The checksum-verified packaged image reported 98% in Home, System Info at
+4122 mV, Reader, Home after Reader, and Home after sleep/wake.
+
 ### USB Detection
 
 - **Method** — UART0_RXD pin (GPIO 20)
@@ -139,9 +152,16 @@ V is battery voltage (limited to the 0-100% range).
 
 ### Power States
 
-- **Active** — Usual operation (approximately 50 mA)
-- **WiFi active** — approximately 150 mA
-- **Deep sleep** — approximately 10 µA (wake on power button GPIO 3)
+- **Active** — The firmware drives GPIO13 HIGH before serial initialization to latch battery power.
+- **WiFi active** — Approximately 150 mA.
+- **Battery-only sleep** — The firmware drives GPIO13 LOW and holds it for the lowest-power hardware shutdown path.
+- **USB-connected sleep** — The firmware drives and holds GPIO13 HIGH so charging continues.
+- **Wake initialization** — The firmware releases the global sleep hold, then immediately asserts GPIO13 before it initializes serial, USB, or buttons.
+- **USB edge** — A connect or disconnect edge requests a full Home render. This replaces a stale BootView frame after the X4 power transition.
+
+The USB-connected sleep path charged the measured X4 from 3944 mV to 4170 mV
+in 30 minutes. Awake USB insertion, removal, sleep, and wake preserve Home after
+the GPIO13 latch and USB-edge repaint are applied.
 
 ---
 
@@ -158,6 +178,7 @@ V is battery voltage (limited to the 0-100% range).
 - **GPIO 8** — SPI SCLK (Output)
 - **GPIO 10** — SPI MOSI (Output)
 - **GPIO 12** — SD CS (Output)
+- **GPIO 13** — Battery power latch (Output)
 - **GPIO 20** — UART0_RXD / USB detect (Input)
 - **GPIO 21** — Display CS (Output)
 
@@ -165,4 +186,6 @@ V is battery voltage (limited to the 0-100% range).
 
 ## Sunlight Fading
 
-The X4 SSD1677 driver IC is packaged as "Gold Bump Die" with no resin protection. UV radiation can damage it. White X4 devices are more affected. Set **Sunlight Fading Fix** to on in Settings to power down the display after each refresh (approximately 100-200ms overhead for each page turn). See [SSD1677 Driver Guide § Sunlight Fading](ssd1677-driver.md#sunlight-fading-issue) for more data.
+Enable **Settings > Screen > Sunlight Fading Fix** if the screen fades in sunlight.
+The setting powers down the controller after each refresh.
+See [Sunlight Fading](ssd1677-driver.md#sunlight-fading).

@@ -1,6 +1,6 @@
 #include "test_utils.h"
 
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <algorithm>
 #include <cstring>
 
@@ -16,7 +16,7 @@ class GfxRenderer {
     LandscapeCounterClockwise
   };
 
-  explicit GfxRenderer(EInkDisplay& display) : einkDisplay(display), orientation(Portrait) {}
+  explicit GfxRenderer(papyrix::hal::Display& display) : einkDisplay(display), orientation(Portrait) {}
 
   void begin() { frameBuffer = einkDisplay.getFrameBuffer(); }
 
@@ -31,14 +31,14 @@ class GfxRenderer {
     switch (orientation) {
       case Portrait:
         rotatedX = y;
-        rotatedY = EInkDisplay::DISPLAY_HEIGHT - 1 - x;
+        rotatedY = papyrix::hal::Display::DISPLAY_HEIGHT - 1 - x;
         break;
       case LandscapeClockwise:
-        rotatedX = EInkDisplay::DISPLAY_WIDTH - 1 - x;
-        rotatedY = EInkDisplay::DISPLAY_HEIGHT - 1 - y;
+        rotatedX = papyrix::hal::Display::DISPLAY_WIDTH - 1 - x;
+        rotatedY = papyrix::hal::Display::DISPLAY_HEIGHT - 1 - y;
         break;
       case PortraitInverted:
-        rotatedX = EInkDisplay::DISPLAY_WIDTH - 1 - y;
+        rotatedX = papyrix::hal::Display::DISPLAY_WIDTH - 1 - y;
         rotatedY = x;
         break;
       case LandscapeCounterClockwise:
@@ -47,11 +47,11 @@ class GfxRenderer {
         rotatedY = y;
         break;
     }
-    if (rotatedX < 0 || rotatedX >= static_cast<int>(EInkDisplay::DISPLAY_WIDTH) || rotatedY < 0 ||
-        rotatedY >= static_cast<int>(EInkDisplay::DISPLAY_HEIGHT)) {
+    if (rotatedX < 0 || rotatedX >= static_cast<int>(papyrix::hal::Display::DISPLAY_WIDTH) || rotatedY < 0 ||
+        rotatedY >= static_cast<int>(papyrix::hal::Display::DISPLAY_HEIGHT)) {
       return;
     }
-    const uint16_t byteIndex = rotatedY * EInkDisplay::DISPLAY_WIDTH_BYTES + (rotatedX / 8);
+    const uint16_t byteIndex = rotatedY * papyrix::hal::Display::DISPLAY_WIDTH_BYTES + (rotatedX / 8);
     const uint8_t bitPosition = 7 - (rotatedX % 8);
     if (state)
       frameBuffer[byteIndex] &= ~(1 << bitPosition);
@@ -66,18 +66,18 @@ class GfxRenderer {
     switch (orientation) {
       case Portrait:
         physX = y;
-        physY = EInkDisplay::DISPLAY_HEIGHT - 1 - (x + width - 1);
+        physY = papyrix::hal::Display::DISPLAY_HEIGHT - 1 - (x + width - 1);
         physW = height;
         physH = width;
         break;
       case LandscapeClockwise:
-        physX = EInkDisplay::DISPLAY_WIDTH - 1 - (x + width - 1);
-        physY = EInkDisplay::DISPLAY_HEIGHT - 1 - (y + height - 1);
+        physX = papyrix::hal::Display::DISPLAY_WIDTH - 1 - (x + width - 1);
+        physY = papyrix::hal::Display::DISPLAY_HEIGHT - 1 - (y + height - 1);
         physW = width;
         physH = height;
         break;
       case PortraitInverted:
-        physX = EInkDisplay::DISPLAY_WIDTH - 1 - (y + height - 1);
+        physX = papyrix::hal::Display::DISPLAY_WIDTH - 1 - (y + height - 1);
         physY = x;
         physW = height;
         physH = width;
@@ -91,8 +91,8 @@ class GfxRenderer {
         break;
     }
 
-    const int dw = static_cast<int>(EInkDisplay::DISPLAY_WIDTH);
-    const int dh = static_cast<int>(EInkDisplay::DISPLAY_HEIGHT);
+    const int dw = static_cast<int>(papyrix::hal::Display::DISPLAY_WIDTH);
+    const int dh = static_cast<int>(papyrix::hal::Display::DISPLAY_HEIGHT);
     if (physX >= dw || physY >= dh || physX + physW <= 0 || physY + physH <= 0) return;
 
     const int x0 = std::max(physX, 0);
@@ -100,7 +100,7 @@ class GfxRenderer {
     const int x1 = std::min(physX + physW - 1, dw - 1);
     const int y1 = std::min(physY + physH - 1, dh - 1);
 
-    const int stride = EInkDisplay::DISPLAY_WIDTH_BYTES;
+    const int stride = papyrix::hal::Display::DISPLAY_WIDTH_BYTES;
     const int byteStart = x0 / 8;
     const int byteEnd = x1 / 8;
 
@@ -154,18 +154,18 @@ class GfxRenderer {
   }
 
  private:
-  EInkDisplay& einkDisplay;
+  papyrix::hal::Display& einkDisplay;
   Orientation orientation;
   uint8_t* frameBuffer = nullptr;
 };
 
 static bool buffersMatch(const uint8_t* a, const uint8_t* b) {
-  return memcmp(a, b, EInkDisplay::BUFFER_SIZE) == 0;
+  return memcmp(a, b, papyrix::hal::Display::BUFFER_SIZE) == 0;
 }
 
 static int countBytes(const uint8_t* fb, uint8_t value) {
   int count = 0;
-  for (uint32_t i = 0; i < EInkDisplay::BUFFER_SIZE; i++) {
+  for (uint32_t i = 0; i < papyrix::hal::Display::BUFFER_SIZE; i++) {
     if (fb[i] == value) count++;
   }
   return count;
@@ -174,12 +174,12 @@ static int countBytes(const uint8_t* fb, uint8_t value) {
 int main() {
   TestUtils::TestRunner runner("GfxRendererFillRect");
 
-  constexpr int W = EInkDisplay::DISPLAY_WIDTH;
-  constexpr int H = EInkDisplay::DISPLAY_HEIGHT;
+  constexpr int W = papyrix::hal::Display::DISPLAY_WIDTH;
+  constexpr int H = papyrix::hal::Display::DISPLAY_HEIGHT;
 
   // Test 1: Byte-aligned black fill, identity orientation
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -196,7 +196,7 @@ int main() {
 
   // Test 2: Byte-aligned white fill on black background
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -216,8 +216,8 @@ int main() {
 
   // Test 3: Non-aligned edges — compare against reference
   {
-    EInkDisplay display1(0, 0, 0, 0, 0, 0);
-    EInkDisplay display2(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display1(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display2(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx1(display1);
     GfxRenderer gfx2(display2);
     gfx1.begin();
@@ -235,8 +235,8 @@ int main() {
 
   // Test 4: Single-byte rectangle
   {
-    EInkDisplay display1(0, 0, 0, 0, 0, 0);
-    EInkDisplay display2(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display1(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display2(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx1(display1);
     GfxRenderer gfx2(display2);
     gfx1.begin();
@@ -254,7 +254,7 @@ int main() {
 
   // Test 5: Full-width status-bar clear (800px = 100 bytes)
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -275,8 +275,8 @@ int main() {
 
   // Test 6: Portrait orientation — compare against reference
   {
-    EInkDisplay display1(0, 0, 0, 0, 0, 0);
-    EInkDisplay display2(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display1(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display2(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx1(display1);
     GfxRenderer gfx2(display2);
     gfx1.begin();
@@ -294,8 +294,8 @@ int main() {
 
   // Test 7: LandscapeClockwise — compare against reference
   {
-    EInkDisplay display1(0, 0, 0, 0, 0, 0);
-    EInkDisplay display2(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display1(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display2(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx1(display1);
     GfxRenderer gfx2(display2);
     gfx1.begin();
@@ -313,8 +313,8 @@ int main() {
 
   // Test 8: PortraitInverted — compare against reference
   {
-    EInkDisplay display1(0, 0, 0, 0, 0, 0);
-    EInkDisplay display2(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display1(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display2(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx1(display1);
     GfxRenderer gfx2(display2);
     gfx1.begin();
@@ -332,7 +332,7 @@ int main() {
 
   // Test 9: Zero/negative dimensions — no crash, no change
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -343,13 +343,13 @@ int main() {
     gfx.fillRect(0, 0, -5, 10, true);
     gfx.fillRect(0, 0, 10, -5, true);
 
-    runner.expectTrue(countBytes(gfx.getFrameBuffer(), 0x00) == static_cast<int>(EInkDisplay::BUFFER_SIZE),
+    runner.expectTrue(countBytes(gfx.getFrameBuffer(), 0x00) == static_cast<int>(papyrix::hal::Display::BUFFER_SIZE),
                       "zero_negative_no_change");
   }
 
   // Test 10: Out-of-bounds — no crash, no change
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -359,14 +359,14 @@ int main() {
     gfx.fillRect(0, H, 8, 8, false);
     gfx.fillRect(W + 100, H + 100, 8, 8, false);
 
-    runner.expectTrue(countBytes(gfx.getFrameBuffer(), 0x00) == static_cast<int>(EInkDisplay::BUFFER_SIZE),
+    runner.expectTrue(countBytes(gfx.getFrameBuffer(), 0x00) == static_cast<int>(papyrix::hal::Display::BUFFER_SIZE),
                       "out_of_bounds_no_change");
   }
 
   // Test 11: Partial overlap with display edge — clamp correctly
   {
-    EInkDisplay display1(0, 0, 0, 0, 0, 0);
-    EInkDisplay display2(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display1(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display2(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx1(display1);
     GfxRenderer gfx2(display2);
     gfx1.begin();
@@ -384,7 +384,7 @@ int main() {
 
   // Test 12: Edge preservation — fillRect doesn't touch neighboring bits
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -401,8 +401,8 @@ int main() {
 
   // Test 13: 1-pixel wide fill
   {
-    EInkDisplay display1(0, 0, 0, 0, 0, 0);
-    EInkDisplay display2(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display1(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display2(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx1(display1);
     GfxRenderer gfx2(display2);
     gfx1.begin();
@@ -421,7 +421,7 @@ int main() {
   // Test 14: Orientation consistency — same logical rect should fill same pixel count
   {
     auto fillAndCount = [](GfxRenderer::Orientation orient) {
-      EInkDisplay display(0, 0, 0, 0, 0, 0);
+      papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
       GfxRenderer gfx(display);
       gfx.begin();
       gfx.setOrientation(orient);
@@ -430,7 +430,7 @@ int main() {
 
       int blackPixels = 0;
       uint8_t* fb = gfx.getFrameBuffer();
-      for (uint32_t i = 0; i < EInkDisplay::BUFFER_SIZE; i++) {
+      for (uint32_t i = 0; i < papyrix::hal::Display::BUFFER_SIZE; i++) {
         for (int bit = 0; bit < 8; bit++) {
           if (!(fb[i] & (1 << bit))) blackPixels++;
         }

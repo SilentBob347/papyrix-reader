@@ -1,6 +1,6 @@
 # XTC/XTCH Library
 
-XTC ebook format support for CrossPoint Reader.
+This library reads XTC and XTCH books for Papyrix.
 
 ## Supported Formats
 
@@ -11,7 +11,7 @@ XTC ebook format support for CrossPoint Reader.
 
 ## Format Overview
 
-XTC/XTCH are container formats designed for ESP32 e-paper displays. They store pre-rendered bitmap pages optimized for the XTeink X4 e-reader (480x800 resolution).
+XTC and XTCH containers store pre-rendered bitmap pages.
 
 ### Container Structure (XTC/XTCH)
 

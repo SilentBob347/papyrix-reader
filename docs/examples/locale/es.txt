@@ -29,6 +29,7 @@ NO=No
 # Menu items
 SETTINGS=Ajustes
 READER=Lector
+SCREEN=Pantalla
 DEVICE=Dispositivo
 CLEANUP=Limpieza
 SYSTEM_INFO=Info del sistema
@@ -43,6 +44,7 @@ LANGUAGE=Idioma
 
 # Screen titles
 READER_SETTINGS=Ajustes del lector
+SCREEN_SETTINGS=Ajustes de pantalla
 DEVICE_SETTINGS=Ajustes del dispositivo
 FILES=Archivos
 NETWORK_MODE=Modo de red
@@ -76,6 +78,7 @@ SUNLIGHT_FADING_FIX=Corrección luz solar
 FRONT_BUTTONS=Botones frontales
 SIDE_BUTTONS=Botones laterales
 FULL_BOOK_PROCESS=Procesar libro
+TOUCH_PAGE_TURNS=Pasar páginas al tocar
 
 # Settings enum values
 ON=SÍ
@@ -261,3 +264,5 @@ MOVE_TO_TRASH_Q=¿Mover este archivo a la papelera?
 RESTORE_FILE_Q=¿Restaurar en la carpeta original?
 DELETE_PERMANENTLY_Q=¿Eliminar este archivo permanentemente?
 CANNOT_DELETE_TRASH=No se puede eliminar la carpeta de la papelera
+BRIGHTNESS=Brillo
+WARMTH=Calidez

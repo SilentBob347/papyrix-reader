@@ -1,7 +1,7 @@
-#include "test_utils.h"
-
 #include <cstdint>
 #include <cstring>
+
+#include "test_utils.h"
 
 // Inline WifiListView (logic-only copy, mirrors src/ui/views/NetworkViews.h)
 struct WifiListView {
@@ -49,7 +49,6 @@ struct WifiListView {
   }
 };
 
-// Mock network driver (mirrors src/drivers/Network scan API)
 struct MockNetwork {
   bool scanInProgress = false;
   bool scanDone = false;
@@ -211,13 +210,10 @@ int main() {
     logic.update(1300);
     logic.update(1400);
 
-    runner.expectEq(startScanBefore, net.startScanCalls,
-                    "No startScan calls while retry is pending");
-    runner.expectEq(uint8_t(1), logic.scanRetryCount,
-                    "Retry count unchanged while pending");
+    runner.expectEq(startScanBefore, net.startScanCalls, "No startScan calls while retry is pending");
+    runner.expectEq(uint8_t(1), logic.scanRetryCount, "Retry count unchanged while pending");
     runner.expectTrue(view.scanning, "Still scanning while retry pending");
-    runner.expectTrue(strcmp(view.statusText, "Initializing WiFi...") == 0,
-                      "Status unchanged while retry pending");
+    runner.expectTrue(strcmp(view.statusText, "Initializing WiFi...") == 0, "Status unchanged while retry pending");
   }
 
   // --- Retry fires after delay, triggers new scan ---
@@ -226,12 +222,12 @@ int main() {
     MockNetwork net;
     ScanRetryLogic logic(view, net);
 
-    logic.startScan();                      // startScanCalls = 1
+    logic.startScan();  // startScanCalls = 1
     net.completeScanWith(0);
-    logic.update(1000);                     // Retry scheduled at 1500
+    logic.update(1000);  // Retry scheduled at 1500
 
     int callsBefore = net.startScanCalls;
-    logic.update(1500);                     // Timer fires, new scan starts
+    logic.update(1500);  // Timer fires, new scan starts
 
     runner.expectEq(callsBefore + 1, net.startScanCalls, "startScan called when retry fires");
     runner.expectTrue(view.scanning, "Scanning after retry fires");

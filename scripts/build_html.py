@@ -32,6 +32,10 @@ def minify_html(html: str) -> str:
 
     return html.strip()
 
+def compress_html(html: str) -> bytes:
+    minified = minify_html(html)
+    return gzip.compress(minified.encode('utf-8'), compresslevel=9, mtime=0)
+
 for root, _, files in os.walk(SRC_DIR):
     for file in files:
         if file.endswith(".html"):
@@ -40,7 +44,7 @@ for root, _, files in os.walk(SRC_DIR):
                 html_content = f.read()
 
             minified = minify_html(html_content)
-            compressed = gzip.compress(minified.encode('utf-8'), compresslevel=9)
+            compressed = compress_html(html_content)
             base_name = f"{os.path.splitext(file)[0]}Html"
             header_path = os.path.join(root, f"{base_name}.generated.h")
 

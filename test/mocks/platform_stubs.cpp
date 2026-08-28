@@ -40,6 +40,7 @@ int gpio_hold_en(int pin) {
 }
 
 void gpio_deep_sleep_hold_en() { testRecordGpioEvent(TestGpioEventType::DeepSleepHold, -1, 0); }
+void gpio_deep_sleep_hold_dis() { testRecordGpioEvent(TestGpioEventType::DeepSleepHoldDisable, -1, 0); }
 
 void MockSerial::printf(const char* fmt, ...) {
   va_list args;

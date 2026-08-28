@@ -1,12 +1,14 @@
 # Localization
 
-Papyrix includes English as the default language. English is compiled into the firmware. You can use a different language. Put one translation file on the SD card, or upload it through the web interface.
+Papyrix uses English by default.
+To use another language, put a translation file on the SD card.
+The web interface also accepts translation uploads.
 
-## How it works
+## Operation
 
-1. English strings (217 keys) are compiled into firmware (Flash, zero RAM cost).
-2. At start, if `/.papyrix/locale.txt` is on the SD card, it replaces English defaults in RAM.
-3. All `tr()` calls go to one pointer dereference. There is no SD access after start.
+1. The firmware stores English strings in Flash.
+2. At startup, `/.papyrix/locale.txt` supplies replacement strings in RAM.
+3. String lookup does not access the SD card after startup.
 4. To change the language, replace the file and start the device again.
 
 ## File format
@@ -35,7 +37,7 @@ LOADING=Chargement...
 
 ### Metadata keys
 
-Keys that start with `_` are not loaded into the translation table. The system can use them:
+The translation table excludes keys that start with `_`.
 
 - `_language_name` - shown in the web interface as the current language name
 
@@ -54,7 +56,8 @@ Keys that start with `_` are not loaded into the translation table. The system c
 3. Upload a `.txt` locale file.
 4. Start the device again.
 
-The web interface shows the current language name (from `_language_name`) and the file size. You can delete the locale file to go back to English.
+The web interface shows the language name and file size.
+Delete the locale file to restore English.
 
 See `docs/examples/locale/` for complete examples (en, de, fr, es, uk).
 

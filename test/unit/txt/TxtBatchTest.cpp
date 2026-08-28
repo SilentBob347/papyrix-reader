@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-uint8_t GfxRenderer::frameBuffer_[EInkDisplay::BUFFER_SIZE];
+uint8_t GfxRenderer::frameBuffer_[papyrix::hal::Display::BUFFER_SIZE];
 
 void ImageBlock::render(GfxRenderer&, int, int, int) const {}
 bool ImageBlock::serialize(FsFile&) const { return false; }
@@ -56,7 +56,7 @@ static const EpdFontData testFontData = {
 };
 
 struct TestSetup {
-  EInkDisplay display{0, 0, 0, 0, 0, 0};
+  papyrix::hal::Display display{0, 0, 0, 0, 0, 0};
   GfxRenderer gfx{display};
   EpdFont font{&testFontData};
   RenderConfig config;

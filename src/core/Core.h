@@ -1,11 +1,17 @@
 #pragma once
 
+#include <Display.h>
+
 #include "../content/ContentHandle.h"
-#include "../drivers/Cpu.h"
-#include "../drivers/Display.h"
-#include "../drivers/Input.h"
-#include "../drivers/Network.h"
-#include "../drivers/Storage.h"
+#include "../hal/Battery.h"
+#include "../hal/Clock.h"
+#include "../hal/Cpu.h"
+#include "../hal/DeviceInfo.h"
+#include "../hal/FrontLight.h"
+#include "../hal/Input.h"
+#include "../hal/Storage.h"
+#include "../hal/Usb.h"
+#include "../hal/WifiRadio.h"
 #include "BootMode.h"
 #include "EventQueue.h"
 #include "PapyrixSettings.h"
@@ -15,12 +21,16 @@
 namespace papyrix {
 
 struct Core {
-  // === Drivers (thin wrappers, no heap) ===
-  drivers::Display display;
-  drivers::Storage storage;
-  drivers::Input input;
-  drivers::Network network;
-  drivers::Cpu cpu;
+  hal::Display display;
+  hal::Storage storage;
+  hal::Input input;
+  hal::WifiRadio wifi;
+  hal::DeviceInfo device;
+  hal::Cpu cpu;
+  hal::Clock clock;
+  hal::Battery battery;
+  hal::Usb usb;
+  hal::FrontLight frontLight;
 
   // === Settings ===
   Settings settings;

@@ -1,6 +1,6 @@
 #include "test_utils.h"
 
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <EpdFontFamily.h>
 #include <array>
 #include <map>
@@ -15,7 +15,7 @@ class GfxRenderer {
  public:
   using FontStyleResolver = void (*)(void* ctx, int fontId, int styleIdx);
 
-  explicit GfxRenderer(EInkDisplay&) {}
+  explicit GfxRenderer(papyrix::hal::Display&) {}
 
   void setStreamingFont(int fontId, EpdFontFamily::Style style, StreamingEpdFont* font) {
     _streamingFonts[fontId][EpdFontFamily::externalStyleIndex(style)] = font;
@@ -85,7 +85,7 @@ int main() {
   TestUtils::TestRunner runner("GfxRendererStreamingFont");
 
   // Create mock display
-  EInkDisplay display(0, 0, 0, 0, 0, 0);
+  papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
 
   // Use fake pointers for StreamingEpdFont - we only test storage/retrieval, not actual font operations
   auto* regularFont = reinterpret_cast<StreamingEpdFont*>(0x1000);

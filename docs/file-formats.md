@@ -1,10 +1,13 @@
 # File Formats
 
-This document describes the binary cache formats that Papyrix uses for EPUB, TXT, Markdown, FB2, and HTML files.
+Papyrix stores EPUB, TXT, Markdown, FB2, and HTML page caches in binary files.
+
+`<device-cache>` is `/.papyrix/cache/` on X4, `/.papyrix/cache/x3/` on X3,
+and `/.papyrix/cache/x4pro/` on X4 Pro.
 
 ## TXT Cache Files
 
-TXT files use a simple cache format in `.papyrix/txt_<hash>/`.
+TXT files use a simple cache format in `<device-cache>/txt_<hash>/`.
 
 ### `progress.bin`
 
@@ -40,7 +43,7 @@ The image is converted to 1-bit dithered BMP format for display.
 
 ## Markdown Cache Files
 
-Markdown files (`.md`, `.markdown`) use a cache format in `.papyrix/md_<hash>/`.
+Markdown files (`.md`, `.markdown`) use a cache format in `<device-cache>/md_<hash>/`.
 
 ### `progress.bin`
 
@@ -103,7 +106,7 @@ The image is converted to 1-bit dithered BMP format for display.
 
 ## FB2 Cache Files
 
-FB2 (FictionBook 2.0) files use a cache format in `.papyrix/fb2_<hash>/`.
+FB2 (FictionBook 2.0) files use a cache format in `<device-cache>/fb2_<hash>/`.
 
 ### `meta.bin`
 
@@ -164,7 +167,7 @@ The image is converted to 1-bit dithered BMP format for display.
 
 ## HTML Cache Files
 
-HTML files (`.html`, `.htm`) use a cache format in `.papyrix/html_<hash>/`. HTML is parsed with the same pipeline as EPUB chapters (HTML5 normalization → Expat XML → page layout).
+HTML files (`.html`, `.htm`) use a cache format in `<device-cache>/html_<hash>/`. HTML uses the same parse pipeline as EPUB chapters (HTML5 normalization → Expat XML → page layout).
 
 ### `progress.bin`
 
@@ -201,7 +204,7 @@ The image is converted to 1-bit dithered BMP format for display.
 
 ## EPUB Cache Files
 
-EPUB files use a more complex cache format in `.papyrix/epub_<hash>/`.
+EPUB files use a more complex cache format in `<device-cache>/epub_<hash>/`.
 
 ### Image Cache (`images/` subdirectory)
 

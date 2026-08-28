@@ -72,22 +72,29 @@ void enumValue(const GfxRenderer& r, const Theme& t, int y, const char* label, c
   }
 }
 
-void buttonBar(const GfxRenderer& r, const Theme& t, const char* b1, const char* b2, const char* b3, const char* b4) {
-  if (frontButtonLayout_ == papyrix::Settings::FrontLRBC) {
-    r.drawButtonHints(t.uiFontId, b3, b4, b1, b2, t.primaryTextBlack);
-  } else {
-    r.drawButtonHints(t.uiFontId, b1, b2, b3, b4, t.primaryTextBlack);
+static void drawButtonBar(const GfxRenderer& r, const Theme& t, const char* const labels[4]) {
+  for (int i = 0; i < 4; ++i) {
+    if (labels[i] == nullptr || labels[i][0] == '\0') continue;
+    const touch::Rect bounds = buttonBarButtonBounds(r, i);
+    r.drawRect(bounds.x, bounds.y, bounds.width, bounds.height, t.primaryTextBlack);
+    const std::string label = r.truncatedText(t.uiFontId, labels[i], GfxRenderer::BUTTON_HINT_MAX_TEXT_WIDTH);
+    const int textX = bounds.x + (bounds.width - 1 - r.getTextWidth(t.uiFontId, label.c_str())) / 2;
+    r.drawText(t.uiFontId, textX, bounds.y + 10, label.c_str(), t.primaryTextBlack);
   }
 }
 
+void buttonBar(const GfxRenderer& r, const Theme& t, const char* b1, const char* b2, const char* b3, const char* b4) {
+  const char* labels[] = {b1, b2, b3, b4};
+  const char* remapped[] = {b3, b4, b1, b2};
+  drawButtonBar(r, t, frontButtonLayout_ == papyrix::Settings::FrontLRBC ? remapped : labels);
+}
+
 void buttonBar(const GfxRenderer& r, const Theme& t, const ButtonBar& buttons) {
-  if (frontButtonLayout_ == papyrix::Settings::FrontLRBC) {
-    r.drawButtonHints(t.uiFontId, buttons.labels[2], buttons.labels[3], buttons.labels[0], buttons.labels[1],
-                      t.primaryTextBlack);
-  } else {
-    r.drawButtonHints(t.uiFontId, buttons.labels[0], buttons.labels[1], buttons.labels[2], buttons.labels[3],
-                      t.primaryTextBlack);
-  }
+  buttonBar(r, t, buttons.labels[0], buttons.labels[1], buttons.labels[2], buttons.labels[3]);
+}
+
+touch::Rect buttonBarButtonBounds(const GfxRenderer& r, int index) {
+  return touch::buttonBarButtonRect(index, r.getScreenWidth(), r.getScreenHeight(), GfxRenderer::BUTTON_HINT_WIDTH);
 }
 
 void progress(const GfxRenderer& r, const Theme& t, int y, int current, int total) {
@@ -141,17 +148,12 @@ void image(const GfxRenderer& r, int x, int y, const uint8_t* data, int w, int h
 }
 
 void dialog(const GfxRenderer& r, const Theme& t, const char* titleText, const char* msg, int selected) {
-  const int screenW = r.getScreenWidth();
-  const int screenH = r.getScreenHeight();
-
-  // Dialog box dimensions
-  const int dialogW = screenW - 60;
-  const int lineHeight = r.getLineHeight(t.uiFontId);
+  const touch::DialogLayout layout = confirmationDialogBounds(r, t, msg);
+  const int dialogW = layout.bounds.width;
   const int messageMaxWidth = dialogW - 40;
-  const bool messageWraps = r.getTextWidth(t.uiFontId, msg) > messageMaxWidth;
-  const int dialogH = 160 + (messageWraps ? lineHeight : 0);
-  const int dialogX = 30;
-  const int dialogY = (screenH - dialogH) / 2;
+  const int dialogH = layout.bounds.height;
+  const int dialogX = layout.bounds.x;
+  const int dialogY = layout.bounds.y;
 
   // Draw dialog background (clear area)
   r.clearArea(dialogX, dialogY, dialogW, dialogH, t.backgroundColor);
@@ -164,12 +166,14 @@ void dialog(const GfxRenderer& r, const Theme& t, const char* titleText, const c
   centeredTextWrapped(r, t.uiFontId, dialogY + 60, msg, messageMaxWidth, 2, t.primaryTextBlack);
 
   // Draw buttons (Yes/No)
-  const int btnW = 80;
-  const int btnH = 30;
-  const int btnY = dialogY + dialogH - 50;
+  const touch::Rect yesBounds = layout.choices[0];
+  const touch::Rect noBounds = layout.choices[1];
+  const int btnW = yesBounds.width;
+  const int btnH = yesBounds.height;
+  const int btnY = yesBounds.y;
   const int btnTextY = btnY + (btnH - r.getLineHeight(t.uiFontId)) / 2;
-  const int yesX = dialogX + (dialogW / 2) - btnW - 20;
-  const int noX = dialogX + (dialogW / 2) + 20;
+  const int yesX = yesBounds.x;
+  const int noX = noBounds.x;
 
   // Yes button
   if (selected == 0) {
@@ -189,6 +193,14 @@ void dialog(const GfxRenderer& r, const Theme& t, const char* titleText, const c
   }
   r.drawText(t.uiFontId, noX + (btnW - r.getTextWidth(t.uiFontId, tr(NO))) / 2, btnTextY, tr(NO),
              selected == 1 ? t.selectionTextBlack : t.primaryTextBlack);
+}
+
+touch::DialogLayout confirmationDialogBounds(const GfxRenderer& r, const Theme& t, const char* msg) {
+  const int dialogWidth = r.getScreenWidth() - 60;
+  const int messageMaxWidth = dialogWidth - 40;
+  const bool messageWraps = r.getTextWidth(t.uiFontId, msg) > messageMaxWidth;
+  const int dialogHeight = 160 + (messageWraps ? r.getLineHeight(t.uiFontId) : 0);
+  return touch::confirmationDialogLayout(r.getScreenWidth(), r.getScreenHeight(), dialogHeight);
 }
 
 // Keyboard layout - 10x10 grid
@@ -405,7 +417,11 @@ void battery(const GfxRenderer& r, const Theme& t, int x, int y, int percent, bo
 
   // Percentage text
   char buf[8];
-  snprintf(buf, sizeof(buf), "%d%%", percent);
+  if (percent < 0) {
+    snprintf(buf, sizeof(buf), "--%%");
+  } else {
+    snprintf(buf, sizeof(buf), "%d%%", percent);
+  }
   r.drawText(t.smallFontId, x + battW + tipW + 5, y, buf, t.primaryTextBlack);
 }
 

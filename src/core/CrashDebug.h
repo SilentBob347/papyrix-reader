@@ -16,11 +16,14 @@ enum class CrashPhase : uint8_t {
   EpubTocResolved = 6,
   EpubTocRender = 7,
   HomeMetadataLoad = 10,
+  DisplayInit = 20,
 };
 
 void mark(CrashPhase phase, int16_t spine = -1, uint8_t attempt = 0);
 void clear();
 void logBootInfo(esp_reset_reason_t reason);
 bool shouldSkipHomeMetadata();
+void markDisplayFailure(uint8_t result, uint8_t attempt);
+void clearDisplayFailure();
 
 }  // namespace papyrix::crashdebug

@@ -13,6 +13,7 @@
 namespace ui {
 
 struct CalibreView {
+  enum class Hit : uint8_t { None, Back, Restart };
   static constexpr int MAX_STATUS_LEN = 64;
   static constexpr int MAX_HELP_LEN = 96;
   static constexpr int MAX_TEXT_LINES = 2;
@@ -97,6 +98,13 @@ struct CalibreView {
     showRestartOption = true;
     buttons = ButtonBar{tr(BACK), tr(RESTART)};
     needsRender = true;
+  }
+
+  Hit hitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, bool frontLrbc = false) const {
+    const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+    if (action == 0 && buttons.isActive(0)) return Hit::Back;
+    if (action == 1 && buttons.isActive(1)) return Hit::Restart;
+    return Hit::None;
   }
 };
 

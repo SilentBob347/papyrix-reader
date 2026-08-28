@@ -1,15 +1,20 @@
 #include "SDCardManager.h"
 
+#include <HardwareIdentity.h>
 #include <Logging.h>
 
 #include <cstring>
 
 #include "SDPowerControl.h"
+#include "SdmmcBlockDevice.h"
 
 #define TAG "SD"
 
 namespace {
 constexpr uint32_t SPI_FQ = 40000000;
+#if PAPYRIX_CAP_SDMMC
+papyrix::sd::SdmmcBlockDevice sdmmc;
+#endif
 }  // namespace
 
 SDCardManager SDCardManager::instance;
@@ -17,22 +22,31 @@ SDCardManager SDCardManager::instance;
 SDCardManager::SDCardManager() : sd() {}
 
 bool SDCardManager::begin() {
-  if (!sd.begin(papyrix::sd::SD_CHIP_SELECT_PIN, SPI_FQ)) {
-    LOG_ERR(TAG, "SD card not detected");
-    initialized = false;
-  } else {
+  if (initialized) return true;
+#if PAPYRIX_CAP_SDMMC
+  const auto& storage = papyrix::board::HardwareIdentity::instance().profile().storage;
+  initialized = sdmmc.begin(storage) && sd.begin(&sdmmc);
+#else
+  initialized = sd.begin(papyrix::sd::SD_CHIP_SELECT_PIN, SPI_FQ);
+#endif
+  if (initialized) {
     LOG_INF(TAG, "SD card detected");
-    initialized = true;
+  } else {
+    LOG_ERR(TAG, "SD card not detected");
+#if PAPYRIX_CAP_SDMMC
+    sdmmc.end();
+#endif
   }
-
   return initialized;
 }
 
 void SDCardManager::end() {
-  if (initialized) {
-    sd.end();
-    initialized = false;
-  }
+  if (!initialized) return;
+  sd.end();
+#if PAPYRIX_CAP_SDMMC
+  sdmmc.end();
+#endif
+  initialized = false;
 }
 
 bool SDCardManager::ready() const { return initialized; }

@@ -1,7 +1,7 @@
 # Makefile for Papyrix Reader firmware
 # Wraps PlatformIO commands for convenience
 
-.PHONY: all build build-release release upload upload-release flash flash-release \
+.PHONY: all build build-release release package upload upload-release flash flash-release flash-xteink-c3 flash-x4pro \
         clean format check monitor size erase build-fs upload-fs sleep-screen gh-release changelog help \
         test test-build test-run test-clean fontconvert-bin reader-test
 
@@ -17,19 +17,27 @@ all: help
 build: ## Build firmware (default environment)
 	pio run
 
-build-release: ## Build release firmware
-	pio run -e gh_release
+build-release: ## Build all release firmware environments
+	pio run -e release_xteink_c3 -e release_x4pro
 
 release: build-release ## Alias for build-release
+
+package: ## Build, check, and package all release firmware
+	python3 scripts/package_firmware.py
 
 # Upload targets
 upload: ## Build and flash to device
 	pio run --target upload
 
-upload-release: ## Build and flash release firmware
-	pio run -e gh_release --target upload
+flash-xteink-c3: ## Build and flash release firmware for X3/X4
+	pio run -e release_xteink_c3 --target upload
+
+flash-x4pro: ## Build and flash release firmware for X4 Pro (hold Power)
+	pio run -e release_x4pro --target upload
 
 # Aliases
+upload-release: flash-xteink-c3 ## Alias for flash-xteink-c3 (X3/X4)
+
 flash: upload ## Alias for upload
 
 flash-release: upload-release ## Alias for upload-release
@@ -74,17 +82,19 @@ tag: ## Create and push a version tag (triggers GitHub release)
 		exit 1; \
 	fi
 
-gh-release: build-release ## Create GitHub release with firmware
+gh-release: package ## Create GitHub release with all firmware artifacts
 ifndef VERSION
 	$(error VERSION is required. Usage: make gh-release VERSION=0.1.1 [NOTES="..."])
 endif
 ifdef NOTES
-	gh release create v$(VERSION) .pio/build/gh_release/firmware.bin \
+	gh release create v$(VERSION) dist/papyrix-xteink-c3.bin dist/papyrix-x4pro.bin \
+		dist/manifest.json \
 		--repo bigbag/papyrix-reader \
 		--title "Papyrix v$(VERSION)" \
 		--notes "$(NOTES)"
 else
-	gh release create v$(VERSION) .pio/build/gh_release/firmware.bin \
+	gh release create v$(VERSION) dist/papyrix-xteink-c3.bin dist/papyrix-x4pro.bin \
+		dist/manifest.json \
 		--repo bigbag/papyrix-reader \
 		--title "Papyrix v$(VERSION)" \
 		--generate-notes
@@ -135,6 +145,11 @@ test-build: ## Build unit tests
 test-run: ## Run unit tests (build first if needed)
 	@if [ ! -d test/build/bin ]; then $(MAKE) test-build; fi
 	@test/scripts/run_tests.sh
+	@python3 test/scripts/test_target_features.py
+	@python3 test/scripts/test_sdmmc_lifecycle.py
+	@python3 test/scripts/test_wakeup.py
+	@python3 test/scripts/test_package_firmware.py
+	@python3 test/scripts/test_build_html.py
 
 test-clean: ## Clean test build artifacts
 	@rm -rf test/build
@@ -161,7 +176,7 @@ help: ## Show this help
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"; section=""} \
 		/^##/ { section=substr($$0, 4); next } \
-		/^[a-zA-Z_-]+:.*##/ { \
+		/^[a-zA-Z0-9_-]+:.*##/ { \
 			if (section != "") { printf "\n\033[1m%s\033[0m\n", section; section="" } \
 			printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 \
 		}' $(MAKEFILE_LIST)

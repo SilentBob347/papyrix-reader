@@ -1,6 +1,10 @@
 # Troubleshooting
 
-This guide helps developers repair problems on the Xteink X4 / X3 with Papyrix firmware.
+Use `papyrix-xteink-c3.bin` for X3/X4 and `papyrix-x4pro.bin` for X4 Pro.
+All application images use flash
+offset `0x10000`. A wrong-target image can drive incorrect GPIOs. Erase flash
+and install the correct artifact if the device does not enter its expected
+startup path.
 
 ---
 
@@ -22,40 +26,38 @@ The probe runs only when no valid cache or override exists. Clear the `epd_det` 
 
 If an X3 screen stays blank or shows an incorrect image, attach the serial log to the issue report. Report the results for full refresh, fast refresh, grayscale, sleep, and wake.
 
-## Soft-Brick Recovery
+## Firmware Recovery
 
-> **Note:** Soft-brick must not occur during usual operation. This section is only for developers who flash custom firmware.
+Use **Settings → Firmware Update** for a device that can open the UI. Copy the
+correct artifact to the SD root as `/firmware.bin`.
 
-### What causes it
+If the UI cannot start, copy the artifact as `/force_update.bin`. The boot path
+applies it before UI initialization. It shows **Firmware update in progress**
+and **Do not power off** when the display is available. A display initialization
+failure does not block the update, so the previous e-ink frame can remain
+visible during a headless recovery. Wait for the device to restart. The boot
+path removes the file after the attempt. Copy it again before a retry.
 
-A soft-brick occurs when firmware calls deep sleep or light sleep on each start. The CPU powers down immediately after reset. You cannot flash new firmware through the usual USB connection.
+There is no boot-button recovery mode.
 
-### Simple repair: remove the SD card
+## Display Initialization Recovery
 
-The easiest recovery method is to remove the SD card and start the device again. With no SD card, the defective code path usually does not start. The device can start far enough for you to flash again.
+The firmware performs one controller reset and initialization retry. If the
+second attempt fails, it closes the SD transport, disables display power, then
+disables storage power. USB serial and the power button remain active. The
+firmware waits without rebooting.
 
-### Hardware method: download mode through the SD card slot
+Press the power button or send `retry` to restore storage power and retry
+display initialization. The last result and bounded attempt count are stored in
+RTC memory and the `papyrix_diag` NVS namespace.
 
-If removal of the SD card does not help, force the ESP32-C3 into download mode. Pull down a strapping pin through the SD card slot.
+X4 Pro physical verification does not cover display initialization recovery.
 
-**Background:** The ESP32-C3 uses strapping pins that it samples at start to select the boot mode. If you pull GPIO9 low during start, the device goes into download mode. Then you can flash again through USB.
+## Repeated Sleep at Startup
 
-**Strapping pins on the Xteink X4:**
-
-- **GPIO8** — Display/SD SPI CLK. You cannot get access with no disassembly.
-- **GPIO9** — SD card CLK. You can get access through the SD card slot.
-- **GPIO2** — Button ADC 2. This pin is not useful ([it does nothing for boot mode](https://esp32.com/viewtopic.php?t=31947)).
-
-**Procedure:** Put in a changed SD card (or use a pin/wire) to pull GPIO9 low through the CLK contact of the SD card slot during start. This forces the ESP32-C3 into download mode. Then you can flash firmware again through USB.
-
-> This method was tested on a standalone ESP32-C3 board. It is not verified on the Xteink X4 device.
-
-### Schematic reference
-
-The Xteink X4 schematic that shows the ESP32-C3 pin connections is at:
-[Xteink X4 Schematic](https://github.com/sunwoods/Xteink-X4/blob/main/readme-img/sch.jpg)
-(from the [sunwoods/Xteink-X4](https://github.com/sunwoods/Xteink-X4) repository)
-
-### Attribution
-
-[ngxson](https://github.com/ngxson) wrote this recovery procedure in [crosspoint-reader/crosspoint-reader#573](https://github.com/crosspoint-reader/crosspoint-reader/discussions/573).
+Custom firmware can enter sleep immediately after reset.
+This can prevent USB flashing.
+Remove the SD card and restart the device.
+If USB becomes available, install the correct release artifact.
+Do not connect wires to SD contacts to force download mode.
+This repository does not provide a verified device-specific procedure for that operation.

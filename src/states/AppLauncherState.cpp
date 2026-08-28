@@ -48,6 +48,22 @@ void AppLauncherState::exit(Core& core) {
   }
 }
 
+void AppLauncherState::activateMenuItem(Core& core) {
+  if (menuView_.selected >= ui::AppMenuView::EXTRA_COUNT) {
+    const int appIdx = menuView_.selected - ui::AppMenuView::EXTRA_COUNT;
+    if (appIdx == APP_CLOCK) {
+      core.pendingSync = SyncMode::NtpSync;
+      core.pendingAppId = APP_CLOCK;
+      goNetwork_ = true;
+    } else {
+      launchApp(core);
+    }
+    return;
+  }
+  core.pendingSync = menuView_.selected == 0 ? SyncMode::FileTransfer : SyncMode::CalibreWireless;
+  goNetwork_ = true;
+}
+
 StateTransition AppLauncherState::update(Core& core) {
   Event e;
   while (core.events.pop(e)) {
@@ -57,6 +73,31 @@ StateTransition AppLauncherState::update(Core& core) {
         stopApp(core);
       }
       return StateTransition::to(StateId::Sleep);
+    }
+
+    if (e.type == EventType::Tap && mode_ == Mode::Menu) {
+      const auto hit = menuView_.hitTest({e.touch.x, e.touch.y}, renderer_.getScreenWidth(),
+                                         renderer_.getScreenHeight(), THEME.itemHeight + THEME.itemSpacing,
+                                         core.settings.frontButtonLayout == Settings::FrontLRBC);
+      if (hit.type == ui::AppMenuView::Hit::Type::Entry) {
+        menuView_.selected = static_cast<int8_t>(hit.index);
+        menuView_.needsRender = true;
+        activateMenuItem(core);
+      } else if (hit.type == ui::AppMenuView::Hit::Type::Open) {
+        activateMenuItem(core);
+      } else if (hit.type == ui::AppMenuView::Hit::Type::Back) {
+        return StateTransition::to(StateId::Home);
+      }
+      continue;
+    }
+
+    if (e.type == EventType::Tap) {
+      const int action = ui::touch::semanticButtonBarIndex({e.touch.x, e.touch.y}, renderer_.getScreenWidth(),
+                                                           renderer_.getScreenHeight(),
+                                                           core.settings.frontButtonLayout == Settings::FrontLRBC);
+      if (action < 0) continue;
+      static constexpr Button buttons[] = {Button::Back, Button::Center, Button::Left, Button::Right};
+      e = Event::buttonPress(buttons[action]);
     }
 
     if (e.type != EventType::ButtonPress && e.type != EventType::ButtonRepeat) {
@@ -75,24 +116,7 @@ StateTransition AppLauncherState::update(Core& core) {
             needsRender_ = true;
             break;
           case Button::Center:
-            if (menuView_.selected >= ui::AppMenuView::EXTRA_COUNT) {
-              int appIdx = menuView_.selected - ui::AppMenuView::EXTRA_COUNT;
-              if (appIdx == APP_CLOCK) {
-                core.pendingSync = SyncMode::NtpSync;
-                core.pendingAppId = APP_CLOCK;
-                goNetwork_ = true;
-              } else {
-                launchApp(core);
-              }
-            } else {
-              int extraIdx = menuView_.selected;
-              if (extraIdx == 0) {
-                core.pendingSync = SyncMode::FileTransfer;
-              } else {
-                core.pendingSync = SyncMode::CalibreWireless;
-              }
-              goNetwork_ = true;
-            }
+            activateMenuItem(core);
             break;
           case Button::Back:
             return StateTransition::to(StateId::Home);
@@ -199,7 +223,6 @@ void AppLauncherState::render(Core& core) {
   }
 
   needsRender_ = false;
-  core.display.markDirty();
 }
 
 void AppLauncherState::launchApp(Core& core) {

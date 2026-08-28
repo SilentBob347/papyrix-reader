@@ -85,7 +85,6 @@ void ErrorState::render(Core& core) {
 
   renderer_.displayBuffer();
   needsRender_ = false;
-  core.display.markDirty();
 }
 
 }  // namespace papyrix

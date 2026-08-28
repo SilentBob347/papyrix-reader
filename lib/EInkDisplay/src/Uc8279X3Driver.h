@@ -18,7 +18,8 @@ class Uc8279Bus {
   virtual void beginData(uint8_t command) = 0;
   virtual void write(const uint8_t* values, size_t size) = 0;
   virtual void endData() = 0;
-  virtual bool waitBusy(const char* operation) = 0;
+  virtual bool waitBusy(const char* operation, bool requireAssertion = false) = 0;
+  virtual bool waitReady(const char* operation) = 0;
 };
 
 class Uc8279X3Driver {

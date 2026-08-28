@@ -204,6 +204,7 @@ class ReaderState : public State {
   // Menu overlay mode
   bool menuMode_ = false;
   ui::ReaderMenuView menuView_;
+  ui::OverlayTapGuard overlayTapGuard_;
   void enterMenuMode(Core& core);
   void exitMenuMode();
   void handleMenuInput(Core& core, const Event& e);

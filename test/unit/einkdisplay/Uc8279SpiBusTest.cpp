@@ -68,18 +68,25 @@ int main() {
   testSetDigitalReadHook(alwaysHigh);
   runner.expectTrue(bus.waitBusy("no_assert"), "missing BUSY assertion is complete");
   runner.expectTrue(testDelayTotalMs() >= 1000, "missing BUSY assertion has a bounded wait");
+  runner.expectFalse(bus.waitBusy("required_assert", true), "required BUSY assertion rejects an idle-high line");
 
+  testResetGpioEvents();
+  runner.expectTrue(bus.waitReady("ready"), "idle panel is ready");
+  runner.expectEq(uint32_t{0}, testDelayTotalMs(), "ready panel does not wait for a new BUSY assertion");
   testResetGpioEvents();
   testSetManualMillis(0);
   lowThenHighReadCount = 0;
   testSetDigitalReadHook(lowThenHigh);
   runner.expectTrue(bus.waitBusy("complete"), "BUSY low-to-high transition completes");
+  lowThenHighReadCount = 0;
+  runner.expectTrue(bus.waitReady("ready_after_busy"), "ready check waits for active BUSY to complete");
 
   testResetGpioEvents();
   testSetManualMillis(0);
   testSetDigitalReadHook(alwaysLow);
   runner.expectFalse(bus.waitBusy("timeout"), "BUSY completion timeout fails");
   runner.expectTrue(testDelayTotalMs() >= 30000, "BUSY completion timeout is bounded");
+  runner.expectFalse(bus.waitReady("ready_timeout"), "ready check rejects a stuck BUSY line");
 
   testSetDigitalReadHook(nullptr);
   testUseRealtimeMillis();

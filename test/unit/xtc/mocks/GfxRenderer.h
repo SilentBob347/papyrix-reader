@@ -1,6 +1,6 @@
 #pragma once
 
-#include <EInkDisplay.h>
+#include <Display.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -10,7 +10,7 @@ class GfxRenderer {
  public:
   enum Orientation { Portrait, LandscapeClockwise, PortraitInverted, LandscapeCounterClockwise };
 
-  explicit GfxRenderer(EInkDisplay& display) : display_(display) {}
+  explicit GfxRenderer(papyrix::hal::Display& display) : display_(display) {}
 
   void begin() { frameBuffer_ = display_.getFrameBuffer(); }
   void setOrientation(const Orientation orientation) { orientation_ = orientation; }
@@ -71,7 +71,7 @@ class GfxRenderer {
   size_t getBufferSize() const { return display_.getBufferSize(); }
 
  private:
-  EInkDisplay& display_;
+  papyrix::hal::Display& display_;
   Orientation orientation_ = Portrait;
   uint8_t* frameBuffer_ = nullptr;
 };

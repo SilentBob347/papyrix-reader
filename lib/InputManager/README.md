@@ -1,6 +1,6 @@
 # InputManager
 
-Button input handling for X4 e-paper reader.
+InputManager handles physical buttons on supported Xteink readers.
 
 ## Source
 

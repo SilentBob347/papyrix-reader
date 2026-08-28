@@ -77,7 +77,94 @@ void NetworkState::exit(Core& core) {
 
   // Don't shutdown WiFi if transitioning to CalibreSync or app that needs connection
   if (!goCalibreSync_ && !goApp_) {
-    core.network.shutdown();
+    core.wifi.shutdown();
+  }
+}
+
+void NetworkState::handleTap(Core& core, const Event& event) {
+  const int width = renderer_.getScreenWidth();
+  const int height = renderer_.getScreenHeight();
+  const bool frontLrbc = core.settings.frontButtonLayout == Settings::FrontLRBC;
+  Button button = Button::Power;
+  bool dispatch = false;
+
+  if (currentScreen_ == NetworkScreen::ModeSelect) {
+    const auto hit = modeView_.hitTest({event.touch.x, event.touch.y}, width, height,
+                                       THEME.itemHeight + ui::NetworkModeView::ROW_SPACING, frontLrbc);
+    if (hit.type == ui::NetworkModeView::Hit::Type::Row) {
+      modeView_.selected = static_cast<int8_t>(hit.index);
+      button = Button::Center;
+      dispatch = true;
+    } else if (hit.type == ui::NetworkModeView::Hit::Type::Open) {
+      button = Button::Center;
+      dispatch = true;
+    } else if (hit.type == ui::NetworkModeView::Hit::Type::Back) {
+      button = Button::Back;
+      dispatch = true;
+    }
+    if (dispatch) handleModeSelect(core, button);
+    return;
+  }
+
+  if (currentScreen_ == NetworkScreen::WifiList) {
+    const auto hit = wifiListView_.hitTest({event.touch.x, event.touch.y}, width, height,
+                                           THEME.itemHeight + THEME.itemSpacing, frontLrbc);
+    if (hit.type == ui::WifiListView::Hit::Type::Row) {
+      wifiListView_.selected = static_cast<uint8_t>(hit.index);
+      button = Button::Center;
+      dispatch = true;
+    } else if (hit.type == ui::WifiListView::Hit::Type::Connect) {
+      button = Button::Center;
+      dispatch = true;
+    } else if (hit.type == ui::WifiListView::Hit::Type::Scan) {
+      button = Button::Right;
+      dispatch = true;
+    } else if (hit.type == ui::WifiListView::Hit::Type::Back) {
+      button = Button::Back;
+      dispatch = true;
+    }
+    if (dispatch) handleWifiList(core, button);
+    return;
+  }
+
+  if (currentScreen_ == NetworkScreen::PasswordEntry) {
+    const auto hit =
+        keyboardView_.hitTest({event.touch.x, event.touch.y}, width, height, THEME.screenMarginSide, frontLrbc);
+    if (hit.type == ui::KeyboardView::Hit::Type::Back) {
+      handlePasswordEntry(core, Button::Back);
+    } else if (hit.type == ui::KeyboardView::Hit::Type::Key) {
+      keyboardView_.keyboard.cursorY = static_cast<int8_t>(hit.row);
+      keyboardView_.keyboard.cursorX =
+          static_cast<int8_t>(hit.row == 0 ? (hit.column <= 2 ? 1 : (hit.column <= 6 ? 4 : 8)) : hit.column);
+      handlePasswordEntry(core, Button::Center);
+    }
+    return;
+  }
+
+  if (currentScreen_ == NetworkScreen::Connecting) {
+    const auto hit = connectingView_.hitTest({event.touch.x, event.touch.y}, width, height, frontLrbc);
+    if (hit == ui::WifiConnectingView::Hit::Back) handleConnecting(core, Button::Back);
+    if (hit == ui::WifiConnectingView::Hit::Primary) handleConnecting(core, Button::Center);
+    return;
+  }
+
+  if (currentScreen_ == NetworkScreen::SavePrompt) {
+    const auto layout = ui::confirmationDialogBounds(renderer_, THEME, confirmView_.message);
+    const auto hit = confirmView_.hitTest({event.touch.x, event.touch.y}, layout, width, height, frontLrbc);
+    if (hit == ui::ConfirmView::Hit::Yes || hit == ui::ConfirmView::Hit::No) {
+      confirmView_.selected = hit == ui::ConfirmView::Hit::Yes ? 0 : 1;
+      handleSavePrompt(core, Button::Center);
+    } else if (hit == ui::ConfirmView::Hit::Back) {
+      handleSavePrompt(core, Button::Back);
+    } else if (hit == ui::ConfirmView::Hit::Select) {
+      handleSavePrompt(core, Button::Center);
+    }
+    return;
+  }
+
+  if (currentScreen_ == NetworkScreen::ServerRunning &&
+      serverView_.hitTest({event.touch.x, event.touch.y}, width, height, frontLrbc) == ui::WebServerView::Hit::Stop) {
+    handleServerRunning(core, Button::Back);
   }
 }
 
@@ -92,7 +179,7 @@ StateTransition NetworkState::update(Core& core) {
     scanRetryAt_ = 0;
     if (currentScreen_ != NetworkScreen::WifiList) {
       scanRetryCount_ = 0;
-    } else if (core.network.startScan().ok()) {
+    } else if (core.wifi.startScan().ok()) {
       wifiListView_.setScanning(true, tr(SCANNING));
       needsRender_ = true;
     } else {
@@ -103,9 +190,9 @@ StateTransition NetworkState::update(Core& core) {
 
   // Check for scan completion (skip while retry is pending)
   if (currentScreen_ == NetworkScreen::WifiList && wifiListView_.scanning && scanRetryAt_ == 0) {
-    if (core.network.isScanComplete()) {
-      drivers::WifiNetwork networks[ui::WifiListView::MAX_NETWORKS];
-      int count = core.network.getScanResults(networks, ui::WifiListView::MAX_NETWORKS);
+    if (core.wifi.isScanComplete()) {
+      hal::WifiNetwork networks[ui::WifiListView::MAX_NETWORKS];
+      int count = core.wifi.getScanResults(networks, ui::WifiListView::MAX_NETWORKS);
 
       if (count == 0 && scanRetryCount_ < MAX_SCAN_RETRIES) {
         scanRetryCount_++;
@@ -131,6 +218,10 @@ StateTransition NetworkState::update(Core& core) {
 
   Event e;
   while (core.events.pop(e)) {
+    if (e.type == EventType::Tap) {
+      handleTap(core, e);
+      continue;
+    }
     if (e.type == EventType::ButtonRepeat) {
       // Repeat only for navigational screens
       if (currentScreen_ != NetworkScreen::ModeSelect && currentScreen_ != NetworkScreen::WifiList &&
@@ -234,7 +325,6 @@ void NetworkState::render(Core& core) {
   }
 
   needsRender_ = false;
-  core.display.markDirty();
 }
 
 void NetworkState::handleModeSelect(Core& core, Button button) {
@@ -488,7 +578,7 @@ void NetworkState::startWifiScan(Core& core) {
   wifiListView_.clear();
   wifiListView_.setScanning(true, tr(SCANNING));
 
-  auto result = core.network.startScan();
+  auto result = core.wifi.startScan();
   if (!result.ok()) {
     LOG_ERR(TAG, "Failed to start scan");
     wifiListView_.setScanning(false);
@@ -505,13 +595,12 @@ void NetworkState::connectToNetwork(Core& core, const char* ssid, const char* pa
 
   // Render the connecting screen before blocking connect
   ui::render(renderer_, THEME, connectingView_);
-  core.display.markDirty();
 
-  auto result = core.network.connect(ssid, password);
+  auto result = core.wifi.connect(ssid, password);
 
   if (result.ok()) {
     char ip[46];  // INET6_ADDRSTRLEN = 46 for IPv6 addresses
-    core.network.getIpAddress(ip, sizeof(ip));
+    core.wifi.getIpAddress(ip, sizeof(ip));
     connectingView_.setConnected(ip);
     LOG_INF(TAG, "Connected, IP: %s", ip);
   } else {
@@ -537,13 +626,12 @@ void NetworkState::tryAutoConnect(Core& core) {
     currentScreen_ = NetworkScreen::Connecting;
 
     ui::render(renderer_, THEME, connectingView_);
-    core.display.markDirty();
 
-    auto result = core.network.connect(creds[i].ssid, creds[i].password);
+    auto result = core.wifi.connect(creds[i].ssid, creds[i].password);
 
     if (result.ok()) {
       char ip[46];
-      core.network.getIpAddress(ip, sizeof(ip));
+      core.wifi.getIpAddress(ip, sizeof(ip));
       connectingView_.setConnected(ip);
       LOG_INF(TAG, "Auto-connected to %s, IP: %s", creds[i].ssid, ip);
 
@@ -564,7 +652,7 @@ void NetworkState::tryAutoConnect(Core& core) {
     }
 
     LOG_INF(TAG, "Auto-connect failed: %s", creds[i].ssid);
-    core.network.shutdown();
+    core.wifi.shutdown();
   }
 
   LOG_INF(TAG, "Auto-connect: all credentials failed, falling back to ModeSelect");
@@ -585,13 +673,12 @@ void NetworkState::startHotspot(Core& core) {
 
   // Render before blocking operation
   ui::render(renderer_, THEME, connectingView_);
-  core.display.markDirty();
 
-  auto result = core.network.startAP(AP_SSID);
+  auto result = core.wifi.startAP(AP_SSID);
 
   if (result.ok()) {
     char ip[16];
-    core.network.getAPIP(ip, sizeof(ip));
+    core.wifi.getAPIP(ip, sizeof(ip));
     connectingView_.setConnected(ip);
     LOG_INF(TAG, "AP started, IP: %s", ip);
 
@@ -609,7 +696,7 @@ void NetworkState::startWebServer(Core& core) {
   LOG_INF(TAG, "Starting web server");
 
   // Allow ARP/DHCP to settle before binding server socket (STA mode)
-  if (!core.network.isAPMode()) {
+  if (!core.wifi.isAPMode()) {
     delay(300);
   }
 
@@ -626,12 +713,12 @@ void NetworkState::startWebServer(Core& core) {
 
   // Set up server view
   char ip[16];
-  bool isApMode = core.network.isAPMode();
+  bool isApMode = core.wifi.isAPMode();
   if (isApMode) {
-    core.network.getAPIP(ip, sizeof(ip));
+    core.wifi.getAPIP(ip, sizeof(ip));
     serverView_.setServerInfo(AP_SSID, ip, true);
   } else {
-    core.network.getIpAddress(ip, sizeof(ip));
+    core.wifi.getIpAddress(ip, sizeof(ip));
     serverView_.setServerInfo(selectedSSID_, ip, false);
   }
 

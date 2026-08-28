@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "../core/Types.h"
+#include "../ui/views/HomeView.h"
 #include "../ui/views/SettingsViews.h"
 #include "State.h"
 
@@ -87,6 +88,7 @@ class FileListState : public State {
   void promptPermanentDelete();
   void promptDeleteDirectory();
   void executeConfirmedAction(Core& core);
+  void deleteSelected(Core& core);
   void navigateUp(Core& core);
   void navigateDown(Core& core);
   void openSelected(Core& core);

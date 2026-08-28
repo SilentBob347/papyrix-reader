@@ -13,6 +13,23 @@
 #include "../Elements.h"
 
 namespace ui {
+class OverlayTapGuard {
+ public:
+  void closedAt(uint32_t nowMs) {
+    suppressUntilMs_ = nowMs + 250;
+    active_ = true;
+  }
+  bool suppressPageTap(uint32_t nowMs) {
+    if (!active_) return false;
+    if (static_cast<int32_t>(suppressUntilMs_ - nowMs) > 0) return true;
+    active_ = false;
+    return false;
+  }
+
+ private:
+  uint32_t suppressUntilMs_ = 0;
+  bool active_ = false;
+};
 
 // ============================================================================
 // ReaderStatusView - Status bar for reader screens
@@ -117,6 +134,7 @@ inline void formatBookStatsSummary(char* out, size_t outSize, bool hasProgress, 
 }
 
 struct BookStatsView {
+  enum class Hit : uint8_t { None, Back, Open };
   static constexpr int MAX_TITLE_LINES = 2;
 
   char title[129] = {};
@@ -145,6 +163,12 @@ struct BookStatsView {
     snprintf(sessions, sizeof(sessions), "%lu", static_cast<unsigned long>(sessionCount));
     needsRender = true;
   }
+  Hit hitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, bool frontLrbc = false) const {
+    const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+    if (action == 0) return Hit::Back;
+    if (action == 1 && showOpen) return Hit::Open;
+    return Hit::None;
+  }
 };
 
 void render(const GfxRenderer& r, const Theme& t, const BookStatsView& v);
@@ -154,6 +178,11 @@ void render(const GfxRenderer& r, const Theme& t, const BookStatsView& v);
 // ============================================================================
 
 struct ReaderMenuView {
+  struct Hit {
+    enum class Type : uint8_t { None, Item };
+    Type type = Type::None;
+    int index = -1;
+  };
   enum class Item : int8_t { Chapters, Bookmarks, BookStats, Count };
   static constexpr int ITEM_COUNT = static_cast<int>(Item::Count);
 
@@ -173,20 +202,36 @@ struct ReaderMenuView {
   }
 
   void moveUp() {
-    if (selected > 0) {
-      selected--;
-      needsRender = true;
-    }
+    selected = (selected == 0) ? ITEM_COUNT - 1 : selected - 1;
+    needsRender = true;
   }
 
   void moveDown() {
-    if (selected < ITEM_COUNT - 1) {
-      selected++;
-      needsRender = true;
-    }
+    selected = (selected + 1) % ITEM_COUNT;
+    needsRender = true;
   }
 
   Item selectedItem() const { return static_cast<Item>(selected); }
+
+  static touch::Rect menuBounds(int16_t screenWidth, int16_t screenHeight, int16_t itemHeight) {
+    const int16_t height = ITEM_COUNT * (itemHeight + 8) + 50;
+    return {static_cast<int16_t>((screenWidth - 200) / 2), static_cast<int16_t>((screenHeight - height) / 2), 200,
+            height};
+  }
+
+  static touch::Rect itemBounds(int index, int16_t screenWidth, int16_t screenHeight, int16_t itemHeight) {
+    const touch::Rect menu = menuBounds(screenWidth, screenHeight, itemHeight);
+    return {static_cast<int16_t>(menu.x + 10), static_cast<int16_t>(menu.y + 45 + index * (itemHeight + 8)), 180,
+            itemHeight};
+  }
+
+  Hit hitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, int16_t itemHeight) const {
+    if (!visible) return {};
+    for (int i = 0; i < ITEM_COUNT; ++i) {
+      if (itemBounds(i, screenWidth, screenHeight, itemHeight).contains(point)) return {Hit::Type::Item, i};
+    }
+    return {};
+  }
 };
 
 void render(const GfxRenderer& r, const Theme& t, const ReaderMenuView& v);
@@ -195,7 +240,32 @@ void render(const GfxRenderer& r, const Theme& t, const ReaderMenuView& v);
 // BookmarkListView - Bookmark list navigation
 // ============================================================================
 
+struct TocHit {
+  enum class Type : uint8_t { None, Item, Back, Go, PageUp, PageDown };
+  Type type = Type::None;
+  int index = -1;
+};
+
+inline TocHit tocHitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, int16_t rowHeight,
+                         int scrollOffset, int visibleCount, int itemCount, bool frontLrbc = false) {
+  const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+  if (action >= 0) {
+    constexpr TocHit::Type actions[] = {TocHit::Type::Back, TocHit::Type::Go, TocHit::Type::PageUp,
+                                        TocHit::Type::PageDown};
+    return {actions[action], -1};
+  }
+  const int remaining = std::max(0, itemCount - scrollOffset);
+  const int rows = std::min(visibleCount, remaining);
+  const int row = touch::rowAt(point, {0, 60, screenWidth, static_cast<int16_t>(screenHeight - 130)}, rowHeight, rows);
+  return row < 0 ? TocHit{} : TocHit{TocHit::Type::Item, scrollOffset + row};
+}
+
 struct BookmarkListView {
+  struct Hit {
+    enum class Type : uint8_t { None, Item, Back, Go, Add, Delete };
+    Type type = Type::None;
+    int index = -1;
+  };
   ButtonBar buttons;
   int16_t itemCount = 0;
   int16_t selected = 0;
@@ -236,44 +306,19 @@ struct BookmarkListView {
       scrollOffset = selected - visibleCount + 1;
     }
   }
-};
-
-// ============================================================================
-// JumpToPageView - Page number input for reader
-// ============================================================================
-
-struct JumpToPageView {
-  ButtonBar buttons;
-  int16_t targetPage = 1;
-  int16_t maxPage = 1;
-  bool needsRender = true;
-
-  void setMaxPage(int max) {
-    maxPage = static_cast<int16_t>(max);
-    if (targetPage > maxPage) {
-      targetPage = maxPage;
+  Hit hitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, int16_t rowHeight, int visibleCount,
+              bool frontLrbc = false) const {
+    const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+    if (action >= 0) {
+      constexpr Hit::Type actions[] = {Hit::Type::Back, Hit::Type::Go, Hit::Type::Add, Hit::Type::Delete};
+      return {actions[action], -1};
     }
-    needsRender = true;
-  }
-
-  void setPage(int page) {
-    if (page >= 1 && page <= maxPage) {
-      targetPage = static_cast<int16_t>(page);
-      needsRender = true;
-    }
-  }
-
-  void incrementPage(int delta) {
-    int newPage = targetPage + delta;
-    if (newPage < 1) newPage = 1;
-    if (newPage > maxPage) newPage = maxPage;
-    if (newPage != targetPage) {
-      targetPage = static_cast<int16_t>(newPage);
-      needsRender = true;
-    }
+    const int remaining = std::max(0, static_cast<int>(itemCount - scrollOffset));
+    const int rows = std::min(visibleCount, remaining);
+    const int row =
+        touch::rowAt(point, {0, 60, screenWidth, static_cast<int16_t>(screenHeight - 130)}, rowHeight, rows);
+    return row < 0 ? Hit{} : Hit{Hit::Type::Item, scrollOffset + row};
   }
 };
-
-void render(const GfxRenderer& r, const Theme& t, const JumpToPageView& v);
 
 }  // namespace ui

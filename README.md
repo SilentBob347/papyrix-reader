@@ -15,11 +15,9 @@
 [![Calibre](https://img.shields.io/badge/docs-Calibre_Wireless-green)](docs/calibre.md)
 
 
-Papyrix is firmware for the **Xteink X4** and **Xteink X3** e-paper readers.
-You build it with **PlatformIO**.
-The target microcontroller is the **ESP32-C3**.
-One firmware file finds the panel type at start.
-It scans I²C signatures (BQ27220 fuel gauge, DS3231 RTC, QMI8658 IMU).
+Papyrix is firmware for Xteink X3, X4, and X4 Pro e-paper readers.
+It uses one ESP32-C3 image for X3/X4 and one ESP32-S3 image for X4 Pro.
+All three devices have partial hardware verification.
 
 > **Warning:** Some Xteink units (for example, units from AliExpress) lock USB flash.
 > If USB flash is locked, you cannot update or recover through USB.
@@ -28,33 +26,22 @@ It scans I²C signatures (BQ27220 fuel gauge, DS3231 RTC, QMI8658 IMU).
 
 ![Home screen](./docs/images/device.jpg)
 
-## Motivation
-
-E-paper devices are good for reading.
-Most commercial readers are closed systems.
-They give limited customization.
-The **Xteink X4** and **Xteink X3** are low-cost e-paper devices.
-The official firmware is closed.
-
-Papyrix does this:
-* It gives an **open-source alternative** to the official firmware.
-* It reads documents, including EPUB, on hardware with limited memory.
-* It lets you set **font, layout, and display** options.
-* It runs on **Xteink X3 / X4 hardware** from one firmware file that finds the device type.
-
 This project is **not affiliated with Xteink**.
 It is a community project.
 
 ## Supported devices
 
-| Device | Panel | Portrait viewport | Notes |
+| Device | Release file | Panel | Hardware status |
 |---|---|---|---|
-| Xteink X4 | 800×480 SSD1677 | 480×800 | First target. Full feature set. |
-| Xteink X3 | 792×528 SSD1677 | 528×792 | Found at start by I²C probe (BQ27220, DS3231, QMI8658). The firmware finds the DS3231 RTC and the QMI8658 IMU, but it does not use them yet. |
+| Xteink X4 | `papyrix-xteink-c3.bin` | 800×480 SSD1677 | Partial verification |
+| Xteink X3 | `papyrix-xteink-c3.bin` | 792×528 UC8253 or UC8279 | Partial verification |
+| Xteink X4 Pro | `papyrix-x4pro.bin` | 800×480 UC8279 or UC8179 | Partial verification on UC8279, including the packaged release |
 
-The firmware stores page caches in folders for each device (`/.papyrix/cache/` for X4,
-`/.papyrix/cache/x3/` for X3).
-If you move an SD card between devices, each panel shows the pages correctly.
+See the [device support matrix](docs/device-support-matrix.md) for exact results.
+Using the wrong binary can drive incorrect pins and can damage hardware.
+
+Page caches use profile-specific folders. Moving an SD card between supported
+devices does not reuse incompatible rendered pages.
 
 ## Features
 
@@ -125,15 +112,19 @@ Example theme files and font files are in [`docs/examples/`](docs/examples/).
 
 > Do you need to recover a device that does not start? [Go to emergency recovery](#emergency-recovery).
 
-The usual method to install or update Papyrix is
-**[papyrix-flasher](https://github.com/bigbag/papyrix-flasher)**.
-It is a CLI tool for more than one platform.
-It finds the device and includes an embedded bootloader.
-Get the latest release for your platform and run:
+Download the binary that matches the device:
+
+- X3 or X4: `papyrix-xteink-c3.bin`
+- X4 Pro: `papyrix-x4pro.bin`
+
+The usual installation method is
+**[papyrix-flasher](https://github.com/bigbag/papyrix-flasher)**:
 
 ```bash
-papyrix-flasher flash firmware.bin
+papyrix-flasher flash papyrix-xteink-c3.bin
 ```
+
+Do not flash an S3 image to a C3 device or a C3 image to an S3 device.
 
 **From SD card:** You can also install or update with an SD card:
 
@@ -158,15 +149,15 @@ See the [customization guide](docs/customization.md) for more data.
 * **PlatformIO Core** (`pio`) or **VS Code + PlatformIO IDE**
 * Python 3.12+ with [uv](https://docs.astral.sh/uv/) (for font conversion)
 * Node.js 18+ (for sleep screen scripts and logo scripts)
-* USB-C cable to flash the ESP32-C3
-* Xteink X4
+* USB-C data cable
+* Xteink X3, X4, or X4 Pro with unlocked USB flashing
 
 Install Node.js dependencies (for sleep screen scripts and logo scripts):
 ```bash
 cd scripts && npm install
 ```
 
-### Using Nix (Recommended)
+### Using Nix
 
 If you have [Nix](https://nixos.org/), `shell.nix` supplies all dependencies:
 
@@ -203,35 +194,57 @@ git submodule update --init --recursive
 ### Building
 
 ```sh
-# Build firmware
+# Build development firmware
 make build
 
-# Build release firmware
+# Build both release environments
 make release
 
-# Or using PlatformIO directly
-pio run
+# Build, verify, and package deterministic release files in dist/
+make package
 ```
 
 ### Flashing your device
 
-Connect your Xteink X4 to your computer with USB-C and run this command.
+Connect the device through unlocked USB.
+Build and flash the release firmware for the device:
 
 ```sh
-make flash
-
-# Or using PlatformIO directly
-pio run --target upload
+make flash-xteink-c3  # X3 and X4
+make flash-x4pro      # X4 Pro
 ```
 
-You can also flash with esptool (this is useful if you have a firmware binary that is already built):
+On X4 Pro, hold Power throughout flashing.
+Release Power after verification completes and the application starts.
+Close the serial monitor before flashing.
+To select a port:
 
 ```sh
+PLATFORMIO_UPLOAD_PORT=/dev/ttyACM0 make flash-x4pro
+```
+
+`make flash-release` and `make upload-release` select X3/X4 only.
+To install an existing release binary instead of building it, use:
+
+```sh
+# ESP32-C3: X3/X4
 esptool.py --chip esp32c3 --port /dev/ttyACM0 --baud 460800 \
-  write_flash -z 0x0 firmware.bin
+  write_flash -z 0x10000 papyrix-xteink-c3.bin
+
+# ESP32-S3: X4 Pro
+esptool.py --chip esp32s3 --port /dev/ttyACM0 --baud 460800 \
+  write_flash -z 0x10000 papyrix-x4pro.bin
 ```
 
-Replace `/dev/ttyACM0` with your device port (for example, `COM3` on Windows, `/dev/tty.usbmodem*` on macOS).
+PlatformIO upload remains available for a connected development target:
+
+```sh
+pio run -e default --target upload
+pio run -e x4pro --target upload
+```
+
+Replace `/dev/ttyACM0` with the device port. Use `COM3` on Windows or
+`/dev/tty.usbmodem*` on macOS where applicable.
 
 ### Build Scripts
 
@@ -369,11 +382,13 @@ Papyrix is made for the ESP32-C3 limit of approximately 380KB RAM. See [docs/arc
 
 ### Data caching
 
-The first time the device loads chapters of a book, it writes them to the cache on the SD card. Later loads come from the cache. This cache directory is `.papyrix` on the SD card. The structure is:
+The device caches book data on the SD card. X4 uses `/.papyrix/cache/`, X3 uses
+`/.papyrix/cache/x3/`, and X4 Pro uses `/.papyrix/cache/x4pro/`.
+Each device-specific directory contains the book folders shown below.
 
 
 ```
-.papyrix/
+<device-cache>/
 ├── epub_12471232/       # Each EPUB is cached to a subdirectory named `epub_<hash>`
 │   ├── progress.bin     # Stores reading progress (chapter, page, etc.)
 │   ├── bookmarks.bin    # Saved bookmarks (up to 20 per book)
@@ -419,7 +434,8 @@ To clear cached data, use **Settings > Cleanup** (see [User Guide](docs/user_gui
 
 The cache does not clear automatically when you delete a book. If you move a book file, the device uses a new cache directory. This resets the reading progress.
 
-For the internal file structures, see the [file formats document](./docs/file-formats.md). For how the device builds the cache (chunked partial cache, on-demand extension, foreground compared to background, ownership model) see [Rendering Pipeline § Page Caching](./docs/rendering-pipeline.md#page-caching).
+See [file formats](./docs/file-formats.md) for cache records.
+See the [rendering pipeline](./docs/rendering-pipeline.md#page-cache) for cache scheduling and ownership.
 
 ## Related Tools
 

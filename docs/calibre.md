@@ -1,6 +1,6 @@
 # Calibre Wireless Device Guide
 
-This guide shows how to use the **Calibre Wireless Device** feature. You send books from Calibre to your Papyrix Reader through WiFi.
+Calibre Wireless Device transfers books from Calibre to Papyrix through Wi-Fi.
 
 ## Overview
 
@@ -146,8 +146,8 @@ The two passwords must match for the connection to operate.
 **Problem:** Calibre does not find your Papyrix Reader.
 
 **Solutions:**
-1. Make sure the two devices are on the **same WiFi network**.
-2. Make sure no firewall blocks UDP ports 54982, 48123, 39001, 44044, or 59678.
+1. Connect both devices to the **same WiFi network**.
+2. Permit UDP ports 54982, 48123, 39001, 44044, and 59678 in the firewall.
 3. Try a manual connection with the IP address shown on your device.
 4. Set VPN to off if you use one.
 
@@ -156,7 +156,7 @@ The two passwords must match for the connection to operate.
 **Problem:** "Password mismatch" or authentication error.
 
 **Solutions:**
-1. Make sure the password in `/config/calibre.ini` matches the Calibre settings exactly.
+1. Check that the password in `/config/calibre.ini` matches the Calibre settings.
 2. Passwords are case-sensitive.
 3. Try removal of the password from the two sides to test the connection.
 
@@ -168,7 +168,7 @@ The two passwords must match for the connection to operate.
 1. Check WiFi signal strength on your device.
 2. Move nearer to your WiFi router.
 3. Try with a smaller book first.
-4. Make sure the SD card has sufficient free space.
+4. Check the free space on the SD card.
 
 ### Books Not Showing Up
 
@@ -205,16 +205,6 @@ Papyrix uses the **Calibre Smart Device App** protocol:
 
 ---
 
-## Tips and Best Practices
-
-1. **Keep Calibre updated** - Newer versions have better wireless support.
-2. **Use a good WiFi signal** - A weak signal causes slow transfers or failed transfers.
-3. **Organize in Calibre first** - Use Calibre library management, then sync.
-4. **Set a device name that you can identify** - This helps you find your reader in Calibre.
-5. **Exit when you are done** - Press Back to disconnect and save battery.
-
----
-
 ## Exiting Calibre Wireless Mode
 
 When you are done:
@@ -222,8 +212,6 @@ When you are done:
 1. In Calibre, right-click your device and select **Eject this device**.
 2. On your Papyrix, press the **Back** button.
 3. The device restarts to get WiFi memory back.
-
-> **Note:** The restart is necessary. The ESP32 WiFi stack fragments memory. With no restart, some features do not operate correctly.
 
 ---
 

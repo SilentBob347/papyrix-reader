@@ -1,12 +1,20 @@
+#include <Arduino.h>
+
 #include "test_utils.h"
 
 #include "BatteryMonitor.h"
 
-// Pins both for X4 ADC mode and X3 BQ27220 mode are inert here — these tests
-// only exercise BatteryMonitor::percentageFromMillivolts, a static pure helper
-// that maps a battery voltage (mV) to a 0–100 percentage via a LiPo polynomial.
-// Locking the curve in tests catches silent regressions if anyone re-fits the
-// polynomial without realising callers depend on the existing shape.
+namespace {
+int adcReadCount = 0;
+
+uint32_t unstableAdc(uint8_t) {
+  adcReadCount++;
+  return adcReadCount == 1 ? 2000 : 1000;
+}
+}  // namespace
+
+// The static checks lock the LiPo curve. The status check verifies that ADC
+// percentage and millivolts come from one hardware sample.
 
 int main() {
   TestUtils::TestRunner runner("BatteryMonitorPercentageTest");
@@ -59,6 +67,16 @@ int main() {
   runner.expectEq(uint16_t(0), BatteryMonitor::millivoltsFromRawAdc(0), "millivoltsFromRawAdc(0) -> 0");
   runner.expectEq(uint16_t(3700), BatteryMonitor::millivoltsFromRawAdc(3700), "millivoltsFromRawAdc(3700) -> 3700");
   runner.expectEq(uint16_t(4200), BatteryMonitor::millivoltsFromRawAdc(4200), "millivoltsFromRawAdc(4200) -> 4200");
+  {
+    adcReadCount = 0;
+    testAnalogMillivoltsHook() = unstableAdc;
+    BatteryMonitor monitor(0);
+    const auto status = monitor.readStatus();
+    runner.expectEq(1, adcReadCount, "ADC status uses one voltage sample");
+    runner.expectEq(uint16_t(4000), status.millivolts, "ADC status reports the sampled battery voltage");
+    runner.expectEq(uint16_t(84), status.percentage, "ADC status derives percentage from the same voltage");
+    testAnalogMillivoltsHook() = nullptr;
+  }
 
   return runner.allPassed() ? 0 : 1;
 }

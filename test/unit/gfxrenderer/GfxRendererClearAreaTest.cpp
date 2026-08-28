@@ -1,6 +1,6 @@
 #include "test_utils.h"
 
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <algorithm>
 #include <cstring>
 
@@ -18,7 +18,7 @@ class GfxRenderer {
     LandscapeCounterClockwise
   };
 
-  explicit GfxRenderer(EInkDisplay& display) : einkDisplay(display), orientation(Portrait) {}
+  explicit GfxRenderer(papyrix::hal::Display& display) : einkDisplay(display), orientation(Portrait) {}
 
   void begin() { frameBuffer = einkDisplay.getFrameBuffer(); }
 
@@ -38,18 +38,18 @@ class GfxRenderer {
     switch (orientation) {
       case Portrait:
         physX = y;
-        physY = EInkDisplay::DISPLAY_HEIGHT - 1 - (x + width - 1);
+        physY = papyrix::hal::Display::DISPLAY_HEIGHT - 1 - (x + width - 1);
         physW = height;
         physH = width;
         break;
       case LandscapeClockwise:
-        physX = EInkDisplay::DISPLAY_WIDTH - 1 - (x + width - 1);
-        physY = EInkDisplay::DISPLAY_HEIGHT - 1 - (y + height - 1);
+        physX = papyrix::hal::Display::DISPLAY_WIDTH - 1 - (x + width - 1);
+        physY = papyrix::hal::Display::DISPLAY_HEIGHT - 1 - (y + height - 1);
         physW = width;
         physH = height;
         break;
       case PortraitInverted:
-        physX = EInkDisplay::DISPLAY_WIDTH - 1 - (y + height - 1);
+        physX = papyrix::hal::Display::DISPLAY_WIDTH - 1 - (y + height - 1);
         physY = x;
         physW = height;
         physH = width;
@@ -64,7 +64,7 @@ class GfxRenderer {
     }
 
     // Validate bounds - region entirely outside display
-    if (physX >= static_cast<int>(EInkDisplay::DISPLAY_WIDTH) || physY >= static_cast<int>(EInkDisplay::DISPLAY_HEIGHT) ||
+    if (physX >= static_cast<int>(papyrix::hal::Display::DISPLAY_WIDTH) || physY >= static_cast<int>(papyrix::hal::Display::DISPLAY_HEIGHT) ||
         physX + physW <= 0 || physY + physH <= 0) {
       return;
     }
@@ -72,8 +72,8 @@ class GfxRenderer {
     // Clamp to display boundaries
     const int x_start = std::max(physX, 0);
     const int y_start = std::max(physY, 0);
-    const int x_end = std::min(physX + physW - 1, static_cast<int>(EInkDisplay::DISPLAY_WIDTH - 1));
-    const int y_end = std::min(physY + physH - 1, static_cast<int>(EInkDisplay::DISPLAY_HEIGHT - 1));
+    const int x_end = std::min(physX + physW - 1, static_cast<int>(papyrix::hal::Display::DISPLAY_WIDTH - 1));
+    const int y_end = std::min(physY + physH - 1, static_cast<int>(papyrix::hal::Display::DISPLAY_HEIGHT - 1));
 
     // Calculate byte boundaries (8 pixels per byte)
     const int x_byte_start = x_start / 8;
@@ -82,13 +82,13 @@ class GfxRenderer {
 
     // Clear each row in the region
     for (int row = y_start; row <= y_end; row++) {
-      const uint32_t buffer_offset = row * EInkDisplay::DISPLAY_WIDTH_BYTES + x_byte_start;
+      const uint32_t buffer_offset = row * papyrix::hal::Display::DISPLAY_WIDTH_BYTES + x_byte_start;
       memset(&frameBuffer[buffer_offset], color, byte_width);
     }
   }
 
  private:
-  EInkDisplay& einkDisplay;
+  papyrix::hal::Display& einkDisplay;
   Orientation orientation;
   uint8_t* frameBuffer = nullptr;
 };
@@ -96,7 +96,7 @@ class GfxRenderer {
 // Helper: count bytes with a specific value in the framebuffer
 static int countBytes(const uint8_t* fb, uint8_t value) {
   int count = 0;
-  for (uint32_t i = 0; i < EInkDisplay::BUFFER_SIZE; i++) {
+  for (uint32_t i = 0; i < papyrix::hal::Display::BUFFER_SIZE; i++) {
     if (fb[i] == value) count++;
   }
   return count;
@@ -107,9 +107,9 @@ static int countBytes(const uint8_t* fb, uint8_t value) {
 static bool isPhysicalRegionCleared(const uint8_t* fb, int physByteStartX, int physStartY,
                                     int byteWidth, int rowCount,
                                     uint8_t regionColor, uint8_t bgColor) {
-  for (uint32_t i = 0; i < EInkDisplay::BUFFER_SIZE; i++) {
-    int row = i / EInkDisplay::DISPLAY_WIDTH_BYTES;
-    int col = i % EInkDisplay::DISPLAY_WIDTH_BYTES;
+  for (uint32_t i = 0; i < papyrix::hal::Display::BUFFER_SIZE; i++) {
+    int row = i / papyrix::hal::Display::DISPLAY_WIDTH_BYTES;
+    int col = i % papyrix::hal::Display::DISPLAY_WIDTH_BYTES;
     bool inRegion = (row >= physStartY && row < physStartY + rowCount &&
                      col >= physByteStartX && col < physByteStartX + byteWidth);
     if (inRegion && fb[i] != regionColor) return false;
@@ -121,12 +121,12 @@ static bool isPhysicalRegionCleared(const uint8_t* fb, int physByteStartX, int p
 int main() {
   TestUtils::TestRunner runner("GfxRendererClearArea");
 
-  constexpr int W = EInkDisplay::DISPLAY_WIDTH;   // 800
-  constexpr int H = EInkDisplay::DISPLAY_HEIGHT;   // 480
+  constexpr int W = papyrix::hal::Display::DISPLAY_WIDTH;   // 800
+  constexpr int H = papyrix::hal::Display::DISPLAY_HEIGHT;   // 480
 
   // Test 1: LandscapeCounterClockwise (identity) - basic clearArea
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -142,7 +142,7 @@ int main() {
 
   // Test 2: LandscapeCounterClockwise - non-origin position
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -157,7 +157,7 @@ int main() {
   // Test 3: Portrait rotation - swaps width/height and rotates position
   // Portrait: physX=y, physY=H-1-(x+w-1), physW=height, physH=width
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::Portrait);
@@ -175,7 +175,7 @@ int main() {
   // Test 4: LandscapeClockwise rotation
   // LandscapeClockwise: physX=W-1-(x+w-1), physY=H-1-(y+h-1), physW=width, physH=height
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeClockwise);
@@ -193,7 +193,7 @@ int main() {
   // Test 5: PortraitInverted rotation
   // PortraitInverted: physX=W-1-(y+h-1), physY=x, physW=height, physH=width
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::PortraitInverted);
@@ -210,7 +210,7 @@ int main() {
 
   // Test 6: Zero and negative dimensions - no crash, no change
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -226,7 +226,7 @@ int main() {
 
   // Test 7: Entirely out of bounds - no crash, no change
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -241,7 +241,7 @@ int main() {
 
   // Test 8: Out of bounds in rotated orientation
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::Portrait);
@@ -256,7 +256,7 @@ int main() {
 
   // Test 9: Custom color value
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -273,7 +273,7 @@ int main() {
   // clearArea at the full display should fill the same number of bytes regardless of orientation
   {
     auto clearAndCount = [](GfxRenderer::Orientation orient) {
-      EInkDisplay display(0, 0, 0, 0, 0, 0);
+      papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
       GfxRenderer gfx(display);
       gfx.begin();
       gfx.setOrientation(orient);
@@ -302,7 +302,7 @@ int main() {
   // Clear logical rect (10, 16, 5, 8) in Portrait
   // Portrait: physX=16, physY=H-1-(10+5-1)=466, physW=8, physH=5
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::Portrait);
@@ -317,7 +317,7 @@ int main() {
 
   // Test 12: Large region spanning multiple bytes
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);

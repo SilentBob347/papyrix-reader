@@ -1,29 +1,29 @@
-#include "drivers/X3ControllerPolicy.h"
-
-#include "test_utils.h"
+#include <X3ControllerPolicy.h>
 
 #include <cstring>
 
-using papyrix::drivers::ControllerSelectionSource;
-using papyrix::drivers::controllerSelectionSourceName;
-using papyrix::drivers::kControllerCacheVersion;
-using papyrix::drivers::kStoredAuto;
-using papyrix::drivers::kStoredUc8253;
-using papyrix::drivers::kStoredUc8279X3;
-using papyrix::drivers::resolveProbedX3Controller;
-using papyrix::drivers::resolveStoredX3Controller;
+#include "test_utils.h"
+
+using papyrix::board::ControllerSelectionSource;
+using papyrix::board::controllerSelectionSourceName;
+using papyrix::board::kControllerCacheVersion;
+using papyrix::board::kStoredControllerAuto;
+using papyrix::board::kStoredUc8253;
+using papyrix::board::kStoredUc8279X3;
+using papyrix::board::resolveProbedX3Controller;
+using papyrix::board::resolveStoredX3Controller;
 using papyrix::eink::DisplayController;
 using papyrix::eink::X3DisplayVerdict;
 
 int main() {
   TestUtils::TestRunner runner("X3 controller policy");
 
-  runner.expectEq(0, static_cast<int>(kStoredAuto), "automatic NVS value");
+  runner.expectEq(0, static_cast<int>(kStoredControllerAuto), "automatic NVS value");
   runner.expectEq(1, static_cast<int>(kStoredUc8253), "UC8253 NVS value");
   runner.expectEq(2, static_cast<int>(kStoredUc8279X3), "UC8279 NVS value");
   runner.expectEq(1, static_cast<int>(kControllerCacheVersion), "cache version");
 
-  auto decision = resolveStoredX3Controller(kStoredAuto, kStoredAuto, kControllerCacheVersion);
+  auto decision = resolveStoredX3Controller(kStoredControllerAuto, kStoredControllerAuto, kControllerCacheVersion);
   runner.expectFalse(decision.resolved, "empty controller cache requires probe");
   runner.expectFalse(decision.invalidOverride, "automatic override is valid");
   runner.expectFalse(decision.invalidCache, "empty cache is valid");
@@ -39,19 +39,19 @@ int main() {
   runner.expectEq(static_cast<int>(DisplayController::UC8253), static_cast<int>(decision.controller),
                   "override ignores stale cache");
 
-  decision = resolveStoredX3Controller(kStoredAuto, kStoredUc8253, kControllerCacheVersion);
+  decision = resolveStoredX3Controller(kStoredControllerAuto, kStoredUc8253, kControllerCacheVersion);
   runner.expectTrue(decision.resolved, "UC8253 cache resolves");
   runner.expectEq(static_cast<int>(DisplayController::UC8253), static_cast<int>(decision.controller),
                   "UC8253 cache value");
   runner.expectEq(static_cast<int>(ControllerSelectionSource::Cache), static_cast<int>(decision.source),
                   "UC8253 cache source");
 
-  decision = resolveStoredX3Controller(kStoredAuto, kStoredUc8279X3, kControllerCacheVersion);
+  decision = resolveStoredX3Controller(kStoredControllerAuto, kStoredUc8279X3, kControllerCacheVersion);
   runner.expectTrue(decision.resolved, "UC8279 cache resolves");
   runner.expectEq(static_cast<int>(DisplayController::UC8279_X3), static_cast<int>(decision.controller),
                   "UC8279 cache value");
 
-  decision = resolveStoredX3Controller(kStoredAuto, kStoredUc8279X3, 0);
+  decision = resolveStoredX3Controller(kStoredControllerAuto, kStoredUc8279X3, 0);
   runner.expectFalse(decision.resolved, "stale cache requires probe");
   runner.expectTrue(decision.invalidCache, "stale cache is reported");
 
@@ -61,7 +61,7 @@ int main() {
   runner.expectEq(static_cast<int>(DisplayController::UC8253), static_cast<int>(decision.controller),
                   "cache follows invalid override");
 
-  decision = resolveStoredX3Controller(kStoredAuto, 9, kControllerCacheVersion);
+  decision = resolveStoredX3Controller(kStoredControllerAuto, 9, kControllerCacheVersion);
   runner.expectFalse(decision.resolved, "invalid cache requires probe");
   runner.expectTrue(decision.invalidCache, "invalid cache is reported");
 

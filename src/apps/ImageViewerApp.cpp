@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <Bitmap.h>
 #include <CoverHelpers.h>
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
 #include <ImageConverter.h>

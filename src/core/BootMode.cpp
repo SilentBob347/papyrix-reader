@@ -133,7 +133,7 @@ void showTransitionNotification(const char* message) {
   renderer.drawCenteredText(theme.uiFontId, y, message, theme.primaryTextBlack, REGULAR);
 
   // Display immediately (partial refresh for speed)
-  renderer.displayBuffer(EInkDisplay::HALF_REFRESH);
+  renderer.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
 
   LOG_DBG(TAG, "Displayed notification: %s", message);
 }

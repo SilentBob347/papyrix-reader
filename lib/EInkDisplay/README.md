@@ -1,81 +1,35 @@
-# EInkDisplay library
+# EInkDisplay
 
-> **Source:** [open-x4-epaper/community-sdk](https://github.com/open-x4-epaper/community-sdk)
->
-> **Local Modifications:**
-> - Constructor: Initialize `isScreenOn`, `inGrayscaleMode`, `drawGrayscale` to `false` to fix boot freeze caused by uninitialized state flags
+EInkDisplay provides controller access for Xteink X3, X4, and X4 Pro.
+`papyrix::hal::Display` selects the driver from the active hardware profile.
+`GfxRenderer` provides text, image, shape, and orientation handling.
 
-This is a focused low-level interaction library for the X4 display.
+## Frame Buffers
 
-It's best paried with a higher-level GFX library to help with rendering shapes, text, and images.
-Along with dealing with display orientation.
+`getFrameBuffer()` returns the active frame buffer.
+A zero bit represents black.
+A one bit represents white.
+Use the active profile dimensions for all buffer access.
 
-## Usage
+`displayBuffer()` sends a black-and-white frame.
+The controller driver implements full, half, and fast refresh requests.
+The grayscale methods send the two bit planes and apply the controller waveform.
+See the [rendering pipeline](../../docs/rendering-pipeline.md).
 
-### Setup
+## Power
 
-```cpp
-// Display SPI pins (custom pins for XteinkX4, not hardware SPI defaults)
-#define EPD_SCLK 8   // SPI Clock
-#define EPD_MOSI 10  // SPI MOSI (Master Out Slave In)
-#define EPD_CS 21    // Chip Select
-#define EPD_DC 4     // Data/Command
-#define EPD_RST 5    // Reset
-#define EPD_BUSY 6   // Busy
+Call `deepSleep()` before device sleep.
+The driver completes the controller power-off sequence before deep sleep.
+Do not remove panel power during a refresh.
 
-EInkDisplay display(EPD_SCLK, EPD_MOSI, EPD_CS, EPD_DC, EPD_RST, EPD_BUSY);
-display.begin();
-```
+## Controller References
 
-### Rendering black and white frames
+- [SSD1677](../../docs/ssd1677-driver.md)
+- [X3 UC8253 waveforms](../../docs/x3-lut-waveforms.md)
+- [X3 UC8279d](../../docs/x3-uc8279-driver-reference.md)
+- [X4 Pro](../../docs/x4pro-specifications.md)
 
-```cpp
-// First frame
-display.clearScreen();
-uint8_t* frameBuffer = einkDisplay.getFrameBuffer();
-// ... your drawing code here, writing to frameBuffer, a 0 bit is black, a 1 bit is white ...
-display.displayBuffer(FAST_REFRESH);
+## Sources
 
-// Next frame
-display.clearScreen();
-uint8_t* frameBuffer = einkDisplay.getFrameBuffer();
-// ... your drawing code here, writing to frameBuffer, a 0 bit is black, a 1 bit is white ...
-// Using fash refresh for fast updates
-display.displayBuffer(FAST_REFRESH);
-```
-
-### Rendering greyscale frames
-
-```cpp
-display.clearScreen();
-uint8_t* frameBuffer = einkDisplay.getFrameBuffer();
-// ... regular drawing code from before, all gray pixels should also be marked as black ...
-display.displayBuffer(FAST_REFRESH);
-
- 
-// Grayscale rendering
-// Refetch the frame buffer to ensure it's up to date
-frameBuffer = einkDisplay.getFrameBuffer();
-
-// Dark gray rendering
-// Clear the screen with 0, all 0 bits are considered out of bounds for grayscale rendering
-// Only mark the bits you want to be gray as 1
-display.clearScreen(0x00);
-// ... exact same screen content as before, but only mark the **dark** grays pixels with `1`, rest leave as `0` 
-display.copyGrayscaleLsbBuffers(frameBuffer);
-
-display.clearScreen(0x00);
-// ... exact same screen content as before, but mark the **light and dark** grays pixels with `1`, rest leave as `0`
-display.copyGrayscaleMsbBuffers(frameBuffer);
-display.displayGrayBuffer();
-
-// All done :)
-```
-
-### Power off
-
-To ensure the display locks the image in, it's important to power off the display before exiting the program.
-
-```cpp
-display.deepSleep();
-```
+- [open-x4-epaper/community-sdk](https://github.com/open-x4-epaper/community-sdk)
+- FreeInk controller code: see `FREEINK_LICENSE`.

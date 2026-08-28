@@ -1,5 +1,7 @@
 #include "InputManager.h"
 
+#include <HardwareIdentity.h>
+
 // Recorded ADC values from real devices
 // BACK CONF LEFT RGHT   UP DOWN
 // 3597 2760 1530    6 2300    6
@@ -28,6 +30,14 @@ InputManager::InputManager()
       buttonPressFinish(0) {}
 
 void InputManager::begin() {
+  const auto& input = papyrix::board::HardwareIdentity::instance().profile().input;
+  if (input.style == papyrix::board::InputStyle::DigitalButtons) {
+    const int8_t pins[] = {input.back, input.confirm, input.left, input.right, input.up, input.down, input.power};
+    for (const int8_t pin : pins) {
+      if (pin != papyrix::board::kPinUnused) pinMode(pin, input.activeHigh ? INPUT : INPUT_PULLUP);
+    }
+    return;
+  }
   pinMode(BUTTON_ADC_PIN_1, INPUT);
   pinMode(BUTTON_ADC_PIN_2, INPUT);
   pinMode(POWER_BUTTON_PIN, INPUT_PULLUP);
@@ -46,6 +56,16 @@ int InputManager::getButtonFromADC(const int adcValue, const int ranges[], const
 
 uint8_t InputManager::getState() {
   uint8_t state = 0;
+  const auto& input = papyrix::board::HardwareIdentity::instance().profile().input;
+  if (input.style == papyrix::board::InputStyle::DigitalButtons) {
+    const int8_t pins[] = {input.back, input.confirm, input.left, input.right, input.up, input.down, input.power};
+    for (uint8_t button = 0; button < sizeof(pins) / sizeof(pins[0]); ++button) {
+      if (pins[button] != papyrix::board::kPinUnused && digitalRead(pins[button]) == (input.activeHigh ? HIGH : LOW)) {
+        state |= uint8_t{1} << button;
+      }
+    }
+    return state;
+  }
 
   // Discard first sample to flush SAR ADC sample-and-hold charge from
   // the previous channel (battery monitor on GPIO0 shares ADC1).

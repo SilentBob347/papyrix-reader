@@ -36,6 +36,7 @@ void render(const GfxRenderer& r, const Theme& t, const MessageView& v);
 // ============================================================================
 
 struct ConfirmView {
+  enum class Hit : uint8_t { None, Yes, No, Back, Select };
   static constexpr int MAX_TITLE_LEN = 48;
   static constexpr int MAX_MSG_LEN = 128;
 
@@ -71,6 +72,17 @@ struct ConfirmView {
   }
 
   bool isYesSelected() const { return selected == 0; }
+
+  Hit hitTest(touch::Point point, const touch::DialogLayout& layout, int16_t screenWidth, int16_t screenHeight,
+              bool frontLrbc = false) const {
+    const int choice = touch::dialogChoiceAt(point, layout);
+    if (choice == 0) return Hit::Yes;
+    if (choice == 1) return Hit::No;
+    const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+    if (action == 0) return Hit::Back;
+    if (action == 1) return Hit::Select;
+    return Hit::None;
+  }
 };
 
 void render(const GfxRenderer& r, const Theme& t, const ConfirmView& v);
@@ -80,6 +92,13 @@ void render(const GfxRenderer& r, const Theme& t, const ConfirmView& v);
 // ============================================================================
 
 struct KeyboardView {
+  struct Hit {
+    enum class Type : uint8_t { None, Key, Back };
+    Type type = Type::None;
+    int row = -1;
+    int column = -1;
+  };
+  static constexpr int KEYBOARD_Y = 110;
   static constexpr int MAX_INPUT_LEN = 64;
   static constexpr int MAX_TITLE_LEN = 48;
 
@@ -157,6 +176,35 @@ struct KeyboardView {
       appendChar(c);
     }
     return false;
+  }
+
+  touch::Rect keyBounds(int row, int column, int16_t screenWidth, int16_t screenMarginSide) const {
+    if (row < 0 || row >= KeyboardState::NUM_ROWS || column < 0 || column >= KeyboardState::KEYS_PER_ROW) return {};
+    constexpr int borderPadding = 10;
+    constexpr int keySpacing = 2;
+    constexpr int keyHeight = 20;
+    constexpr int rowPitch = 26;
+    const int gridWidth = screenWidth - 2 * screenMarginSide - 2 * borderPadding;
+    const int keyWidth = (gridWidth - (KeyboardState::KEYS_PER_ROW - 1) * keySpacing) / KeyboardState::KEYS_PER_ROW;
+    const int separators = (row > 0 ? 1 : 0) + (row > 3 ? 1 : 0) + (row > 6 ? 1 : 0);
+    const int x = screenMarginSide + borderPadding + column * (keyWidth + keySpacing);
+    const int y = KEYBOARD_Y + 10 + row * rowPitch + separators * 18;
+    return {static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(keyWidth), keyHeight};
+  }
+
+  Hit hitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, int16_t screenMarginSide,
+              bool frontLrbc = false) const {
+    if (touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc) == 0) {
+      return {Hit::Type::Back, -1, -1};
+    }
+    for (int row = 0; row < KeyboardState::NUM_ROWS; ++row) {
+      for (int column = 0; column < KeyboardState::KEYS_PER_ROW; ++column) {
+        if (keyBounds(row, column, screenWidth, screenMarginSide).contains(point)) {
+          return {Hit::Type::Key, row, column};
+        }
+      }
+    }
+    return {};
   }
 };
 

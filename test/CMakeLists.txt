@@ -48,6 +48,7 @@ include_directories(
   ${PROJECT_ROOT}/lib/ZipFile/src
   ${PROJECT_ROOT}/lib/InflateReader/src
   ${PROJECT_ROOT}/lib/uzlib/src
+  ${PROJECT_ROOT}/lib/BoardSupport/include
 )
 
 # Common test helpers
@@ -55,6 +56,7 @@ set(TEST_HELPERS
   ${CMAKE_CURRENT_SOURCE_DIR}/common/test_utils.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/common/test_font_data.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mocks/platform_stubs.cpp
+  ${PROJECT_ROOT}/lib/BoardSupport/src/TouchTransform.cpp
 )
 
 # Auto-discover and build tests
@@ -63,8 +65,170 @@ file(GLOB_RECURSE TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/unit/*.cpp)
 foreach(TEST_SRC ${TEST_SOURCES})
   get_filename_component(TEST_NAME ${TEST_SRC} NAME_WE)
 
+  if(TEST_NAME STREQUAL "DigitalInputTest")
+    add_executable(${TEST_NAME} ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/InputManager/src/InputManager.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/mocks/platform_stubs.cpp)
+    target_include_directories(${TEST_NAME} PRIVATE ${PROJECT_ROOT}/lib/InputManager/include)
+    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    set_target_properties(${TEST_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/bin)
+    continue()
+  endif()
+  # CMake builds BoardProfileTest once for each target.
+  # Each executable checks one profile set.
+  if(TEST_NAME STREQUAL "BoardProfileTest")
+    add_executable(BoardProfileC3Test ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/common/test_utils.cpp)
+    add_executable(BoardProfileX4ProTest ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/common/test_utils.cpp)
+    target_compile_definitions(BoardProfileC3Test PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
+    target_compile_definitions(BoardProfileX4ProTest PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    foreach(BOARD_PROFILE_EXE BoardProfileC3Test BoardProfileX4ProTest)
+      target_include_directories(${BOARD_PROFILE_EXE} PRIVATE
+        ${PROJECT_ROOT}/lib/BoardSupport/include
+      )
+      set_target_properties(${BOARD_PROFILE_EXE} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/bin)
+    endforeach()
+    continue()
+  endif()
+
+  if(TEST_NAME STREQUAL "HardwareServicePolicyTest")
+    foreach(SERVICE_TARGET C3 X4Pro)
+      add_executable(HardwareServicePolicy${SERVICE_TARGET}Test ${TEST_SRC}
+        ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/common/test_utils.cpp)
+      target_include_directories(HardwareServicePolicy${SERVICE_TARGET}Test PRIVATE
+        ${PROJECT_ROOT}/lib/BoardSupport/include)
+      set_target_properties(HardwareServicePolicy${SERVICE_TARGET}Test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/bin)
+    endforeach()
+    target_compile_definitions(HardwareServicePolicyC3Test PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
+    target_compile_definitions(HardwareServicePolicyX4ProTest PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    continue()
+  endif()
+
   # Special handling for tests that need additional source files
-  if(TEST_NAME STREQUAL "BackgroundTaskTest")
+  if(TEST_NAME STREQUAL "BoardSelectorTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardSelector.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/common/test_utils.cpp
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/BoardSupport/include
+      ${PROJECT_ROOT}/lib/EInkDisplay/include
+    )
+    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
+  elseif(TEST_NAME STREQUAL "ElementsBatteryTest")
+    add_executable(${TEST_NAME} ${TEST_SRC}
+      ${PROJECT_ROOT}/src/ui/Elements.cpp
+      ${TEST_HELPERS})
+    target_compile_options(${TEST_NAME} PRIVATE -ffunction-sections -fdata-sections)
+    target_link_options(${TEST_NAME} PRIVATE -Wl,--gc-sections)
+    target_include_directories(${TEST_NAME} PRIVATE ${PROJECT_ROOT}/lib/I18n/src)
+  elseif(TEST_NAME STREQUAL "CrashDebugTest")
+    add_executable(${TEST_NAME} ${TEST_SRC}
+      ${PROJECT_ROOT}/src/core/CrashDebug.cpp
+      ${TEST_HELPERS})
+    target_compile_definitions(${TEST_NAME} PRIVATE RTC_DATA_ATTR=)
+  elseif(TEST_NAME STREQUAL "HalTouchInputTest")
+    add_executable(${TEST_NAME} ${TEST_SRC}
+      ${PROJECT_ROOT}/src/hal/Input.cpp
+      ${PROJECT_ROOT}/src/MappedInputManager.cpp
+      ${PROJECT_ROOT}/lib/InputManager/src/InputManager.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/TouchBackend.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/X4ProBoard.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+      ${TEST_HELPERS})
+    target_include_directories(${TEST_NAME} PRIVATE ${PROJECT_ROOT}/lib/InputManager/include)
+    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
+  elseif(TEST_NAME STREQUAL "PanelDispatchTest")
+    add_executable(${TEST_NAME} ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/Display.cpp
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8279X3Driver.cpp
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8179X4ProDriver.cpp
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8279X4ProDriver.cpp
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8279SpiBus.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+      ${TEST_HELPERS})
+    target_include_directories(${TEST_NAME} BEFORE PRIVATE ${PROJECT_ROOT}/lib/EInkDisplay/include)
+    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1 EINK_DISPLAY_SINGLE_BUFFER_MODE=1)
+  elseif(TEST_NAME STREQUAL "HardwareRecoveryTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareRecovery.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/BoardSupport/include
+      ${PROJECT_ROOT}/lib/EInkDisplay/include
+    )
+  elseif(TEST_NAME STREQUAL "DisplayRecoveryTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/src/hal/Recovery.cpp
+      ${TEST_HELPERS}
+    )
+  elseif(TEST_NAME STREQUAL "X4ProBoardTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/BoardSupport/src/X4ProBoard.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BootHardware.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/PowerPolicy.cpp
+      ${PROJECT_ROOT}/lib/SDCardManager/src/SDPowerControl.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/BoardSupport/include
+      ${PROJECT_ROOT}/lib/SDCardManager/include
+    )
+    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
+  elseif(TEST_NAME STREQUAL "PowerPolicyTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BootHardware.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/PowerPolicy.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+      ${PROJECT_ROOT}/lib/SDCardManager/src/SDPowerControl.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/BoardSupport/include
+      ${PROJECT_ROOT}/lib/SDCardManager/include
+    )
+    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
+  elseif(TEST_NAME STREQUAL "TouchTransformTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/BoardSupport/include
+    )
+  elseif(TEST_NAME STREQUAL "TapClassifierTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/BoardSupport/src/TouchBackend.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/X4ProBoard.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/BoardSupport/include
+      ${PROJECT_ROOT}/src
+    )
+    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
+  elseif(TEST_NAME STREQUAL "BackgroundTaskTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
       ${PROJECT_ROOT}/lib/AsyncTask/src/BackgroundTask.cpp
@@ -219,7 +383,41 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/src/core/ExitToUiTransition.cpp
       ${TEST_HELPERS}
     )
-  elseif(TEST_NAME STREQUAL "ReaderButtonDispatchTest" OR TEST_NAME STREQUAL "TocPowerButtonTest")
+  elseif(TEST_NAME STREQUAL "CoreNavigationTouchTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/src/ui/TouchLayout.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/I18n/src
+    )
+  elseif(TEST_NAME STREQUAL "ReaderOverlayTouchTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/src/ui/TouchLayout.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/I18n/src
+    )
+  elseif(TEST_NAME STREQUAL "ServiceViewsTouchTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/src/ui/TouchLayout.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/I18n/src
+    )
+  elseif(TEST_NAME STREQUAL "TouchLayoutTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/src/ui/TouchLayout.cpp
+      ${TEST_HELPERS}
+    )
+  elseif(TEST_NAME STREQUAL "ReaderButtonDispatchTest" OR TEST_NAME STREQUAL "ReaderTapZonesTest" OR
+         TEST_NAME STREQUAL "TocPowerButtonTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
       ${PROJECT_ROOT}/src/core/ReaderButtonDispatcher.cpp
@@ -643,7 +841,7 @@ foreach(TEST_SRC ${TEST_SOURCES})
     add_executable(${TEST_NAME}
       ${TEST_SRC}
       ${PROJECT_ROOT}/src/content/BookmarkManager.cpp
-      ${PROJECT_ROOT}/src/drivers/Storage.cpp
+      ${PROJECT_ROOT}/src/hal/Storage.cpp
       ${TEST_HELPERS}
     )
   elseif(TEST_NAME STREQUAL "CapacityContractsTest" OR TEST_NAME STREQUAL "BookmarkListViewTest")
@@ -696,12 +894,15 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/lib/Utf8/src/Utf8Nfc.cpp
       ${TEST_HELPERS}
     )
-  elseif(TEST_NAME STREQUAL "CpuDriverTest")
+  elseif(TEST_NAME STREQUAL "CpuDriverTest" OR TEST_NAME STREQUAL "WifiSessionTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
-      ${PROJECT_ROOT}/src/drivers/Cpu.cpp
+      ${PROJECT_ROOT}/src/hal/Cpu.cpp
       ${TEST_HELPERS}
     )
+    if(TEST_NAME STREQUAL "CpuDriverTest")
+      target_compile_definitions(${TEST_NAME} PRIVATE F_CPU=240000000L)
+    endif()
     target_include_directories(${TEST_NAME} PRIVATE
       ${PROJECT_ROOT}/src
     )
@@ -709,6 +910,7 @@ foreach(TEST_SRC ${TEST_SOURCES})
     add_executable(${TEST_NAME}
       ${TEST_SRC}
       ${PROJECT_ROOT}/lib/BatteryMonitor/src/BatteryMonitor.cpp
+      ${PROJECT_ROOT}/lib/BatteryMonitor/src/Cw2017Backend.cpp
       ${TEST_HELPERS}
     )
     target_include_directories(${TEST_NAME} PRIVATE
@@ -867,6 +1069,14 @@ foreach(TEST_SRC ${TEST_SOURCES})
     target_include_directories(${TEST_NAME} BEFORE PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/unit/navigation/mocks
     )
+  elseif(TEST_NAME STREQUAL "Ssd1677DriverTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${CMAKE_CURRENT_SOURCE_DIR}/common/test_utils.cpp
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/EInkDisplay/src
+    )
   elseif(TEST_NAME STREQUAL "X3DisplayProbeTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
@@ -879,16 +1089,35 @@ foreach(TEST_SRC ${TEST_SOURCES})
   elseif(TEST_NAME STREQUAL "X3ControllerPolicyTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
-      ${PROJECT_ROOT}/src/drivers/X3ControllerPolicy.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/X3ControllerPolicy.cpp
       ${TEST_HELPERS}
     )
     target_include_directories(${TEST_NAME} PRIVATE
       ${PROJECT_ROOT}/lib/EInkDisplay/include
+      ${PROJECT_ROOT}/lib/BoardSupport/include
     )
   elseif(TEST_NAME STREQUAL "Uc8279SpiBusTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
       ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8279SpiBus.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/EInkDisplay/src
+    )
+  elseif(TEST_NAME STREQUAL "Uc8279X4ProDriverTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8279X4ProDriver.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/EInkDisplay/src
+    )
+  elseif(TEST_NAME STREQUAL "Uc8179X4ProDriverTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8179X4ProDriver.cpp
       ${TEST_HELPERS}
     )
     target_include_directories(${TEST_NAME} PRIVATE
@@ -904,16 +1133,62 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/lib/EInkDisplay/include
       ${PROJECT_ROOT}/lib/EInkDisplay/src
     )
-  elseif(TEST_NAME STREQUAL "X3PowerTest")
+  elseif(TEST_NAME STREQUAL "UsbPolicyTest" OR TEST_NAME STREQUAL "FrontLightPolicyTest" OR
+         TEST_NAME STREQUAL "BatteryChargePolicyTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
-      ${PROJECT_ROOT}/src/drivers/X3Power.cpp
-      ${PROJECT_ROOT}/lib/SDCardManager/src/SDPowerControl.cpp
       ${TEST_HELPERS}
     )
     target_include_directories(${TEST_NAME} PRIVATE
-      ${PROJECT_ROOT}/lib/SDCardManager/include
+      ${PROJECT_ROOT}/lib/BoardSupport/include
     )
+  elseif(TEST_NAME STREQUAL "ClockTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/src/hal/Clock.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/src/hal
+      ${PROJECT_ROOT}/lib/BoardSupport/include
+    )
+  elseif(TEST_NAME STREQUAL "RtcBackendTest")
+    foreach(RTC_TEST ${TEST_NAME} RtcBm8563Test)
+      add_executable(${RTC_TEST} ${TEST_SRC}
+        ${PROJECT_ROOT}/lib/BoardSupport/src/RtcBackend.cpp
+        ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
+        ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+        ${TEST_HELPERS})
+      set_target_properties(${RTC_TEST} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/bin)
+    endforeach()
+    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
+    target_compile_definitions(RtcBm8563Test PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    continue()
+  elseif(TEST_NAME STREQUAL "Cw2017PolicyTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/BatteryMonitor/src/BatteryMonitor.cpp
+      ${PROJECT_ROOT}/lib/BatteryMonitor/src/Cw2017Backend.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE
+      ${PROJECT_ROOT}/lib/BatteryMonitor/include
+    )
+    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
+  elseif(TEST_NAME STREQUAL "StorageTransportTest")
+    foreach(STORAGE_TARGET C3 X4Pro)
+      add_executable(StorageTransport${STORAGE_TARGET}Test ${TEST_SRC}
+        ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+        ${TEST_HELPERS})
+      target_include_directories(StorageTransport${STORAGE_TARGET}Test PRIVATE
+        ${PROJECT_ROOT}/lib/BoardSupport/include
+        ${PROJECT_ROOT}/lib/SDCardManager/include)
+      set_target_properties(StorageTransport${STORAGE_TARGET}Test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/bin)
+    endforeach()
+    target_compile_definitions(StorageTransportC3Test PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
+    target_compile_definitions(StorageTransportX4ProTest PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    continue()
   elseif(TEST_NAME STREQUAL "SDPowerControlTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
@@ -927,6 +1202,7 @@ foreach(TEST_SRC ${TEST_SOURCES})
     add_executable(${TEST_NAME}
       ${TEST_SRC}
       ${PROJECT_ROOT}/lib/GfxRenderer/src/GfxRenderer.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/TouchBackend.cpp
       ${TEST_HELPERS}
     )
     target_include_directories(${TEST_NAME} BEFORE PRIVATE

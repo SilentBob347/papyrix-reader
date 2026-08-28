@@ -17,6 +17,7 @@
 #include <PlainTextParser.h>
 #include <SDCardManager.h>
 #include <Serialization.h>
+#include <TouchTransform.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
 
@@ -25,7 +26,6 @@
 #include <cstring>
 #include <new>
 
-#include "../Battery.h"
 #include "../FontManager.h"
 #include "../config.h"
 #include "../content/BookmarkManager.h"
@@ -38,7 +38,6 @@
 #include "../core/Core.h"
 #include "../core/EmergencyBootTransition.h"
 #include "../core/ExitToUiTransition.h"
-#include "../drivers/Device.h"
 #include "../ui/Elements.h"
 #include "../ui/views/ReaderViews.h"
 #include "ThemeManager.h"
@@ -741,7 +740,7 @@ void ReaderState::enter(Core& core) {
   }
 
   // Open content using ContentHandle
-  auto result = core.content.open(contentPath_, papyrix::drivers::Device::instance().cacheDir());
+  auto result = core.content.open(contentPath_, core.device.renderCacheDir());
   if (!result.ok()) {
     LOG_ERR(TAG, "Failed to open content: %s", errorToString(result.err));
     // Store error message for ErrorState to display
@@ -1011,10 +1010,17 @@ StateTransition ReaderState::update(Core& core) {
       handleTocInput(core, e);
       continue;
     }
+    if (e.type == EventType::Tap && overlayTapGuard_.suppressPageTap(millis())) {
+      continue;
+    }
 
-    const ReaderButtonConfig buttonConfig{core.settings.shortPwrBtn == Settings::PowerPageTurn,
-                                          core.settings.shortPwrBtn == Settings::PowerBookmark,
-                                          core.settings.getPowerButtonDuration()};
+    ReaderButtonConfig buttonConfig{core.settings.shortPwrBtn == Settings::PowerPageTurn,
+                                    core.settings.shortPwrBtn == Settings::PowerBookmark,
+                                    core.settings.getPowerButtonDuration()};
+    buttonConfig.touchPageTurns = core.settings.touchPageTurns != 0;
+    buttonConfig.reversePageZones = core.settings.sideButtonLayout == Settings::NextPrev;
+    buttonConfig.menuAllowed = !ReaderNavigation::isCoverPosition(currentSpineIndex_, currentSectionPage_);
+    buttonConfig.logicalWidth = static_cast<int16_t>(renderer_.getScreenWidth());
     switch (readerButtons_.processEvent(e, millis(), buttonConfig)) {
       case ReaderButtonAction::Menu:
         enterMenuMode(core);
@@ -1069,11 +1075,9 @@ void ReaderState::render(Core& core) {
   if (bookStatsMode_) {
     ui::render(renderer_, THEME_MANAGER.current(), bookStatsView_);
     bookStatsView_.needsRender = false;
-    core.display.markDirty();
   } else if (menuMode_) {
     const Theme& theme = THEME_MANAGER.current();
     ui::render(renderer_, theme, menuView_);
-    core.display.markDirty();
   } else if (bookmarkMode_) {
     renderBookmarkOverlay(core);
   } else if (tocMode_) {
@@ -1104,7 +1108,7 @@ void ReaderState::navigateNext(Core& core) {
 
   // Spine/section logic for EPUB, TXT, Markdown
   // From cover (-1) -> first text content page
-  if (currentSpineIndex_ == 0 && currentSectionPage_ == -1) {
+  if (ReaderNavigation::isCoverPosition(currentSpineIndex_, currentSectionPage_)) {
     const int oldSpine = currentSpineIndex_;
     const int oldSection = currentSectionPage_;
     const uint32_t oldPage = currentPage_;
@@ -1183,7 +1187,7 @@ void ReaderState::navigatePrev(Core& core) {
   }
 
   // Prevent going back from cover
-  if (currentSpineIndex_ == 0 && currentSectionPage_ == -1) {
+  if (ReaderNavigation::isCoverPosition(currentSpineIndex_, currentSectionPage_)) {
     startBackgroundCaching(core);  // Resume task before returning
     return;                        // Already at cover
   }
@@ -1362,12 +1366,11 @@ void ReaderState::renderCurrentPage(Core& core) {
   renderer_.clearScreen(theme.backgroundColor);
 
   // Cover page: spineIndex=0, sectionPage=-1 (only when showImages enabled)
-  if (currentSpineIndex_ == 0 && currentSectionPage_ == -1) {
+  if (ReaderNavigation::isCoverPosition(currentSpineIndex_, currentSectionPage_)) {
     if (core.settings.showImages) {
       if (renderCoverPage(core)) {
         hasCover_ = true;
         readingSession_.updateProgress(0);
-        core.display.markDirty();
         startBackgroundCaching(core);
         return;
       }
@@ -1393,7 +1396,7 @@ void ReaderState::renderCurrentPage(Core& core) {
   if (forceDoubleRefresh_) {
     const bool turnOffScreen = core.settings.sunlightFadingFix != 0;
     renderer_.clearScreen(~theme.backgroundColor);
-    renderer_.displayBuffer(EInkDisplay::FAST_REFRESH, turnOffScreen);
+    renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH, turnOffScreen);
     forceDoubleRefresh_ = false;
   }
 
@@ -1423,8 +1426,6 @@ void ReaderState::renderCurrentPage(Core& core) {
                                         cachedPages, currentCachePage, cacheRequired)) {
     startBackgroundCaching(core);
   }
-
-  core.display.markDirty();
 }
 
 void ReaderState::renderCachedPage(Core& core) {
@@ -1590,14 +1591,14 @@ void ReaderState::renderCachedPage(Core& core) {
     if (page->getImageBoundingBox(imgX, imgY, imgW, imgH)) {
       // Step 1: Display page with image area blanked (text appears, image area white)
       renderer_.fillRect(imgX + vp.marginLeft, imgY + vp.marginTop, imgW, imgH, !theme.primaryTextBlack);
-      renderer_.displayBuffer(EInkDisplay::FAST_REFRESH, turnOffScreen);
+      renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH, turnOffScreen);
 
       // Step 2: Re-render with images and display again (images appear clean)
       renderPageContents(core, *page, vp.marginTop, vp.marginRight, vp.marginBottom, vp.marginLeft);
       renderStatusBar(core, vp.marginRight, vp.marginBottom, vp.marginLeft);
-      renderer_.displayBuffer(EInkDisplay::FAST_REFRESH, turnOffScreen);
+      renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH, turnOffScreen);
     } else {
-      renderer_.displayBuffer(EInkDisplay::HALF_REFRESH, turnOffScreen);
+      renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH, turnOffScreen);
     }
     // Double FAST_REFRESH handles ghosting; don't count toward full refresh cadence
   } else {
@@ -1811,8 +1812,8 @@ void ReaderState::renderStatusBar(Core& core, int marginRight, int marginBottom,
     }
   }
 
-  const uint16_t millivolts = batteryMonitor.readMillivolts();
-  data.batteryPercent = (millivolts < 100) ? -1 : static_cast<int>(batteryMonitor.readPercentage());
+  const auto batteryStatus = core.battery.readStatus();
+  data.batteryPercent = batteryStatus.percentageKnown ? static_cast<int>(batteryStatus.percentage) : -1;
 
   // Resolve whole-book page information from the current cache snapshot.
   const GlobalPageMetrics metrics = resolveGlobalPageMetrics(core);
@@ -1865,19 +1866,19 @@ void ReaderState::renderXtcPage(Core& core) {
 }
 
 void ReaderState::displayGrayscaleBase(const Core& core) {
-  renderer_.displayBuffer(EInkDisplay::HALF_REFRESH, core.settings.sunlightFadingFix != 0);
+  renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH, core.settings.sunlightFadingFix != 0);
 }
 
 void ReaderState::displayWithRefresh(Core& core) {
   const bool turnOffScreen = core.settings.sunlightFadingFix != 0;
   const int pagesPerRefreshValue = core.settings.getPagesPerRefreshValue();
   if (pagesPerRefreshValue == 0) {
-    renderer_.displayBuffer(EInkDisplay::FAST_REFRESH, turnOffScreen);
+    renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH, turnOffScreen);
   } else if (pagesUntilFullRefresh_ <= 1) {
-    renderer_.displayBuffer(EInkDisplay::HALF_REFRESH, turnOffScreen);
+    renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH, turnOffScreen);
     pagesUntilFullRefresh_ = pagesPerRefreshValue;
   } else {
-    renderer_.displayBuffer(EInkDisplay::FAST_REFRESH, turnOffScreen);
+    renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH, turnOffScreen);
     pagesUntilFullRefresh_--;
   }
 }
@@ -1958,7 +1959,7 @@ void ReaderState::startBackgroundCaching(Core& core) {
         }
 
         Core& coreRef = *corePtr;
-        drivers::Cpu::PerformanceLock performanceLock(coreRef.cpu);
+        hal::Cpu::PerformanceLock performanceLock(coreRef.cpu);
         ContentType type = coreRef.content.metadata().type;
 
         // Build a missing cache or extend the loaded partial cache.
@@ -2215,7 +2216,7 @@ void ReaderState::processIndexingChunk(Core& core) {
     indexingParser_.reset();
     renderer_.clearWidthCache();
     renderer_.clearScreen(theme.backgroundColor);
-    renderer_.displayBuffer(EInkDisplay::HALF_REFRESH);
+    renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
     LOG_WRN(TAG, "Full book indexing failed, falling back to page-by-page caching");
   };
   auto skipCurrentSpine = [this]() {
@@ -2234,7 +2235,7 @@ void ReaderState::processIndexingChunk(Core& core) {
     invalidateGlobalPageMetrics();
     startBackgroundCaching(core);
     renderer_.clearScreen(theme.backgroundColor);
-    renderer_.displayBuffer(EInkDisplay::HALF_REFRESH);
+    renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
     needsRender_ = true;
     return;
   }
@@ -2498,8 +2499,7 @@ void ReaderState::renderIndexingScreen(Core& core) {
   }
 
   ui::buttonBar(renderer_, theme, ui::ButtonBar(tr(BACK), "", "", ""));
-  renderer_.displayBuffer(EInkDisplay::FAST_REFRESH, false);
-  core.display.markDirty();
+  renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH, false);
 }
 
 // ============================================================================
@@ -2534,6 +2534,33 @@ void ReaderState::exitTocMode() {
 }
 
 void ReaderState::handleTocInput(Core& core, const Event& e) {
+  if (e.type == EventType::Tap) {
+    const int visibleCount = tocVisibleCount();
+    const ui::TocHit hit =
+        ui::tocHitTest({e.touch.x, e.touch.y}, renderer_.getScreenWidth(), renderer_.getScreenHeight(),
+                       THEME_MANAGER.current().itemHeight + THEME_MANAGER.current().itemSpacing, tocView_.scrollOffset,
+                       visibleCount, tocView_.chapterCount, core.settings.frontButtonLayout == Settings::FrontLRBC);
+    if (hit.type == ui::TocHit::Type::Item) {
+      tocView_.selected = static_cast<uint16_t>(hit.index);
+      jumpToTocEntry(core, hit.index);
+      exitTocMode();
+      overlayTapGuard_.closedAt(millis());
+    } else if (hit.type == ui::TocHit::Type::Go && tocView_.chapterCount > 0) {
+      jumpToTocEntry(core, tocView_.selected);
+      exitTocMode();
+      overlayTapGuard_.closedAt(millis());
+    } else if (hit.type == ui::TocHit::Type::Back) {
+      exitTocMode();
+      overlayTapGuard_.closedAt(millis());
+    } else if (hit.type == ui::TocHit::Type::PageUp) {
+      tocView_.movePageUp(visibleCount);
+      needsRender_ = true;
+    } else if (hit.type == ui::TocHit::Type::PageDown) {
+      tocView_.movePageDown(visibleCount);
+      needsRender_ = true;
+    }
+    return;
+  }
   const ReaderButtonConfig buttonConfig{core.settings.shortPwrBtn == Settings::PowerPageTurn,
                                         core.settings.shortPwrBtn == Settings::PowerBookmark,
                                         core.settings.getPowerButtonDuration()};
@@ -2836,7 +2863,6 @@ void ReaderState::renderTocOverlay(Core& core) {
 
   ui::buttonBar(renderer_, theme, tocView_.buttons);
   renderer_.displayBuffer();
-  core.display.markDirty();
 }
 
 void ReaderState::exitToUI(Core& core) {
@@ -2881,7 +2907,7 @@ void ReaderState::exitToUI(Core& core) {
 // ============================================================================
 
 void ReaderState::enterMenuMode(Core& core) {
-  if (currentSpineIndex_ == 0 && currentSectionPage_ == -1) return;
+  if (ReaderNavigation::isCoverPosition(currentSpineIndex_, currentSectionPage_)) return;
   if (!stopBackgroundCaching()) return;
   menuView_.show();
   menuMode_ = true;
@@ -2897,6 +2923,16 @@ void ReaderState::exitMenuMode() {
 }
 
 void ReaderState::handleMenuInput(Core& core, const Event& e) {
+  if (e.type == EventType::Tap) {
+    const auto hit = menuView_.hitTest({e.touch.x, e.touch.y}, renderer_.getScreenWidth(), renderer_.getScreenHeight(),
+                                       THEME_MANAGER.current().itemHeight);
+    if (hit.type == ui::ReaderMenuView::Hit::Type::Item) {
+      menuView_.selected = static_cast<int8_t>(hit.index);
+      overlayTapGuard_.closedAt(millis());
+      handleMenuAction(core, menuView_.selectedItem());
+    }
+    return;
+  }
   if (e.type != EventType::ButtonPress) return;
 
   switch (e.button) {
@@ -2932,7 +2968,6 @@ void ReaderState::handleMenuAction(Core& core, ui::ReaderMenuView::Item action) 
         ui::overlayBox(renderer_, theme, core.settings.getReaderFontId(theme), renderer_.getScreenHeight() / 2 - 20,
                        "Chapters unavailable");
         renderer_.displayBuffer();
-        core.display.markDirty();
         startBackgroundCaching(core);
       }
       break;
@@ -2969,6 +3004,16 @@ void ReaderState::exitBookStatsMode(Core& core) {
 }
 
 void ReaderState::handleBookStatsInput(Core& core, const Event& e) {
+  if (e.type == EventType::Tap) {
+    const auto hit =
+        bookStatsView_.hitTest({e.touch.x, e.touch.y}, renderer_.getScreenWidth(), renderer_.getScreenHeight(),
+                               core.settings.frontButtonLayout == Settings::FrontLRBC);
+    if (hit == ui::BookStatsView::Hit::Back) {
+      exitBookStatsMode(core);
+      overlayTapGuard_.closedAt(millis());
+    }
+    return;
+  }
   if (e.type == EventType::ButtonPress && e.button == Button::Back) {
     exitBookStatsMode(core);
   }
@@ -3010,6 +3055,33 @@ void ReaderState::exitBookmarkMode() {
 }
 
 void ReaderState::handleBookmarkInput(Core& core, const Event& e) {
+  if (e.type == EventType::Tap) {
+    const auto hit =
+        bookmarkView_.hitTest({e.touch.x, e.touch.y}, renderer_.getScreenWidth(), renderer_.getScreenHeight(),
+                              THEME_MANAGER.current().itemHeight + THEME_MANAGER.current().itemSpacing,
+                              bookmarkVisibleCount(), core.settings.frontButtonLayout == Settings::FrontLRBC);
+    if (hit.type == ui::BookmarkListView::Hit::Type::Item) {
+      bookmarkView_.selected = static_cast<int16_t>(hit.index);
+      jumpToBookmark(core, hit.index);
+      exitBookmarkMode();
+      startBackgroundCaching(core);
+      overlayTapGuard_.closedAt(millis());
+    } else if (hit.type == ui::BookmarkListView::Hit::Type::Go && bookmarkCount_ > 0) {
+      jumpToBookmark(core, bookmarkView_.selected);
+      exitBookmarkMode();
+      startBackgroundCaching(core);
+      overlayTapGuard_.closedAt(millis());
+    } else if (hit.type == ui::BookmarkListView::Hit::Type::Add) {
+      addBookmark(core);
+    } else if (hit.type == ui::BookmarkListView::Hit::Type::Delete && bookmarkCount_ > 0) {
+      deleteBookmark(core, bookmarkView_.selected);
+    } else if (hit.type == ui::BookmarkListView::Hit::Type::Back) {
+      exitBookmarkMode();
+      startBackgroundCaching(core);
+      overlayTapGuard_.closedAt(millis());
+    }
+    return;
+  }
   if (e.type != EventType::ButtonPress && e.type != EventType::ButtonRepeat) return;
 
   switch (e.button) {
@@ -3069,7 +3141,6 @@ void ReaderState::renderBookmarkOverlay(Core& core) {
 
   ui::buttonBar(renderer_, theme, bookmarkView_.buttons);
   renderer_.displayBuffer();
-  core.display.markDirty();
 }
 
 void ReaderState::addBookmark(Core& core) {
@@ -3146,7 +3217,6 @@ void ReaderState::showBookmarkNotification(Core& core) {
   const Theme& theme = THEME_MANAGER.current();
   ui::overlayBox(renderer_, theme, theme.uiFontId, renderer_.getScreenHeight() / 2 - 20, tr(BOOKMARK_ADDED));
   renderer_.displayBuffer();
-  core.display.markDirty();
   bookmarkNotifyMs_ = millis();
 }
 

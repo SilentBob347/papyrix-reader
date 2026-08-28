@@ -63,8 +63,8 @@ int main() {
 
     view.needsRender = false;
     view.moveDown();
-    runner.expectEq(int8_t(2), view.selected, "moveDown clamps at last item");
-    runner.expectFalse(view.needsRender, "moveDown at end doesn't set needsRender");
+    runner.expectEq(int8_t(0), view.selected, "moveDown wraps to Chapters");
+    runner.expectTrue(view.needsRender, "moveDown wrap sets needsRender");
   }
 
   // --- moveUp ---
@@ -80,8 +80,8 @@ int main() {
 
     view.needsRender = false;
     view.moveUp();
-    runner.expectEq(int8_t(0), view.selected, "moveUp clamps at first item");
-    runner.expectFalse(view.needsRender, "moveUp at start doesn't set needsRender");
+    runner.expectEq(int8_t(2), view.selected, "moveUp wraps to Book stats");
+    runner.expectTrue(view.needsRender, "moveUp wrap sets needsRender");
   }
 
   runner.printSummary();

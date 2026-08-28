@@ -5,6 +5,7 @@
 
 #include <cstdint>
 
+#include "TouchLayout.h"
 #include "WrappedText.h"
 
 namespace ui {
@@ -37,9 +38,10 @@ void enumValue(const GfxRenderer& r, const Theme& t, int y, const char* label, c
 // Set front button layout for hint remapping (0=BCLR, 1=LRBC)
 void setFrontButtonLayout(uint8_t layout);
 
-// Button bar - 4-button hints at bottom (wraps drawButtonHints)
+// Button bar - 4-button hints at bottom
 void buttonBar(const GfxRenderer& r, const Theme& t, const char* b1, const char* b2, const char* b3, const char* b4);
 void buttonBar(const GfxRenderer& r, const Theme& t, const ButtonBar& buttons);
+touch::Rect buttonBarButtonBounds(const GfxRenderer& r, int index);
 
 // Progress bar - Shows current/total progress
 void progress(const GfxRenderer& r, const Theme& t, int y, int current, int total);
@@ -55,6 +57,7 @@ void image(const GfxRenderer& r, int x, int y, const uint8_t* data, int w, int h
 
 // Dialog - Yes/No confirmation dialog
 void dialog(const GfxRenderer& r, const Theme& t, const char* title, const char* msg, int selected);
+touch::DialogLayout confirmationDialogBounds(const GfxRenderer& r, const Theme& t, const char* msg);
 
 // Keyboard - 10x10 grid keyboard with control row
 struct KeyboardState {

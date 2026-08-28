@@ -1,7 +1,7 @@
 #include "FileListState.h"
 
 #include <Arduino.h>
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <FileIndex.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
@@ -391,9 +391,73 @@ void FileListState::executeConfirmedAction(Core& core) {
   needsRender_ = true;
 }
 
+void FileListState::deleteSelected(Core& core) {
+  FileEntryView entry{};
+  if (!entryAt(selectedIndex_, entry)) return;
+  if (isTrashRootEntry()) {
+    ui::centeredMessage(renderer_, THEME, THEME.uiFontId, tr(CANNOT_DELETE_TRASH));
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    needsRender_ = true;
+    return;
+  }
+  switch (trash::deleteAction(entry.isDir, isTrashDirectory(), core.settings.recycleBinEnabled != 0)) {
+    case trash::DeleteAction::MoveToTrash:
+      promptMoveToTrash();
+      break;
+    case trash::DeleteAction::PermanentlyDelete:
+      promptPermanentDelete();
+      break;
+    case trash::DeleteAction::PermanentlyDeleteDirectory:
+      promptDeleteDirectory();
+      break;
+  }
+}
+
 StateTransition FileListState::update(Core& core) {
   Event e;
   while (core.events.pop(e)) {
+    if (e.type == EventType::Tap) {
+      if (currentScreen_ != Screen::Browse) {
+        const auto layout = ui::confirmDialogBounds(renderer_, THEME, confirmView_);
+        const auto hit = confirmView_.hitTest({e.touch.x, e.touch.y}, layout,
+                                              core.settings.frontButtonLayout == Settings::FrontLRBC);
+        if (hit == ui::ConfirmDialogView::Hit::Yes) {
+          confirmView_.selection = 0;
+          executeConfirmedAction(core);
+        } else if (hit == ui::ConfirmDialogView::Hit::No || hit == ui::ConfirmDialogView::Hit::Back) {
+          confirmView_.selection = 1;
+          currentScreen_ = Screen::Browse;
+          needsRender_ = true;
+        } else if (hit == ui::ConfirmDialogView::Hit::Select) {
+          if (confirmView_.isYesSelected()) {
+            executeConfirmedAction(core);
+          } else {
+            currentScreen_ = Screen::Browse;
+            needsRender_ = true;
+          }
+        }
+        continue;
+      }
+
+      const int pageStart = getPageStartIndex();
+      const int visibleCount =
+          std::max(0, std::min(pageStart + getPageItems(), static_cast<int>(entryCount())) - pageStart);
+      const auto hit = ui::fileListHitTest({e.touch.x, e.touch.y}, renderer_.getScreenWidth(),
+                                           renderer_.getScreenHeight(), THEME.itemHeight + THEME.itemSpacing, pageStart,
+                                           visibleCount, core.settings.frontButtonLayout == Settings::FrontLRBC);
+      if (hit.type == ui::FileListHit::Type::Entry) {
+        selectedIndex_ = static_cast<size_t>(hit.index);
+        needsRender_ = true;
+        openSelected(core);
+      } else if (hit.type == ui::FileListHit::Type::Open) {
+        openSelected(core);
+      } else if (hit.type == ui::FileListHit::Type::Delete) {
+        deleteSelected(core);
+      } else if (hit.type == ui::FileListHit::Type::Back) {
+        goBack(core);
+      }
+      continue;
+    }
     switch (e.type) {
       case EventType::ButtonRepeat:
         if (currentScreen_ == Screen::Browse) {
@@ -439,28 +503,9 @@ StateTransition FileListState::update(Core& core) {
               break;
             case Button::Left:
               break;
-            case Button::Right: {
-              FileEntryView entry{};
-              if (!entryAt(selectedIndex_, entry)) break;
-              if (isTrashRootEntry()) {
-                ui::centeredMessage(renderer_, THEME, THEME.uiFontId, tr(CANNOT_DELETE_TRASH));
-                vTaskDelay(1000 / portTICK_PERIOD_MS);
-                needsRender_ = true;
-              } else {
-                switch (trash::deleteAction(entry.isDir, isTrashDirectory(), core.settings.recycleBinEnabled != 0)) {
-                  case trash::DeleteAction::MoveToTrash:
-                    promptMoveToTrash();
-                    break;
-                  case trash::DeleteAction::PermanentlyDelete:
-                    promptPermanentDelete();
-                    break;
-                  case trash::DeleteAction::PermanentlyDeleteDirectory:
-                    promptDeleteDirectory();
-                    break;
-                }
-              }
+            case Button::Right:
+              deleteSelected(core);
               break;
-            }
             case Button::Center:
               openSelected(core);
               break;
@@ -503,7 +548,6 @@ void FileListState::render(Core& core) {
     ui::render(renderer_, theme, confirmView_);
     confirmView_.needsRender = false;
     needsRender_ = false;
-    core.display.markDirty();
     return;
   }
 
@@ -524,14 +568,15 @@ void FileListState::render(Core& core) {
   // Empty state
   if (count == 0) {
     renderer_.drawText(theme.uiFontId, 20, 60, tr(NO_BOOKS_FOUND), theme.primaryTextBlack);
+    const char* backLabel = isAtRoot() ? (core.settings.showRecents ? tr(BOOKS) : tr(HOME)) : tr(BACK);
+    ui::buttonBar(renderer_, theme, backLabel, "", "", "");
     renderer_.displayBuffer();
     needsRender_ = false;
-    core.display.markDirty();
     return;
   }
 
   // Draw current page of items
-  constexpr int listStartY = 60;
+  constexpr int listStartY = ui::FileListHit::LIST_START_Y;
   const int itemHeight = theme.itemHeight + theme.itemSpacing;
   const int pageItems = getPageItems();
   const int pageStart = getPageStartIndex();
@@ -551,13 +596,12 @@ void FileListState::render(Core& core) {
   ui::buttonBar(renderer_, theme, backLabel, restoreSelected ? tr(RESTORE) : tr(OPEN), "", tr(DELETE_BTN));
 
   if (firstRender_) {
-    renderer_.displayBuffer(EInkDisplay::HALF_REFRESH);
+    renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
     firstRender_ = false;
   } else {
     renderer_.displayBuffer();
   }
   needsRender_ = false;
-  core.display.markDirty();
 }
 
 void FileListState::navigateUp(Core& core) {
@@ -651,7 +695,7 @@ void FileListState::goBack(Core& core) {
 
 int FileListState::getPageItems() const {
   const Theme& theme = THEME_MANAGER.current();
-  constexpr int listStartY = 60;
+  constexpr int listStartY = ui::FileListHit::LIST_START_Y;
   constexpr int bottomMargin = 70;
   const int availableHeight = renderer_.getScreenHeight() - listStartY - bottomMargin;
   const int itemHeight = theme.itemHeight + theme.itemSpacing;

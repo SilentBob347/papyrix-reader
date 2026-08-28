@@ -46,9 +46,9 @@ void render(const GfxRenderer& r, const Theme& t, const NetworkModeView& v) {
   const int joinIdx = v.itemCount - 2;
   const int hotspotIdx = v.itemCount - 1;
 
-  const int startY = 100;
+  const int startY = NetworkModeView::LIST_START_Y;
   for (int i = 0; i < v.itemCount; i++) {
-    const int y = startY + i * (t.itemHeight + 20);
+    const int y = startY + i * (t.itemHeight + NetworkModeView::ROW_SPACING);
     const char* label;
     if (i < joinIdx)
       label = tr(RECENT_NETWORK);
@@ -59,7 +59,7 @@ void render(const GfxRenderer& r, const Theme& t, const NetworkModeView& v) {
     menuItem(r, t, y, label, i == v.selected);
   }
 
-  const int descY = startY + v.itemCount * (t.itemHeight + 20) + 40;
+  const int descY = startY + v.itemCount * (t.itemHeight + NetworkModeView::ROW_SPACING) + 40;
   if (v.selected == hotspotIdx) {
     centeredText(r, t, descY, tr(CREATE_WIFI_HOTSPOT));
   } else {
@@ -87,7 +87,7 @@ void render(const GfxRenderer& r, const Theme& t, const WifiListView& v) {
     const int hintY = centerY + std::max(30, std::max(1, messageLines) * lineHeight + 1);
     centeredText(r, t, hintY, tr(PRESS_CONFIRM_SCAN));
   } else {
-    const int listStartY = 60;
+    const int listStartY = WifiListView::LIST_START_Y;
     const int pageStart = v.getPageStart();
     const int pageEnd = v.getPageEnd();
 

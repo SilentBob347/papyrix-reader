@@ -56,12 +56,13 @@ class RecordingBus : public Uc8279Bus {
 
   void endData() override {}
 
-  bool waitBusy(const char* operation) override {
+  bool waitBusy(const char* operation, bool) override {
     const std::string label = operation == nullptr ? "" : operation;
     waits.push_back(label);
     events.push_back("W:" + label);
     return label != failedWait;
   }
+  bool waitReady(const char* operation) override { return waitBusy(operation, false); }
 
   bool hasCommandData(uint8_t commandValue, std::initializer_list<uint8_t> expected) const {
     return std::any_of(records.begin(), records.end(), [&](const CommandRecord& record) {

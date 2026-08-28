@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <Bitmap.h>
 #include <CoverHelpers.h>
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <Epub.h>
 #include <Fb2.h>
 #include <FsHelpers.h>
@@ -27,8 +27,7 @@
 #include "../ThemeManager.h"
 #include "../config.h"
 #include "../core/Core.h"
-#include "../drivers/DeepSleep.h"
-#include "../drivers/Device.h"
+#include "../hal/Power.h"
 #include "../images/PapyrixLogo.h"
 
 extern InputManager inputManager;
@@ -65,21 +64,21 @@ void SleepState::enter(Core& core) {
 
       // Same black→white + SLEEPING cue as the normal sleep path
       renderer_.clearScreen(0x00);
-      renderer_.displayBuffer(EInkDisplay::FAST_REFRESH);
+      renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
       renderer_.clearScreen(0xFF);
       renderer_.drawCenteredText(THEME.uiFontId, renderer_.getScreenHeight() / 2, tr(SLEEPING), true);
-      renderer_.displayBuffer(EInkDisplay::FAST_REFRESH);
+      renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
 
       // Restore book page into the active framebuffer and lock it for deep sleep
       memcpy(renderer_.getFrameBuffer(), pageSnap, bufSize);
       free(pageSnap);
       pageSnap = nullptr;
-      renderer_.displayBuffer(EInkDisplay::HALF_REFRESH);
+      renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
     } else {
       // OOM: skip intermediate SLEEPING and lock whatever is already on screen
       LOG_WRN(TAG, "Keep Page: no RAM for page snapshot (%u bytes), locking current buffer",
               static_cast<unsigned>(bufSize));
-      renderer_.displayBuffer(EInkDisplay::HALF_REFRESH);
+      renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
     }
   } else {
     if (keepPageRequested) {
@@ -88,15 +87,13 @@ void SleepState::enter(Core& core) {
       LOG_INF(TAG, "SleepState::enter - rendering sleep screen");
     }
 
-    // Black-then-white clearing sequence to fully erase previous screen content
-    // (prevents ghost artifacts like "Indexing" text or book content on sleep screen)
+    // Clear the old image with black and white frames to remove ghosting.
     renderer_.clearScreen(0x00);
-    renderer_.displayBuffer(EInkDisplay::FAST_REFRESH);
+    renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
     renderer_.clearScreen(0xFF);
     renderer_.drawCenteredText(THEME.uiFontId, renderer_.getScreenHeight() / 2, tr(SLEEPING), true);
-    renderer_.displayBuffer(EInkDisplay::FAST_REFRESH);
+    renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
 
-    // Render the appropriate sleep screen based on settings
     switch (effectiveSleepScreen) {
       case Settings::SleepCustom:
         renderCustomSleepScreen(core);
@@ -110,35 +107,31 @@ void SleepState::enter(Core& core) {
     }
   }
 
-  // Save power button duration to RTC memory for wake-up verification
   rtcPowerButtonDurationMs = core.settings.getPowerButtonDuration();
+  const bool externalPower = core.usb.isConnected();
 
-  // Put display into low-power mode after rendering
-  core.display.sleep();
+  if (!core.display.deepSleep()) {
+    LOG_ERR(TAG, "Display power-off failed; sleep cancelled");
+    snprintf(core.buf.text, sizeof(core.buf.text), "Display power-off failed. Sleep cancelled.");
+    return;
+  }
+  core.frontLight.shutdown();
 
-  // Shutdown network if it was used
-  if (core.network.isInitialized()) {
-    core.network.shutdown();
+  if (core.wifi.isInitialized()) {
+    core.wifi.shutdown();
   }
 
   LittleFS.end();
 
-  // Configure wake-up source (power button)
-  esp_deep_sleep_enable_gpio_wakeup(1ULL << InputManager::POWER_BUTTON_PIN, ESP_GPIO_WAKEUP_GPIO_LOW);
-
-  // Wait for power button release before entering deep sleep
   waitForPowerRelease();
 
-  LOG_INF(TAG, "Entering deep sleep");
-  drivers::enterDeepSleepWithHardwareShutdown();
+  LOG_INF(TAG, "Entering deep sleep (external power: %s)", externalPower ? "yes" : "no");
+  hal::enterDeepSleepWithHardwareShutdown(externalPower);
 }
 
 void SleepState::exit(Core& core) { LOG_ERR(TAG, "SleepState::exit (unexpected)"); }
 
-StateTransition SleepState::update(Core& core) {
-  LOG_ERR(TAG, "SleepState::update (unexpected - enter() should not return)");
-  return StateTransition::stay(StateId::Sleep);
-}
+StateTransition SleepState::update(Core& core) { return StateTransition::to(StateId::Error); }
 
 void SleepState::renderDefaultSleepScreen(uint8_t sleepMode) const {
   const auto pageWidth = renderer_.getScreenWidth();
@@ -156,7 +149,7 @@ void SleepState::renderDefaultSleepScreen(uint8_t sleepMode) const {
     renderer_.invertScreen();
   }
 
-  renderer_.displayBuffer(EInkDisplay::HALF_REFRESH);
+  renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
 }
 
 void SleepState::renderCustomSleepScreen(const Core& core) const {
@@ -234,7 +227,7 @@ void SleepState::renderCoverSleepScreen(Core& core) const {
 
   std::string coverBmpPath;
   const char* bookPath = core.settings.lastBookPath;
-  const char* cacheDir = papyrix::drivers::Device::instance().cacheDir();
+  const char* cacheDir = core.device.renderCacheDir();
 
   // Generate cover BMP based on file type (creates temporary wrapper to generate cover)
   if (FsHelpers::isXtcFile(bookPath)) {
@@ -294,7 +287,7 @@ void SleepState::renderBitmapSleepScreen(const Bitmap& bitmap) const {
 
   renderer_.clearScreen();
   renderer_.drawBitmap(bitmap, rect.x, rect.y, rect.width, rect.height);
-  renderer_.displayBuffer(EInkDisplay::HALF_REFRESH);
+  renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
 
   if (bitmap.hasGreyscale()) {
     bitmap.rewindToData();

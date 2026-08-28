@@ -8,6 +8,7 @@ namespace papyrix::eink {
 constexpr size_t X3_DISPLAY_MTP_SIZE = 48;
 
 enum class X3DisplayVerdict : uint8_t { UC8253StableDefault, UC8279Confirmed, Inconclusive };
+enum class X4ProPanelVariant : uint8_t { Ssd1677, Uc8179, Uc8279 };
 
 struct X3DisplayProbeSample {
   uint8_t ver[5] = {};
@@ -42,6 +43,7 @@ class X3DisplayProbeTransport {
 };
 
 X3DisplayVerdict classifyX3Display(const X3DisplayProbeReport& report);
+X4ProPanelVariant classifyX4ProPanel(const X3DisplayProbeReport& report);
 X3DisplayProbeReport runX3DisplayProbe(X3DisplayProbeTransport& transport);
 X3DisplayProbeReport probeX3DisplayController(const X3DisplayProbePins& pins);
 

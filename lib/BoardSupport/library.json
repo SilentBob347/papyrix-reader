@@ -1,0 +1,14 @@
+{
+  "name": "BoardSupport",
+  "version": "1.0.0",
+  "description": "Provides static board profiles and compile-time target selection.",
+  "platforms": "espressif32",
+  "frameworks": [
+    "arduino",
+    "espidf"
+  ],
+  "build": {
+    "srcDir": "src",
+    "includeDir": "include"
+  }
+}

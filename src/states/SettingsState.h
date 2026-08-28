@@ -8,10 +8,12 @@
 class GfxRenderer;
 
 namespace papyrix {
+struct Event;
 
 enum class SettingsScreen : uint8_t {
   Menu,
   Reader,
+  Screen,
   Device,
   Cleanup,
   SystemInfo,
@@ -52,6 +54,7 @@ class SettingsState : public State {
   // Views (all small structs)
   ui::SettingsMenuView menuView_;
   ui::ReaderSettingsView readerView_;
+  ui::ScreenSettingsView screenView_;
   ui::DeviceSettingsView deviceView_;
   ui::CleanupMenuView cleanupView_;
   ui::SystemInfoView infoView_;
@@ -67,9 +70,12 @@ class SettingsState : public State {
   void handleConfirm(Core& core);
   void handleLeftRight(int delta);
 
+  void handleTap(Core& core, const Event& event);
   // Settings binding
   void loadReaderSettings();
   void saveReaderSettings();
+  void loadScreenSettings();
+  void saveScreenSettings();
   void loadDeviceSettings();
   void saveDeviceSettings();
   void populateSystemInfo();

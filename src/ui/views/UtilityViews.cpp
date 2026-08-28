@@ -74,7 +74,7 @@ void render(const GfxRenderer& r, const Theme& t, const KeyboardView& v) {
   }
 
   // Keyboard below input
-  const int keyboardY = inputY + inputH + 20;
+  const int keyboardY = KeyboardView::KEYBOARD_Y;
   keyboard(r, t, keyboardY, v.keyboard);
 
   ButtonBar kbBtns{tr(BACK), tr(SELECT), "<", ">"};

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SdFat.h>
+#include <TargetConfig.h>
 #include <WString.h>
 
 #include <cstdint>
@@ -66,7 +67,11 @@ class SDCardManager {
   static SDCardManager instance;
 
   bool initialized = false;
+#if PAPYRIX_CAP_SDMMC
+  FsVolume sd;
+#else
   SdFat sd;
+#endif
 };
 
 #define SdMan SDCardManager::getInstance()

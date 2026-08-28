@@ -118,7 +118,7 @@ Device                              Calibre Server
 
 **Discovery mechanism:** The device broadcasts "hello" on UDP ports every 500ms (max 20 times). Calibre listens on these ports and responds with its TCP port information. The device then connects to Calibre as a TCP client.
 
-**Note on SET_LIBRARY_INFO:** This message includes `fieldMetadata` containing all library field definitions, which can be a large payload. The device should handle messages up to ~100KB for this.
+`SET_LIBRARY_INFO` includes `fieldMetadata` with the library field definitions.
 
 ### Book Transfer
 
@@ -355,7 +355,7 @@ Both simulators follow the real protocol flow:
 
 ### Security Tests
 
-The library should reject:
+The library rejects:
 
 ```bash
 # Path traversal attack

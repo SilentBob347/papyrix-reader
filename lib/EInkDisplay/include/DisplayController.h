@@ -4,7 +4,7 @@
 
 namespace papyrix::eink {
 
-enum class DisplayController : uint8_t { SSD1677, UC8253, UC8279_X3 };
+enum class DisplayController : uint8_t { SSD1677 = 0, UC8253 = 2, UC8279_X3, UC8179_X4PRO, UC8279_X4PRO };
 
 inline const char* displayControllerName(DisplayController controller) {
   switch (controller) {
@@ -14,6 +14,10 @@ inline const char* displayControllerName(DisplayController controller) {
       return "UC8253";
     case DisplayController::UC8279_X3:
       return "UC8279_X3";
+    case DisplayController::UC8179_X4PRO:
+      return "UC8179_X4PRO";
+    case DisplayController::UC8279_X4PRO:
+      return "UC8279_X4PRO";
   }
   return "unknown";
 }

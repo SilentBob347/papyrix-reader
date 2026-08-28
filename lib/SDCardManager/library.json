@@ -10,10 +10,15 @@
     {
       "name": "Dave Allie",
       "url": "https://github.com/daveallie"
+    },
+    {
+      "name": "FreeInk",
+      "url": "https://github.com/FreeInk"
     }
   ],
   "dependencies": {
-    "greiman/SdFat": "^2.3.1"
+    "greiman/SdFat": "^2.3.1",
+    "BoardSupport": "*"
   },
   "platforms": "espressif32",
   "frameworks": [

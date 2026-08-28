@@ -20,7 +20,8 @@ class Uc8279SpiBus : public Uc8279Bus {
   void beginData(uint8_t command) override;
   void write(const uint8_t* values, size_t size) override;
   void endData() override;
-  bool waitBusy(const char* operation) override;
+  bool waitBusy(const char* operation, bool requireAssertion = false) override;
+  bool waitReady(const char* operation) override;
 
  private:
   int8_t cs_;

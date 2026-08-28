@@ -1,12 +1,11 @@
 # Customization Guide
 
-This guide shows how to make custom themes and how to add custom fonts to Papyrix.
-
 ---
 
 ## Custom Themes
 
-Papyrix supports themes that you can change. Themes are stored on the SD card. Themes control colors, layout options, and fonts.
+Themes control colors, layout, and fonts.
+The device reads theme files from the SD card.
 
 ### Theme File Location
 
@@ -27,7 +26,7 @@ When you use the device the first time, default `light.theme` and `dark.theme` f
 2. Rename it (for example, `my-custom.theme`) — use only letters, digits, hyphens, and underscores
 3. Edit the file with a text editor
 4. Put it in `/config/themes/` on your SD card
-5. Start the device again and select your theme in **Settings > Reader > Theme**
+5. Start the device again and select your theme in **Settings > Screen > Theme**
 
 ### Theme Limits
 
@@ -117,7 +116,7 @@ Optional metadata for the theme:
 - **item_spacing** - Vertical space between items in pixels
   - Default: `0`
 
-> **Note:** Front button layout (B/C/L/R compared to L/R/B/C) and side button layout are now set in **Settings > Device**, not in the theme file.
+Set the front and side button layouts in **Settings > Device**.
 
 #### Fonts Section
 
@@ -399,20 +398,23 @@ Built-in fonts are always available:
 
 ## Firmware Updates
 
-Firmware updates are loaded from an SD card. Copy the firmware binary as `firmware.bin`
-to the root of your SD card. Then go to **Settings > Firmware Update** and press **Run**.
+Copy the correct release artifact to the SD card root as `firmware.bin`.
+Open **Settings > Firmware Update** and press **Run**.
 
-The device will:
+The device:
 
-1. Read the firmware binary from the SD card
-2. Flash it to the inactive partition
-3. Restart
+1. Reads the firmware binary from the SD card.
+2. Writes it to the inactive partition.
+3. Restarts.
 
 ### Emergency Recovery
 
-If the device does not start as usual, rename the firmware file to `force_update.bin`
-on the SD card root. On the next start, the device flashes it before the UI
-starts. You do not need to operate the device.
+If the device does not start as usual, rename the firmware file to
+`force_update.bin` on the SD card root. On the next start, the device applies
+it before the UI starts. When the display is available, it shows **Firmware
+update in progress** and **Do not power off**. If display initialization fails,
+the update continues without a notification. Wait for the device to restart.
+The boot path removes the file after the attempt. Copy it again before a retry.
 
 ---
 
@@ -476,7 +478,7 @@ The repository includes example theme files and font files in [`docs/examples/`]
 To use a theme:
 1. Copy the `.theme` file to `/config/themes/` on your SD card
 2. Copy the related font folders to `/config/fonts/` on your SD card
-3. Select the theme in **Settings > Reader > Theme**
+3. Select the theme in **Settings > Screen > Theme**
 
 ### Font Attribution
 

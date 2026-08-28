@@ -16,14 +16,29 @@ class BatteryMonitor {
   };
   explicit BatteryMonitor(const Bq27220Config& cfg);
 
+  struct Cw2017Config {
+    int sdaPin;
+    int sclPin;
+    uint32_t freq = 400000;
+    uint8_t address = 0x63;
+  };
+  explicit BatteryMonitor(const Cw2017Config& cfg);
+
+  struct Status {
+    bool supported = false;
+    bool percentageKnown = false;
+    bool millivoltsKnown = false;
+    bool chargingKnown = false;
+    uint16_t percentage = 0;
+    uint16_t millivolts = 0;
+    bool charging = false;
+  };
+
+  Status readStatus() const;
+
   // Read voltage and return percentage (0-100). On BQ27220, this is the chip's
   // calibrated SOC; on ADC, it's a polynomial curve fit to LiPo discharge.
   uint16_t readPercentage() const;
-
-  // EMA-smoothed percentage (0-100). Suppresses jitter so the UI doesn't
-  // flicker. Single-threaded; use the singleton in src/Battery.h for shared
-  // smoothing across UI surfaces.
-  uint16_t readSmoothedPercentage() const;
 
   // Read the battery voltage in millivolts (accounts for divider on ADC mode).
   uint16_t readMillivolts() const;
@@ -48,7 +63,7 @@ class BatteryMonitor {
   static uint16_t millivoltsFromRawAdc(uint16_t adc_raw);
 
  private:
-  enum class Mode : uint8_t { Adc, Bq27220 };
+  enum class Mode : uint8_t { Adc, Bq27220, Cw2017 };
   Mode _mode;
 
   // ADC mode state
@@ -57,13 +72,13 @@ class BatteryMonitor {
 
   // BQ27220 mode state
   Bq27220Config _i2c{};
-
-  // EMA state for readSmoothedPercentage(). Holds smoothed percentage * 10
-  // to keep one decimal of precision. Mutable so the smoothing can run from
-  // a const method; callers must invoke it from a single thread (papyrix
-  // polls battery on the main loop only).
-  mutable uint16_t _smoothedScaled = 0;
-  mutable bool _smoothInitialized = false;
+  Cw2017Config _cw2017{};
+  mutable bool _cw2017Initialized = false;
+  mutable unsigned long _cw2017LastInitAttemptMs = 0;
+  mutable bool _cw2017SocPolled = false;
+  mutable bool _cw2017MvPolled = false;
+  mutable bool _haveCw2017Soc = false;
+  mutable bool _haveCw2017Mv = false;
 
   // Cached last good readings for BQ27220 mode. Returned on transient I²C
   // failure so the UI doesn't snap to 0%, and on poll-rate hits so we don't
@@ -84,4 +99,7 @@ class BatteryMonitor {
   uint16_t readBq27220Soc_() const;
   uint16_t readBq27220Mv_() const;
   bool readBq27220Current_(int16_t* outMa) const;
+  bool ensureCw2017Profile_() const;
+  bool readCw2017Soc_(uint16_t* out) const;
+  bool readCw2017Mv_(uint16_t* out) const;
 };

@@ -1,11 +1,10 @@
-#include "test_utils.h"
-
 #include <cstring>
 
 #include "content/BookmarkManager.h"
 #include "core/Types.h"
-#include "drivers/Input.h"
+#include "hal/Input.h"
 #include "states/RecentState.h"
+#include "test_utils.h"
 #include "ui/views/CalibreViews.h"
 #include "ui/views/HomeView.h"
 #include "ui/views/ReaderViews.h"
@@ -16,8 +15,7 @@ using namespace papyrix;
 int main() {
   TestUtils::TestRunner runner("CapacityContractsTest");
 
-  runner.expectTrue(static_cast<size_t>(Button::Count) <= sizeof(uint8_t) * 8,
-                    "Button count fits the state bitmask");
+  runner.expectTrue(static_cast<size_t>(Button::Count) <= sizeof(uint8_t) * 8, "Button count fits the state bitmask");
 
   {
     ui::SystemInfoView view;
@@ -39,9 +37,7 @@ int main() {
   {
     ui::SettingsMenuView view;
     for (int i = 0; i < ui::SettingsMenuView::ITEM_COUNT; ++i) view.moveDown();
-    runner.expectEq(int8_t(0), view.selected, "Settings menu wraps at derived count");
-    runner.expectTrue(ui::SettingsMenuView::Item::SystemInfo != ui::SettingsMenuView::Item::Count,
-                      "Settings menu last item is distinct from sentinel");
+    runner.expectEq(int8_t(0), view.selected, "Settings menu wraps after its visible items");
   }
 
   {
@@ -57,8 +53,7 @@ int main() {
     ui::ReaderMenuView view;
     view.show();
     for (int i = 0; i < ui::ReaderMenuView::ITEM_COUNT; ++i) view.moveDown();
-    runner.expectEq(static_cast<int8_t>(ui::ReaderMenuView::ITEM_COUNT - 1), view.selected,
-                    "Reader menu clamps at derived count");
+    runner.expectEq(int8_t(0), view.selected, "Reader menu wraps at derived count");
   }
 
   runner.expectEq(3, ui::ReaderMenuView::ITEM_COUNT, "Reader menu exposes three items");

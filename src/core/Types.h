@@ -17,6 +17,11 @@ enum class Button : uint8_t {
   Count,
 };
 
+struct TouchPoint {
+  int16_t x;
+  int16_t y;
+};
+
 // Content format types
 enum class ContentType : uint8_t {
   None = 0,

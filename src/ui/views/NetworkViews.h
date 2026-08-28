@@ -17,6 +17,13 @@ namespace ui {
 // ============================================================================
 
 struct NetworkModeView {
+  struct Hit {
+    enum class Type : uint8_t { None, Row, Back, Open };
+    Type type = Type::None;
+    int index = -1;
+  };
+  static constexpr int LIST_START_Y = 100;
+  static constexpr int ROW_SPACING = 20;
   ButtonBar buttons;
   int8_t selected = 0;
   int8_t itemCount = 2;
@@ -35,6 +42,17 @@ struct NetworkModeView {
       needsRender = true;
     }
   }
+
+  Hit hitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, int16_t rowPitch,
+              bool frontLrbc = false) const {
+    const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+    if (action == 0) return {Hit::Type::Back, -1};
+    if (action == 1) return {Hit::Type::Open, -1};
+    const int row =
+        touch::rowAt(point, {0, LIST_START_Y, screenWidth, static_cast<int16_t>(screenHeight - LIST_START_Y - 70)},
+                     rowPitch, itemCount);
+    return row < 0 ? Hit{} : Hit{Hit::Type::Row, row};
+  }
 };
 
 void render(const GfxRenderer& r, const Theme& t, const NetworkModeView& v);
@@ -44,6 +62,12 @@ void render(const GfxRenderer& r, const Theme& t, const NetworkModeView& v);
 // ============================================================================
 
 struct WifiListView {
+  struct Hit {
+    enum class Type : uint8_t { None, Row, Back, Connect, Scan };
+    Type type = Type::None;
+    int index = -1;
+  };
+  static constexpr int LIST_START_Y = 60;
   static constexpr int MAX_NETWORKS = 16;
   static constexpr int SSID_LEN = 33;  // Max SSID length + null
   static constexpr int PAGE_SIZE = 10;
@@ -117,6 +141,20 @@ struct WifiListView {
       needsRender = true;
     }
   }
+
+  Hit hitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, int16_t rowHeight,
+              bool frontLrbc = false) const {
+    const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+    if (action == 0) return {Hit::Type::Back, -1};
+    if (action == 1) return {Hit::Type::Connect, -1};
+    if (action == 3) return {Hit::Type::Scan, -1};
+    if (scanning) return {};
+    const int count = getPageEnd() - getPageStart();
+    const int row =
+        touch::rowAt(point, {0, LIST_START_Y, screenWidth, static_cast<int16_t>(screenHeight - LIST_START_Y - 70)},
+                     rowHeight, count);
+    return row < 0 ? Hit{} : Hit{Hit::Type::Row, getPageStart() + row};
+  }
 };
 
 void render(const GfxRenderer& r, const Theme& t, const WifiListView& v);
@@ -126,6 +164,7 @@ void render(const GfxRenderer& r, const Theme& t, const WifiListView& v);
 // ============================================================================
 
 struct WifiConnectingView {
+  enum class Hit : uint8_t { None, Back, Primary };
   static constexpr int SSID_MAX_LEN = 33;
   static constexpr int MAX_STATUS_LEN = 48;
 
@@ -174,6 +213,13 @@ struct WifiConnectingView {
     buttons = ButtonBar{tr(BACK), tr(RETRY)};
     needsRender = true;
   }
+
+  Hit hitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, bool frontLrbc = false) const {
+    const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+    if (action == 0 && buttons.isActive(0)) return Hit::Back;
+    if (action == 1 && buttons.isActive(1)) return Hit::Primary;
+    return Hit::None;
+  }
 };
 
 void render(const GfxRenderer& r, const Theme& t, const WifiConnectingView& v);
@@ -183,6 +229,7 @@ void render(const GfxRenderer& r, const Theme& t, const WifiConnectingView& v);
 // ============================================================================
 
 struct WebServerView {
+  enum class Hit : uint8_t { None, Stop };
   static constexpr int SSID_MAX_LEN = 33;
   static constexpr int MAX_IP_LEN = 16;
 
@@ -214,6 +261,10 @@ struct WebServerView {
   void setStopped() {
     serverRunning = false;
     needsRender = true;
+  }
+
+  Hit hitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight, bool frontLrbc = false) const {
+    return touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc) == 0 ? Hit::Stop : Hit::None;
   }
 };
 

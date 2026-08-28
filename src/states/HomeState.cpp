@@ -16,8 +16,6 @@
 #include "../core/BootMode.h"
 #include "../core/Core.h"
 #include "../core/CrashDebug.h"
-#include "../drivers/Device.h"
-#include "Battery.h"
 #include "FontManager.h"
 #include "MappedInputManager.h"
 #include "ThemeManager.h"
@@ -35,7 +33,7 @@ void HomeState::enter(Core& core) {
   loadLastBook(core);
 
   // Update battery
-  updateBattery();
+  updateBattery(core);
   lastBatteryPollMs_ = millis();
 
   view_.needsRender = true;
@@ -77,7 +75,7 @@ void HomeState::loadLastBook(Core& core) {
     if (contentType == ContentType::Epub) {
       // EPUB: lightweight metadata-only load (no CSS, TOC, spine splitting)
       papyrix::crashdebug::mark(papyrix::crashdebug::CrashPhase::HomeMetadataLoad);
-      Epub epub(savedPath, papyrix::drivers::Device::instance().cacheDir());
+      Epub epub(savedPath, core.device.renderCacheDir());
       if (epub.loadMetadataOnly()) {
         papyrix::crashdebug::clear();
         view_.setBook(epub.getTitle().c_str(), epub.getAuthor().c_str(), savedPath);
@@ -93,7 +91,7 @@ void HomeState::loadLastBook(Core& core) {
     } else if (contentType == ContentType::Fb2) {
       // FB2: lightweight metadata-only load (no section scanning/file generation)
       papyrix::crashdebug::mark(papyrix::crashdebug::CrashPhase::HomeMetadataLoad);
-      Fb2 fb2(savedPath, papyrix::drivers::Device::instance().cacheDir());
+      Fb2 fb2(savedPath, core.device.renderCacheDir());
       if (fb2.loadMetadataOnly()) {
         papyrix::crashdebug::clear();
         view_.setBook(fb2.getTitle().c_str(), fb2.getAuthor().c_str(), savedPath);
@@ -109,7 +107,7 @@ void HomeState::loadLastBook(Core& core) {
     } else {
       // Non-EPUB/FB2: use full content pipeline (fast for TXT/Markdown)
       papyrix::crashdebug::mark(papyrix::crashdebug::CrashPhase::HomeMetadataLoad);
-      auto result = core.content.open(savedPath, papyrix::drivers::Device::instance().cacheDir());
+      auto result = core.content.open(savedPath, core.device.renderCacheDir());
       papyrix::crashdebug::clear();
       if (result.ok()) {
         const auto& meta = core.content.metadata();
@@ -141,53 +139,63 @@ void HomeState::selectHomeImage(const bool imagesEnabled, const std::string& thu
   }
 }
 
-void HomeState::updateBattery() {
-  int percent = batteryMonitor.readSmoothedPercentage();
-  view_.setBattery(percent);
-  view_.setBatteryCharging(isUsbConnected());
+void HomeState::updateBattery(Core& core) {
+  const auto status = core.battery.readStatus();
+  view_.setBattery(status.percentageKnown ? static_cast<int>(status.percentage) : -1);
+  view_.setBatteryCharging(core.usb.isConnected());
+}
+
+void HomeState::onUsbStateChanged(Core& core) { updateBattery(core); }
+
+StateTransition HomeState::activate(Core& core, ui::HomeView::Hit hit) {
+  switch (hit) {
+    case ui::HomeView::Hit::Read:
+      if (view_.hasBook) {
+        showTransitionNotification(tr(OPENING_BOOK));
+        saveTransition(BootMode::READER, core.buf.path, ReturnTo::HOME);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        ESP.restart();
+      }
+      break;
+    case ui::HomeView::Hit::Browse:
+      return StateTransition::to(core.settings.showRecents ? StateId::Recent : StateId::FileList);
+    case ui::HomeView::Hit::Apps:
+      return StateTransition::to(StateId::AppLauncher);
+    case ui::HomeView::Hit::Settings:
+      return StateTransition::to(StateId::Settings);
+    case ui::HomeView::Hit::None:
+      break;
+  }
+  return StateTransition::stay(StateId::Home);
 }
 
 StateTransition HomeState::update(Core& core) {
   const unsigned long now = millis();
   if (now - lastBatteryPollMs_ >= kBatteryPollIntervalMs) {
     lastBatteryPollMs_ = now;
-    updateBattery();
+    updateBattery(core);
   }
 
   Event e;
   while (core.events.pop(e)) {
+    if (e.type == EventType::Tap) {
+      const auto hit = view_.hitTest({e.touch.x, e.touch.y}, renderer_.getScreenWidth(), renderer_.getScreenHeight(),
+                                     core.settings.frontButtonLayout == Settings::FrontLRBC);
+      const StateTransition transition = activate(core, hit);
+      if (transition.next != StateId::Home) return transition;
+      continue;
+    }
     switch (e.type) {
-      case EventType::ButtonPress:
-        switch (e.button) {
-          case Button::Back:
-            // btn1: Read - Continue reading if book is open
-            if (view_.hasBook) {
-              showTransitionNotification(tr(OPENING_BOOK));
-              saveTransition(BootMode::READER, core.buf.path, ReturnTo::HOME);
-              vTaskDelay(50 / portTICK_PERIOD_MS);
-              ESP.restart();
-            }
-            break;
-
-          case Button::Center:
-            // btn2: Books (Recent) or Files, per Show Recents setting
-            return StateTransition::to(core.settings.showRecents ? StateId::Recent : StateId::FileList);
-
-          case Button::Left:
-            // btn3: Apps
-            return StateTransition::to(StateId::AppLauncher);
-
-          case Button::Right:
-            // btn4: Settings
-            return StateTransition::to(StateId::Settings);
-
-          case Button::Up:
-          case Button::Down:
-          case Button::Power:
-            // Side buttons unused on home screen
-            break;
-        }
+      case EventType::ButtonPress: {
+        ui::HomeView::Hit hit = ui::HomeView::Hit::None;
+        if (e.button == Button::Back) hit = ui::HomeView::Hit::Read;
+        if (e.button == Button::Center) hit = ui::HomeView::Hit::Browse;
+        if (e.button == Button::Left) hit = ui::HomeView::Hit::Apps;
+        if (e.button == Button::Right) hit = ui::HomeView::Hit::Settings;
+        const StateTransition transition = activate(core, hit);
+        if (transition.next != StateId::Home) return transition;
         break;
+      }
 
       case EventType::ButtonLongPress:
         if (e.button == Button::Power) {
@@ -209,7 +217,6 @@ void HomeState::render(Core& core) {
     const auto region = ui::renderBatteryOnly(renderer_, THEME, view_);
     renderer_.displayWindow(region.x, region.y, region.width, region.height);
     view_.batteryNeedsRender = false;
-    core.display.markDirty();
     return;
   }
 
@@ -243,7 +250,6 @@ void HomeState::render(Core& core) {
   renderer_.displayBuffer();
   view_.needsRender = false;
   view_.batteryNeedsRender = false;
-  core.display.markDirty();
 }
 
 bool HomeState::renderCoverToCard() {

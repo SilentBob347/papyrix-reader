@@ -3,6 +3,7 @@
 #include <I18n.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <iterator>
 
 namespace ui {
@@ -16,7 +17,6 @@ void ReaderSettingsView::initDefs() {
   static const char* lineSpacingValues[4];
   static const char* alignmentValues[4];
   static const char* statusBarValues[3];
-  static const char* orientationValues[4];
 
   fontSizeValues[0] = tr(XSMALL);
   fontSizeValues[1] = tr(SMALL);
@@ -36,22 +36,47 @@ void ReaderSettingsView::initDefs() {
   statusBarValues[0] = tr(NONE_VAL);
   statusBarValues[1] = tr(TITLE_VAL);
   statusBarValues[2] = tr(CHAPTER_VAL);
+
+  DEFS[0] = {tr(FONT_SIZE), SettingType::Enum, fontSizeValues, 4};
+  DEFS[1] = {tr(TEXT_LAYOUT), SettingType::Enum, textLayoutValues, 3};
+  DEFS[2] = {tr(LINE_SPACING), SettingType::Enum, lineSpacingValues, 4};
+  DEFS[3] = {tr(PARAGRAPH_ALIGNMENT), SettingType::Enum, alignmentValues, 4};
+  DEFS[4] = {tr(HYPHENATION), SettingType::Toggle, nullptr, 0};
+  DEFS[5] = {tr(SHOW_IMAGES), SettingType::Toggle, nullptr, 0};
+  DEFS[6] = {tr(STATUS_BAR), SettingType::Enum, statusBarValues, 3};
+  DEFS[7] = {tr(TOUCH_PAGE_TURNS), SettingType::Toggle, nullptr, 0};
+  DEFS[8] = {tr(FULL_BOOK_PROCESS), SettingType::Toggle, nullptr, 0};
+}
+
+ScreenSettingsView::SettingDef ScreenSettingsView::DEFS[SETTING_COUNT] = {};
+
+void ScreenSettingsView::initDefs() {
+  static const char* orientationValues[4];
+  static const char* pagesRefreshValues[6];
+  static const char* sleepScreenValues[5];
   orientationValues[0] = tr(PORTRAIT);
   orientationValues[1] = tr(LANDSCAPE_CW);
   orientationValues[2] = tr(INVERTED);
   orientationValues[3] = tr(LANDSCAPE_CCW);
-
-  DEFS[0] = {tr(THEME), SettingType::ThemeSelect, nullptr, 0};
-  DEFS[1] = {tr(FONT_SIZE), SettingType::Enum, fontSizeValues, 4};
-  DEFS[2] = {tr(TEXT_LAYOUT), SettingType::Enum, textLayoutValues, 3};
-  DEFS[3] = {tr(LINE_SPACING), SettingType::Enum, lineSpacingValues, 4};
+  pagesRefreshValues[0] = "1";
+  pagesRefreshValues[1] = "5";
+  pagesRefreshValues[2] = "10";
+  pagesRefreshValues[3] = "15";
+  pagesRefreshValues[4] = "30";
+  pagesRefreshValues[5] = tr(OFF);
+  sleepScreenValues[0] = tr(DARK);
+  sleepScreenValues[1] = tr(LIGHT);
+  sleepScreenValues[2] = tr(CUSTOM);
+  sleepScreenValues[3] = tr(COVER);
+  sleepScreenValues[4] = tr(KEEP_PAGE);
+  DEFS[0] = {tr(THEME), SettingType::Enum, nullptr, 0};
+  DEFS[1] = {tr(BRIGHTNESS), SettingType::Enum, nullptr, 0};
+  DEFS[2] = {tr(WARMTH), SettingType::Enum, nullptr, 0};
+  DEFS[3] = {tr(READING_ORIENTATION), SettingType::Enum, orientationValues, 4};
   DEFS[4] = {tr(TEXT_ANTI_ALIASING), SettingType::Toggle, nullptr, 0};
-  DEFS[5] = {tr(PARAGRAPH_ALIGNMENT), SettingType::Enum, alignmentValues, 4};
-  DEFS[6] = {tr(HYPHENATION), SettingType::Toggle, nullptr, 0};
-  DEFS[7] = {tr(SHOW_IMAGES), SettingType::Toggle, nullptr, 0};
-  DEFS[8] = {tr(STATUS_BAR), SettingType::Enum, statusBarValues, 3};
-  DEFS[9] = {tr(READING_ORIENTATION), SettingType::Enum, orientationValues, 4};
-  DEFS[10] = {tr(FULL_BOOK_PROCESS), SettingType::Toggle, nullptr, 0};
+  DEFS[5] = {tr(PAGES_PER_REFRESH), SettingType::Enum, pagesRefreshValues, 6};
+  DEFS[6] = {tr(SUNLIGHT_FADING_FIX), SettingType::Toggle, nullptr, 0};
+  DEFS[7] = {tr(SLEEP_SCREEN), SettingType::Enum, sleepScreenValues, 5};
 }
 
 // DeviceSettingsView runtime initialization
@@ -59,10 +84,8 @@ DeviceSettingsView::SettingDef DeviceSettingsView::DEFS[SETTING_COUNT] = {};
 
 void DeviceSettingsView::initDefs() {
   static const char* sleepTimeoutValues[5];
-  static const char* sleepScreenValues[5];
   static const char* startupValues[2];
   static const char* shortPwrValues[4];
-  static const char* pagesRefreshValues[6];
   static const char* toggleValues[2];
   static const char* frontButtonValues[2];
   static const char* sideButtonValues[2];
@@ -72,23 +95,12 @@ void DeviceSettingsView::initDefs() {
   sleepTimeoutValues[2] = tr(MIN_15);
   sleepTimeoutValues[3] = tr(MIN_30);
   sleepTimeoutValues[4] = tr(NEVER);
-  sleepScreenValues[0] = tr(DARK);
-  sleepScreenValues[1] = tr(LIGHT);
-  sleepScreenValues[2] = tr(CUSTOM);
-  sleepScreenValues[3] = tr(COVER);
-  sleepScreenValues[4] = tr(KEEP_PAGE);
   startupValues[0] = tr(LAST_DOCUMENT);
   startupValues[1] = tr(HOME);
   shortPwrValues[0] = tr(IGNORE);
   shortPwrValues[1] = tr(SLEEP_VAL);
   shortPwrValues[2] = tr(PAGE_TURN);
   shortPwrValues[3] = tr(BOOKMARK_VAL);
-  pagesRefreshValues[0] = "1";
-  pagesRefreshValues[1] = "5";
-  pagesRefreshValues[2] = "10";
-  pagesRefreshValues[3] = "15";
-  pagesRefreshValues[4] = "30";
-  pagesRefreshValues[5] = tr(OFF);
   toggleValues[0] = tr(OFF);
   toggleValues[1] = tr(ON);
   frontButtonValues[0] = tr(FRONT_BCLR);
@@ -96,16 +108,13 @@ void DeviceSettingsView::initDefs() {
   sideButtonValues[0] = tr(PREV_NEXT);
   sideButtonValues[1] = tr(NEXT_PREV);
 
-  DEFS[0] = {tr(AUTO_SLEEP_TIMEOUT), sleepTimeoutValues, 5};
-  DEFS[1] = {tr(SLEEP_SCREEN), sleepScreenValues, 5};
-  DEFS[2] = {tr(STARTUP_BEHAVIOR), startupValues, 2};
-  DEFS[3] = {tr(SHORT_POWER_BUTTON), shortPwrValues, 4};
-  DEFS[4] = {tr(PAGES_PER_REFRESH), pagesRefreshValues, 6};
-  DEFS[5] = {tr(SUNLIGHT_FADING_FIX), toggleValues, 2};
-  DEFS[6] = {tr(FRONT_BUTTONS), frontButtonValues, 2};
-  DEFS[7] = {tr(SIDE_BUTTONS), sideButtonValues, 2};
-  DEFS[8] = {tr(SHOW_RECENTS), toggleValues, 2};
-  DEFS[9] = {tr(RECYCLE_BIN), toggleValues, 2};
+  DEFS[0] = {tr(FRONT_BUTTONS), frontButtonValues, 2};
+  DEFS[1] = {tr(SIDE_BUTTONS), sideButtonValues, 2};
+  DEFS[2] = {tr(SHORT_POWER_BUTTON), shortPwrValues, 4};
+  DEFS[3] = {tr(STARTUP_BEHAVIOR), startupValues, 2};
+  DEFS[4] = {tr(SHOW_RECENTS), toggleValues, 2};
+  DEFS[5] = {tr(AUTO_SLEEP_TIMEOUT), sleepTimeoutValues, 5};
+  DEFS[6] = {tr(RECYCLE_BIN), toggleValues, 2};
 }
 
 // Render functions
@@ -115,9 +124,9 @@ void render(const GfxRenderer& r, const Theme& t, const SettingsMenuView& v) {
 
   title(r, t, t.screenMarginTop, tr(SETTINGS));
 
-  const char* items[] = {tr(READER), tr(DEVICE), tr(CLEANUP), tr(FIRMWARE_UPDATE), tr(SYSTEM_INFO)};
+  const char* items[] = {tr(READER), tr(SCREEN), tr(DEVICE), tr(CLEANUP), tr(FIRMWARE_UPDATE), tr(SYSTEM_INFO)};
   static_assert(std::size(items) == SettingsMenuView::ITEM_COUNT);
-  const int startY = 60;
+  const int startY = SettingsListHit::LIST_START_Y;
   for (int i = 0; i < SettingsMenuView::ITEM_COUNT; i++) {
     const int y = startY + i * (t.itemHeight + t.itemSpacing);
     menuItem(r, t, y, items[i], i == v.selected);
@@ -137,7 +146,7 @@ void render(const GfxRenderer& r, const Theme& t, const CleanupMenuView& v) {
   const char* items[] = {tr(CLEAR_BOOK_CACHE), tr(CLEAR_RECENT), tr(EMPTY_TRASH), tr(CLEAR_DEVICE_STORAGE),
                          tr(FACTORY_RESET)};
   static_assert(std::size(items) == CleanupMenuView::ITEM_COUNT);
-  const int startY = 60;
+  const int startY = SettingsListHit::LIST_START_Y;
   for (int i = 0; i < CleanupMenuView::ITEM_COUNT; i++) {
     const int y = startY + i * (t.itemHeight + t.itemSpacing);
     menuItem(r, t, y, items[i], i == v.selected);
@@ -155,7 +164,7 @@ void render(const GfxRenderer& r, const Theme& t, const SystemInfoView& v) {
   title(r, t, t.screenMarginTop, tr(SYSTEM_INFO));
 
   const int lineHeight = r.getLineHeight(t.uiFontId) + 5;
-  const int startY = 60;
+  const int startY = SettingsListHit::LIST_START_Y;
 
   for (size_t i = 0; i < SystemInfoView::FIELD_COUNT; ++i) {
     const int y = startY + static_cast<int>(i) * lineHeight;
@@ -173,12 +182,13 @@ void render(const GfxRenderer& r, const Theme& t, const ReaderSettingsView& v) {
 
   title(r, t, t.screenMarginTop, tr(READER_SETTINGS));
 
-  const int startY = 60;
-  for (int i = 0; i < ReaderSettingsView::SETTING_COUNT; i++) {
+  const int startY = SettingsListHit::LIST_START_Y;
+  for (int i = 0; i < v.visibleCount; i++) {
     const int y = startY + i * (t.itemHeight + t.itemSpacing);
-    const auto& def = ReaderSettingsView::DEFS[i];
+    const int index = v.settingIndex(i);
+    const auto& def = ReaderSettingsView::DEFS[index];
 
-    enumValue(r, t, y, def.label, v.getCurrentValueStr(i), i == v.selected);
+    enumValue(r, t, y, def.label, v.getCurrentValueStr(index), i == v.selected);
   }
 
   ButtonBar btns{tr(BACK), "", "<", ">"};
@@ -187,13 +197,34 @@ void render(const GfxRenderer& r, const Theme& t, const ReaderSettingsView& v) {
   r.displayBuffer();
 }
 
+void render(const GfxRenderer& r, const Theme& t, const ScreenSettingsView& v) {
+  r.clearScreen(t.backgroundColor);
+  title(r, t, t.screenMarginTop, tr(SCREEN_SETTINGS));
+  const int startY = SettingsListHit::LIST_START_Y;
+  for (int i = 0; i < v.visibleCount; i++) {
+    const int index = v.settingIndex(i);
+    const int y = startY + i * (t.itemHeight + t.itemSpacing);
+    const auto& def = ScreenSettingsView::DEFS[index];
+    if (index == 1 || index == 2) {
+      char value[8];
+      snprintf(value, sizeof(value), "%u%%", static_cast<unsigned>(v.values[index]));
+      enumValue(r, t, y, def.label, value, i == v.selected);
+    } else {
+      enumValue(r, t, y, def.label, v.getCurrentValueStr(index), i == v.selected);
+    }
+  }
+  ButtonBar btns{tr(BACK), "", "<", ">"};
+  buttonBar(r, t, btns);
+  r.displayBuffer();
+}
+
 void render(const GfxRenderer& r, const Theme& t, const DeviceSettingsView& v) {
   r.clearScreen(t.backgroundColor);
 
   title(r, t, t.screenMarginTop, tr(DEVICE_SETTINGS));
 
-  const int startY = 60;
-  for (int i = 0; i < DeviceSettingsView::SETTING_COUNT; i++) {
+  const int startY = SettingsListHit::LIST_START_Y;
+  for (int i = 0; i < v.visibleCount; i++) {
     const int y = startY + i * (t.itemHeight + t.itemSpacing);
     enumValue(r, t, y, DeviceSettingsView::DEFS[i].label, v.getCurrentValueStr(i), i == v.selected);
   }
@@ -202,6 +233,21 @@ void render(const GfxRenderer& r, const Theme& t, const DeviceSettingsView& v) {
   buttonBar(r, t, btns);
 
   r.displayBuffer();
+}
+
+touch::DialogLayout confirmDialogBounds(const GfxRenderer& r, const Theme& t, const ConfirmDialogView& v) {
+  const int maxTextWidth = r.getScreenWidth() - 2 * (t.screenMarginSide + t.itemPaddingX);
+  int messageLines = std::max(
+      1,
+      static_cast<int>(
+          r.wrapTextWithHyphenation(t.uiFontId, v.line1, maxTextWidth, ConfirmDialogView::MAX_MESSAGE_LINES).size()));
+  if (v.line2[0] != '\0') {
+    messageLines += std::max(
+        1,
+        static_cast<int>(
+            r.wrapTextWithHyphenation(t.uiFontId, v.line2, maxTextWidth, ConfirmDialogView::MAX_MESSAGE_LINES).size()));
+  }
+  return confirmDialogLayout(r.getScreenWidth(), r.getScreenHeight(), r.getLineHeight(t.uiFontId), messageLines);
 }
 
 void render(const GfxRenderer& r, const Theme& t, const ConfirmDialogView& v) {
@@ -228,30 +274,23 @@ void render(const GfxRenderer& r, const Theme& t, const ConfirmDialogView& v) {
     messageLines += std::max(1, line2Count);
   }
 
-  const int buttonY = top + std::max(3, messageLines + 1) * lineHeight;
-  constexpr int buttonWidth = 80;
-  constexpr int buttonHeight = 36;
-  constexpr int buttonSpacing = 20;
-  constexpr int totalWidth = buttonWidth * 2 + buttonSpacing;
-  const int startX = (pageWidth - totalWidth) / 2;
-
+  const touch::DialogLayout layout = confirmDialogBounds(r, t, v);
   const char* buttonLabels[] = {tr(YES), tr(NO)};
-  const int buttonPositions[] = {startX, startX + buttonWidth + buttonSpacing};
 
   for (int i = 0; i < 2; i++) {
     const bool isSelected = (v.selection == i);
-    const int btnX = buttonPositions[i];
+    const touch::Rect bounds = layout.choices[i];
 
     if (isSelected) {
-      r.fillRect(btnX, buttonY, buttonWidth, buttonHeight, t.selectionFillBlack);
+      r.fillRect(bounds.x, bounds.y, bounds.width, bounds.height, t.selectionFillBlack);
     } else {
-      r.drawRect(btnX, buttonY, buttonWidth, buttonHeight, t.primaryTextBlack);
+      r.drawRect(bounds.x, bounds.y, bounds.width, bounds.height, t.primaryTextBlack);
     }
 
     const bool textColor = isSelected ? t.selectionTextBlack : t.primaryTextBlack;
     const int textWidth = r.getTextWidth(t.uiFontId, buttonLabels[i]);
-    const int textX = btnX + (buttonWidth - textWidth) / 2;
-    const int textY = buttonY + (buttonHeight - r.getFontAscenderSize(t.uiFontId)) / 2;
+    const int textX = bounds.x + (bounds.width - textWidth) / 2;
+    const int textY = bounds.y + (bounds.height - r.getFontAscenderSize(t.uiFontId)) / 2;
     r.drawText(t.uiFontId, textX, textY, buttonLabels[i], textColor);
   }
 
@@ -267,7 +306,7 @@ void render(const GfxRenderer& r, const Theme& t, const FirmwareUpdateView& v) {
   title(r, t, t.screenMarginTop, tr(FIRMWARE_UPDATE));
 
   const int lineHeight = r.getLineHeight(t.uiFontId) + 8;
-  const int startY = 60;
+  const int startY = SettingsListHit::LIST_START_Y;
 
   const int marginX = t.screenMarginSide + t.itemPaddingX;
   const int maxTextWidth = r.getScreenWidth() - marginX * 2;

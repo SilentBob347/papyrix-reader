@@ -1,0 +1,112 @@
+#include <BoardProfile.h>
+#include <TouchTransform.h>
+
+#include "test_utils.h"
+
+using papyrix::board::DisplayOrientation;
+using papyrix::board::PanelPoint;
+using papyrix::board::TouchConfig;
+
+namespace {
+
+TouchConfig x4ProTouch() {
+  TouchConfig config{};
+  config.controller = papyrix::board::TouchController::Gt911;
+  config.swapXY = true;
+  config.flipY = true;
+  config.rawMinX = 0;
+  config.rawMaxX = 799;
+  config.rawMinY = 0;
+  config.rawMaxY = 479;
+  return config;
+}
+
+
+void expectRoundTrip(TestUtils::TestRunner& runner, DisplayOrientation orientation, int16_t logicalX,
+                     int16_t logicalY, const char* label) {
+  PanelPoint panel{};
+  PanelPoint logical{};
+  const bool forward = papyrix::board::panelFromLogical(orientation, 800, 480, logicalX, logicalY, panel);
+  const bool inverse = forward && papyrix::board::logicalFromPanel(orientation, 800, 480, panel.x, panel.y, logical);
+  runner.expectTrue(inverse && logical.x == logicalX && logical.y == logicalY, label);
+}
+
+}  // namespace
+
+int main() {
+  TestUtils::TestRunner runner("Touch coordinate transforms");
+
+  const auto config = x4ProTouch();
+  {
+    PanelPoint panel{};
+    runner.expectTrue(papyrix::board::rawToPanel(config, 0, 0, 800, 480, panel),
+                      "raw top-left corner is accepted");
+    runner.expectEq(int16_t{0}, panel.x, "swap maps raw Y to panel X");
+    runner.expectEq(int16_t{479}, panel.y, "flipY maps raw X to panel bottom");
+
+    runner.expectTrue(papyrix::board::rawToPanel(config, 479, 799, 800, 480, panel),
+                      "raw bottom-right corner is accepted");
+    runner.expectEq(int16_t{799}, panel.x, "raw maximum maps to panel right");
+    runner.expectEq(int16_t{0}, panel.y, "raw maximum maps to flipped panel top");
+
+    runner.expectFalse(papyrix::board::rawToPanel(config, 480, 799, 800, 480, panel),
+                       "post-swap Y outside calibration is rejected");
+    runner.expectFalse(papyrix::board::rawToPanel(config, 479, 800, 800, 480, panel),
+                       "post-swap X outside calibration is rejected");
+  }
+
+  PanelPoint logical{};
+  runner.expectTrue(papyrix::board::rawToLogical(config, 0, 0, 800, 480, DisplayOrientation::Portrait, logical),
+                    "X4 Pro corner maps into portrait coordinates");
+  runner.expectEq(int16_t{0}, logical.x, "portrait inverse maps panel bottom to logical left");
+  runner.expectEq(int16_t{0}, logical.y, "portrait inverse maps panel left to logical top");
+  runner.expectTrue(papyrix::board::rawToLogical(config, 0, 0, 800, 480,
+                    DisplayOrientation::LandscapeClockwise, logical),
+                    "raw corner maps into clockwise landscape");
+  runner.expectEq(int16_t{799}, logical.x, "clockwise landscape maps raw origin to right edge");
+  runner.expectEq(int16_t{0}, logical.y, "clockwise landscape maps raw origin to top edge");
+  runner.expectTrue(papyrix::board::rawToLogical(config, 0, 0, 800, 480,
+                    DisplayOrientation::LandscapeCounterClockwise, logical),
+                    "raw corner maps into counter-clockwise landscape");
+  runner.expectEq(int16_t{0}, logical.x, "counter-clockwise landscape maps raw origin to left edge");
+  runner.expectEq(int16_t{479}, logical.y, "counter-clockwise landscape maps raw origin to bottom edge");
+  auto invalidConfig = config;
+  invalidConfig.rawMaxX = invalidConfig.rawMinX;
+  runner.expectFalse(papyrix::board::rawToLogical(invalidConfig, 0, 0, 800, 480,
+                     DisplayOrientation::Portrait, logical), "zero calibration range rejects the sample");
+
+  expectRoundTrip(runner, DisplayOrientation::Portrait, 0, 0, "portrait top-left round-trips");
+  expectRoundTrip(runner, DisplayOrientation::Portrait, 479, 799, "portrait bottom-right round-trips");
+  expectRoundTrip(runner, DisplayOrientation::LandscapeClockwise, 0, 0, "clockwise landscape top-left round-trips");
+  expectRoundTrip(runner, DisplayOrientation::LandscapeClockwise, 799, 479,
+                  "clockwise landscape bottom-right round-trips");
+  expectRoundTrip(runner, DisplayOrientation::PortraitInverted, 0, 0, "inverted portrait top-left round-trips");
+  expectRoundTrip(runner, DisplayOrientation::PortraitInverted, 479, 799,
+                  "inverted portrait bottom-right round-trips");
+  expectRoundTrip(runner, DisplayOrientation::LandscapeCounterClockwise, 0, 0,
+                  "counter-clockwise landscape top-left round-trips");
+  expectRoundTrip(runner, DisplayOrientation::LandscapeCounterClockwise, 799, 479,
+                  "counter-clockwise landscape bottom-right round-trips");
+
+  int16_t width = 0;
+  int16_t height = 0;
+  papyrix::board::logicalSize(DisplayOrientation::Portrait, 800, 480, width, height);
+  runner.expectEq(int16_t{480}, width, "portrait logical width uses panel height");
+  runner.expectEq(int16_t{800}, height, "portrait logical height uses panel width");
+  papyrix::board::logicalSize(DisplayOrientation::LandscapeCounterClockwise, 800, 480, width, height);
+  runner.expectEq(int16_t{800}, width, "landscape logical width uses panel width");
+  runner.expectEq(int16_t{480}, height, "landscape logical height uses panel height");
+  const uint8_t revision = papyrix::board::displayOrientationRevision();
+  papyrix::board::setDisplayOrientation(DisplayOrientation::LandscapeClockwise);
+  runner.expectTrue(papyrix::board::currentDisplayOrientation() == DisplayOrientation::LandscapeClockwise,
+                    "renderer orientation is shared with touch input");
+  runner.expectTrue(papyrix::board::displayOrientationRevision() != revision,
+                    "orientation change advances the shared revision");
+  const uint8_t unchangedRevision = papyrix::board::displayOrientationRevision();
+  papyrix::board::setDisplayOrientation(DisplayOrientation::LandscapeClockwise);
+  runner.expectEq(unchangedRevision, papyrix::board::displayOrientationRevision(),
+                  "setting the same orientation keeps the revision stable");
+  papyrix::board::setDisplayOrientation(DisplayOrientation::Portrait);
+
+  return runner.allPassed() ? 0 : 1;
+}

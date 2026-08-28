@@ -1,25 +1,28 @@
-#include "test_utils.h"
-
-#include "drivers/Cpu.h"
+#include <Arduino.h>
 
 #include <chrono>
 #include <thread>
+
+#include "hal/Cpu.h"
+#include "test_utils.h"
 
 int main() {
   TestUtils::TestRunner runner("CpuDriverTest");
 
   extern uint32_t g_mockCpuFreqMhz;
+  extern bool g_mockCpuFreqAccepted;
+  constexpr uint32_t activeFreqMhz = F_CPU / 1000000;
 
   // === Default state: not throttled ===
   {
-    papyrix::drivers::Cpu cpu;
+    papyrix::hal::Cpu cpu;
     runner.expectTrue(!cpu.isThrottled(), "default: not throttled");
     runner.expectEq(uint8_t(10), cpu.loopDelayMs(), "default: active loop delay 10ms");
   }
 
   // === throttle() drops frequency and changes delay ===
   {
-    papyrix::drivers::Cpu cpu;
+    papyrix::hal::Cpu cpu;
     g_mockCpuFreqMhz = 160;
 
     cpu.throttle();
@@ -31,32 +34,32 @@ int main() {
 
   // === unthrottle() restores frequency ===
   {
-    papyrix::drivers::Cpu cpu;
+    papyrix::hal::Cpu cpu;
     g_mockCpuFreqMhz = 160;
 
     cpu.throttle();
     cpu.unthrottle();
 
     runner.expectTrue(!cpu.isThrottled(), "after unthrottle: isThrottled false");
-    runner.expectEq(uint32_t(160), g_mockCpuFreqMhz, "after unthrottle: freq is 160 MHz");
+    runner.expectEq(activeFreqMhz, g_mockCpuFreqMhz, "unthrottle restores the configured frequency");
     runner.expectEq(uint8_t(10), cpu.loopDelayMs(), "after unthrottle: active loop delay 10ms");
   }
 
   // === throttle() is idempotent ===
   {
-    papyrix::drivers::Cpu cpu;
+    papyrix::hal::Cpu cpu;
     g_mockCpuFreqMhz = 160;
 
     cpu.throttle();
     g_mockCpuFreqMhz = 999;  // Sabotage to detect extra call
-    cpu.throttle();           // Should be no-op
+    cpu.throttle();          // Should be no-op
 
     runner.expectEq(uint32_t(999), g_mockCpuFreqMhz, "double throttle: no second setCpuFrequencyMhz call");
   }
 
   // === unthrottle() is idempotent ===
   {
-    papyrix::drivers::Cpu cpu;
+    papyrix::hal::Cpu cpu;
     g_mockCpuFreqMhz = 160;
 
     cpu.unthrottle();  // Already not throttled — should be no-op
@@ -66,14 +69,14 @@ int main() {
 
   // === throttle -> unthrottle -> throttle cycle ===
   {
-    papyrix::drivers::Cpu cpu;
+    papyrix::hal::Cpu cpu;
     g_mockCpuFreqMhz = 160;
 
     cpu.throttle();
     runner.expectEq(uint32_t(10), g_mockCpuFreqMhz, "cycle: first throttle sets 10");
 
     cpu.unthrottle();
-    runner.expectEq(uint32_t(160), g_mockCpuFreqMhz, "cycle: unthrottle restores 160");
+    runner.expectEq(activeFreqMhz, g_mockCpuFreqMhz, "cycle restores the configured frequency");
 
     cpu.throttle();
     runner.expectEq(uint32_t(10), g_mockCpuFreqMhz, "cycle: second throttle sets 10 again");
@@ -81,18 +84,18 @@ int main() {
 
   // === performance lock restores and holds normal speed ===
   {
-    papyrix::drivers::Cpu cpu;
+    papyrix::hal::Cpu cpu;
     g_mockCpuFreqMhz = 160;
     cpu.throttle();
     {
-      papyrix::drivers::Cpu::PerformanceLock outer(cpu);
-      runner.expectEq(uint32_t(160), g_mockCpuFreqMhz, "performance lock restores 160 MHz");
+      papyrix::hal::Cpu::PerformanceLock outer(cpu);
+      runner.expectEq(activeFreqMhz, g_mockCpuFreqMhz, "performance lock restores the configured frequency");
       cpu.throttle();
       runner.expectFalse(cpu.isThrottled(), "throttle is suppressed while locked");
       {
-        papyrix::drivers::Cpu::PerformanceLock inner(cpu);
+        papyrix::hal::Cpu::PerformanceLock inner(cpu);
         cpu.throttle();
-        runner.expectEq(uint32_t(160), g_mockCpuFreqMhz, "nested lock keeps 160 MHz");
+        runner.expectEq(activeFreqMhz, g_mockCpuFreqMhz, "nested lock keeps the configured frequency");
       }
       cpu.throttle();
       runner.expectFalse(cpu.isThrottled(), "outer lock remains authoritative");
@@ -104,10 +107,10 @@ int main() {
 
   // === ordinary early return releases lock ===
   {
-    papyrix::drivers::Cpu cpu;
+    papyrix::hal::Cpu cpu;
     g_mockCpuFreqMhz = 160;
     auto earlyReturn = [&cpu]() {
-      papyrix::drivers::Cpu::PerformanceLock lock(cpu);
+      papyrix::hal::Cpu::PerformanceLock lock(cpu);
       return;
     };
     earlyReturn();
@@ -122,9 +125,9 @@ int main() {
   // transitions the lock's unthrottle consumes the flag before throttle's
   // trailing check, so 10 MHz sticks; with the serialized implementation the
   // background acquisition cannot enter the window (hook times out) and
-  // throttle's own trailing check restores 160 MHz.
+  // throttle's own trailing check restores the configured frequency.
   {
-    papyrix::drivers::Cpu cpu;
+    papyrix::hal::Cpu cpu;
     g_mockCpuFreqMhz = 160;
 
     std::atomic<bool> windowOpen{false};
@@ -133,7 +136,7 @@ int main() {
 
     std::thread background([&cpu, &windowOpen, &lockHeld, &finish]() {
       while (!windowOpen.load()) std::this_thread::yield();
-      papyrix::drivers::Cpu::PerformanceLock lock(cpu);
+      papyrix::hal::Cpu::PerformanceLock lock(cpu);
       lockHeld.store(true);
       while (!finish.load()) std::this_thread::yield();
     });
@@ -153,12 +156,39 @@ int main() {
     background.join();
 
     runner.expectTrue(!cpu.isThrottled(), "race: not throttled after interleaved lock");
-    runner.expectEq(uint32_t(160), g_mockCpuFreqMhz, "race: frequency restored to 160 MHz");
+    runner.expectEq(activeFreqMhz, g_mockCpuFreqMhz, "race: configured frequency restored");
 
     cpu.throttle();
     runner.expectEq(uint32_t(10), g_mockCpuFreqMhz, "race: normal throttle still works after");
     cpu.unthrottle();
-    runner.expectEq(uint32_t(160), g_mockCpuFreqMhz, "race: unthrottle restores 160 MHz");
+    runner.expectEq(activeFreqMhz, g_mockCpuFreqMhz, "race: unthrottle restores the configured frequency");
+  }
+
+  {
+    papyrix::hal::Cpu cpu;
+    g_mockCpuFreqMhz = activeFreqMhz;
+    g_mockCpuFreqAccepted = false;
+    cpu.throttle();
+    runner.expectFalse(cpu.isThrottled(), "rejected downclock keeps active state");
+    runner.expectEq(uint8_t(10), cpu.loopDelayMs(), "rejected downclock keeps active polling");
+    g_mockCpuFreqAccepted = true;
+    cpu.throttle();
+    runner.expectTrue(cpu.isThrottled(), "downclock can succeed after rejection");
+    runner.expectEq(uint32_t(10), g_mockCpuFreqMhz, "retry reaches idle frequency");
+  }
+
+  {
+    papyrix::hal::Cpu cpu;
+    cpu.throttle();
+    g_mockCpuFreqAccepted = false;
+    cpu.unthrottle();
+    runner.expectTrue(cpu.isThrottled(), "rejected restoration keeps idle state");
+    g_mockCpuFreqAccepted = true;
+    {
+      papyrix::hal::Cpu::PerformanceLock lock(cpu);
+      runner.expectFalse(cpu.isThrottled(), "performance lock retries rejected restoration");
+      runner.expectEq(activeFreqMhz, g_mockCpuFreqMhz, "retry restores the configured frequency");
+    }
   }
 
   return runner.allPassed() ? 0 : 1;

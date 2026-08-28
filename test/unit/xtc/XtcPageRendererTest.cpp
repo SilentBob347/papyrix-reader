@@ -100,7 +100,7 @@ std::string buildMixedDimensionXtc() {
 
 int main() {
   TestUtils::TestRunner runner("XtcPageRenderer Tests");
-  EInkDisplay display(0, 0, 0, 0, 0, 0);
+  papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
   GfxRenderer gfx(display);
   gfx.begin();
   papyrix::XtcPageRenderer renderer(gfx);
@@ -192,7 +192,7 @@ int main() {
     memset(pixels.data() + planeSize, 0x5A, planeSize);
     SdMan.registerFile("/full.xtch", buildXtcFile(xtc::XTCH_MAGIC, pixels, width, height));
 
-    EInkDisplay fullDisplay(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display fullDisplay(0, 0, 0, 0, 0, 0);
     GfxRenderer fullGfx(fullDisplay);
     fullGfx.begin();
     papyrix::XtcPageRenderer fullRenderer(fullGfx);
@@ -224,7 +224,7 @@ int main() {
 
     SdMan.reset();
     SdMan.registerFile("/inverted.xtch", buildXtcFile(xtc::XTCH_MAGIC, pixels, width, height));
-    EInkDisplay invertedDisplay(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display invertedDisplay(0, 0, 0, 0, 0, 0);
     GfxRenderer invertedGfx(invertedDisplay);
     invertedGfx.begin();
     invertedGfx.setOrientation(GfxRenderer::PortraitInverted);
@@ -235,12 +235,12 @@ int main() {
         invertedParser, 0, [](papyrix::XtcPageRenderer::RefreshRequest) {});
     runner.expectTrue(invertedResult == papyrix::XtcPageRenderer::RenderResult::Success,
                       "generic inverted: renders");
-    runner.expectTrue(isPhysicalBlack(invertedGfx.getFrameBuffer(), EInkDisplay::DISPLAY_WIDTH_BYTES, 799, 0),
+    runner.expectTrue(isPhysicalBlack(invertedGfx.getFrameBuffer(), papyrix::hal::Display::DISPLAY_WIDTH_BYTES, 799, 0),
                       "generic inverted: maps logical origin");
 
     SdMan.reset();
     SdMan.registerFile("/x3.xtch", buildXtcFile(xtc::XTCH_MAGIC, pixels, width, height));
-    EInkDisplay x3Display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display x3Display(0, 0, 0, 0, 0, 0);
     x3Display.setDisplayX3();
     GfxRenderer x3Gfx(x3Display);
     x3Gfx.begin();
@@ -249,7 +249,7 @@ int main() {
     x3Parser.open("/x3.xtch");
     const auto x3Result = x3Renderer.render(x3Parser, 0, [](papyrix::XtcPageRenderer::RefreshRequest) {});
     runner.expectTrue(x3Result == papyrix::XtcPageRenderer::RenderResult::Success, "generic X3: renders");
-    runner.expectTrue(isPhysicalBlack(x3Gfx.getFrameBuffer(), EInkDisplay::X3_DISPLAY_WIDTH_BYTES, 0, 527),
+    runner.expectTrue(isPhysicalBlack(x3Gfx.getFrameBuffer(), papyrix::hal::Display::X3_DISPLAY_WIDTH_BYTES, 0, 527),
                       "generic X3: maps logical origin");
   }
 
@@ -278,7 +278,7 @@ int main() {
       SdMan.reset();
       SdMan.registerFile("/read-failure.xtch", buildXtcFile(xtc::XTCH_MAGIC, std::vector<uint8_t>(16, 0)));
       SdMan.setReadLimit(limit);
-      EInkDisplay failureDisplay(0, 0, 0, 0, 0, 0);
+      papyrix::hal::Display failureDisplay(0, 0, 0, 0, 0, 0);
       GfxRenderer failureGfx(failureDisplay);
       failureGfx.begin();
       papyrix::XtcPageRenderer failureRenderer(failureGfx);

@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <Logging.h>
+#include <Preferences.h>
 
 #define TAG "CRASHDBG"
 
@@ -10,6 +11,9 @@ namespace papyrix::crashdebug {
 namespace {
 
 constexpr uint32_t MAGIC = 0x43524442;  // "CRDB"
+constexpr char DIAGNOSTIC_NAMESPACE[] = "papyrix_diag";
+constexpr char DISPLAY_RESULT_KEY[] = "display_result";
+constexpr char DISPLAY_ATTEMPT_KEY[] = "display_attempt";
 
 struct CrashMarker {
   uint32_t magic = 0;
@@ -42,6 +46,8 @@ const char* phaseName(const CrashPhase phase) {
       return "epub_toc_render";
     case CrashPhase::HomeMetadataLoad:
       return "home_metadata_load";
+    case CrashPhase::DisplayInit:
+      return "display_init";
   }
   return "unknown";
 }
@@ -110,8 +116,37 @@ void mark(const CrashPhase phase, const int16_t spine, const uint8_t attempt) {
 
 void clear() { rtcCrashMarker = {}; }
 
+void markDisplayFailure(uint8_t result, uint8_t attempt) {
+  mark(CrashPhase::DisplayInit, static_cast<int16_t>(result), attempt);
+  Preferences preferences;
+  if (!preferences.begin(DIAGNOSTIC_NAMESPACE, false)) return;
+  preferences.putUChar(DISPLAY_RESULT_KEY, result);
+  preferences.putUChar(DISPLAY_ATTEMPT_KEY, attempt);
+  preferences.end();
+}
+
+void clearDisplayFailure() {
+  if (rtcCrashMarker.phase == static_cast<uint8_t>(CrashPhase::DisplayInit)) clear();
+  Preferences preferences;
+  if (!preferences.begin(DIAGNOSTIC_NAMESPACE, false)) return;
+  preferences.remove(DISPLAY_RESULT_KEY);
+  preferences.remove(DISPLAY_ATTEMPT_KEY);
+  preferences.end();
+}
+
 void logBootInfo(const esp_reset_reason_t reason) {
   LOG_ERR(TAG, "Reset reason: %s (%d)", resetReasonName(reason), static_cast<int>(reason));
+  Preferences preferences;
+  if (preferences.begin(DIAGNOSTIC_NAMESPACE, false)) {
+    if (preferences.isKey(DISPLAY_RESULT_KEY)) {
+      LOG_ERR(TAG, "Previous display failure: result=%u attempt=%u",
+              static_cast<unsigned>(preferences.getUChar(DISPLAY_RESULT_KEY)),
+              static_cast<unsigned>(preferences.getUChar(DISPLAY_ATTEMPT_KEY)));
+      preferences.remove(DISPLAY_RESULT_KEY);
+      preferences.remove(DISPLAY_ATTEMPT_KEY);
+    }
+    preferences.end();
+  }
 
   if (rtcCrashMarker.magic != MAGIC || rtcCrashMarker.phase == static_cast<uint8_t>(CrashPhase::None)) {
     return;

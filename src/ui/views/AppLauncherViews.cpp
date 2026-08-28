@@ -11,7 +11,7 @@ void render(const GfxRenderer& r, const Theme& t, const AppMenuView& v, const pa
 
   title(r, t, t.screenMarginTop, tr(APPS));
 
-  const int startY = 60;
+  const int startY = AppMenuView::LIST_START_Y;
   for (int i = 0; i < v.itemCount; i++) {
     const int y = startY + i * (t.itemHeight + t.itemSpacing);
     const char* name = (i < AppMenuView::EXTRA_COUNT) ? (i == 0 ? tr(WIFI_TRANSFER) : tr(CALIBRE_SYNC))

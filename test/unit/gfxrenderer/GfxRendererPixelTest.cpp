@@ -1,6 +1,7 @@
 #include "test_utils.h"
 
-#include <EInkDisplay.h>
+#include <Display.h>
+#include <TouchTransform.h>
 #include <array>
 #include <map>
 
@@ -19,12 +20,23 @@ class GfxRenderer {
     LandscapeCounterClockwise
   };
 
-  explicit GfxRenderer(EInkDisplay& display) : einkDisplay(display), orientation(Portrait) {}
+  explicit GfxRenderer(papyrix::hal::Display& display) : einkDisplay(display), orientation(Portrait) {}
 
   void begin() { frameBuffer = einkDisplay.getFrameBuffer(); }
 
   void setOrientation(const Orientation o) { orientation = o; }
   Orientation getOrientation() const { return orientation; }
+  bool panelToLogical(int panelX, int panelY, int* logicalX, int* logicalY) const {
+    papyrix::board::PanelPoint logical{};
+    if (!papyrix::board::logicalFromPanel(static_cast<papyrix::board::DisplayOrientation>(orientation),
+                                          papyrix::hal::Display::DISPLAY_WIDTH,
+                                          papyrix::hal::Display::DISPLAY_HEIGHT, panelX, panelY, logical)) {
+      return false;
+    }
+    *logicalX = logical.x;
+    *logicalY = logical.y;
+    return true;
+  }
 
   uint8_t* getFrameBuffer() const { return frameBuffer; }
 
@@ -33,12 +45,12 @@ class GfxRenderer {
     int rotatedY = 0;
     rotateCoordinates(orientation, x, y, &rotatedX, &rotatedY);
 
-    if (rotatedX < 0 || rotatedX >= EInkDisplay::DISPLAY_WIDTH || rotatedY < 0 ||
-        rotatedY >= EInkDisplay::DISPLAY_HEIGHT) {
+    if (rotatedX < 0 || rotatedX >= papyrix::hal::Display::DISPLAY_WIDTH || rotatedY < 0 ||
+        rotatedY >= papyrix::hal::Display::DISPLAY_HEIGHT) {
       return;
     }
 
-    const uint16_t byteIndex = rotatedY * EInkDisplay::DISPLAY_WIDTH_BYTES + (rotatedX / 8);
+    const uint16_t byteIndex = rotatedY * papyrix::hal::Display::DISPLAY_WIDTH_BYTES + (rotatedX / 8);
     const uint8_t bitPosition = 7 - (rotatedX % 8);
 
     if (state) {
@@ -51,35 +63,27 @@ class GfxRenderer {
   void clearScreen(uint8_t color = 0xFF) const { einkDisplay.clearScreen(color); }
 
  private:
-  EInkDisplay& einkDisplay;
+  papyrix::hal::Display& einkDisplay;
   Orientation orientation;
   uint8_t* frameBuffer = nullptr;
 
   static inline void rotateCoordinates(Orientation orientation, int x, int y, int* rotatedX, int* rotatedY) {
-    switch (orientation) {
-      case Portrait:
-        *rotatedX = y;
-        *rotatedY = EInkDisplay::DISPLAY_HEIGHT - 1 - x;
-        break;
-      case LandscapeClockwise:
-        *rotatedX = EInkDisplay::DISPLAY_WIDTH - 1 - x;
-        *rotatedY = EInkDisplay::DISPLAY_HEIGHT - 1 - y;
-        break;
-      case PortraitInverted:
-        *rotatedX = EInkDisplay::DISPLAY_WIDTH - 1 - y;
-        *rotatedY = x;
-        break;
-      case LandscapeCounterClockwise:
-        *rotatedX = x;
-        *rotatedY = y;
-        break;
+    papyrix::board::PanelPoint panel{};
+    if (!papyrix::board::panelFromLogical(static_cast<papyrix::board::DisplayOrientation>(orientation),
+                                          papyrix::hal::Display::DISPLAY_WIDTH,
+                                          papyrix::hal::Display::DISPLAY_HEIGHT, x, y, panel)) {
+      *rotatedX = -1;
+      *rotatedY = -1;
+      return;
     }
+    *rotatedX = panel.x;
+    *rotatedY = panel.y;
   }
 };
 
 // Helper: check if a specific physical pixel is set (black) in the framebuffer
 static bool isPixelSet(const uint8_t* fb, int physX, int physY) {
-  const uint16_t byteIndex = physY * EInkDisplay::DISPLAY_WIDTH_BYTES + (physX / 8);
+  const uint16_t byteIndex = physY * papyrix::hal::Display::DISPLAY_WIDTH_BYTES + (physX / 8);
   const uint8_t bitPosition = 7 - (physX % 8);
   // Bit cleared = pixel set (black), bit set = pixel clear (white)
   return (fb[byteIndex] & (1 << bitPosition)) == 0;
@@ -87,7 +91,7 @@ static bool isPixelSet(const uint8_t* fb, int physX, int physY) {
 
 // Helper: check if entire framebuffer is uniform 0xFF (all white)
 static bool isFrameBufferClear(const uint8_t* fb) {
-  for (uint32_t i = 0; i < EInkDisplay::BUFFER_SIZE; i++) {
+  for (uint32_t i = 0; i < papyrix::hal::Display::BUFFER_SIZE; i++) {
     if (fb[i] != 0xFF) return false;
   }
   return true;
@@ -96,8 +100,8 @@ static bool isFrameBufferClear(const uint8_t* fb) {
 int main() {
   TestUtils::TestRunner runner("GfxRendererPixel");
 
-  constexpr int W = EInkDisplay::DISPLAY_WIDTH;   // 800
-  constexpr int H = EInkDisplay::DISPLAY_HEIGHT;   // 480
+  constexpr int W = papyrix::hal::Display::DISPLAY_WIDTH;   // 800
+  constexpr int H = papyrix::hal::Display::DISPLAY_HEIGHT;   // 480
 
   // --- rotateCoordinates tests ---
   // We test through drawPixel which calls rotateCoordinates internally,
@@ -105,7 +109,7 @@ int main() {
 
   // Test 1: Portrait (x,y) -> physical (y, H-1-x)
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::Portrait);
@@ -119,7 +123,7 @@ int main() {
 
   // Test 2: LandscapeClockwise (x,y) -> physical (W-1-x, H-1-y)
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeClockwise);
@@ -133,7 +137,7 @@ int main() {
 
   // Test 3: PortraitInverted (x,y) -> physical (W-1-y, x)
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::PortraitInverted);
@@ -147,7 +151,7 @@ int main() {
 
   // Test 4: LandscapeCounterClockwise identity (x,y) -> (x,y)
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -158,11 +162,29 @@ int main() {
     // Expected physical: (x, y) = (10, 20)
     runner.expectTrue(isPixelSet(gfx.getFrameBuffer(), 10, 20), "landscape_ccw_identity_10_20");
   }
+  {
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
+    GfxRenderer gfx(display);
+    int logicalX = -1;
+    int logicalY = -1;
+    gfx.setOrientation(GfxRenderer::Portrait);
+    runner.expectTrue(gfx.panelToLogical(20, 469, &logicalX, &logicalY) && logicalX == 10 && logicalY == 20,
+                      "portrait_panel_to_logical_inverse");
+    gfx.setOrientation(GfxRenderer::LandscapeClockwise);
+    runner.expectTrue(gfx.panelToLogical(789, 459, &logicalX, &logicalY) && logicalX == 10 && logicalY == 20,
+                      "landscape_cw_panel_to_logical_inverse");
+    gfx.setOrientation(GfxRenderer::PortraitInverted);
+    runner.expectTrue(gfx.panelToLogical(779, 10, &logicalX, &logicalY) && logicalX == 10 && logicalY == 20,
+                      "portrait_inverted_panel_to_logical_inverse");
+    gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
+    runner.expectTrue(gfx.panelToLogical(10, 20, &logicalX, &logicalY) && logicalX == 10 && logicalY == 20,
+                      "landscape_ccw_panel_to_logical_inverse");
+  }
 
   // Test 5: Boundary - origin (0,0) for each orientation
   {
     // Portrait: (0,0) -> (0, H-1) = (0, 479)
-    EInkDisplay d1(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display d1(0, 0, 0, 0, 0, 0);
     GfxRenderer g1(d1);
     g1.begin();
     g1.setOrientation(GfxRenderer::Portrait);
@@ -170,7 +192,7 @@ int main() {
     runner.expectTrue(isPixelSet(g1.getFrameBuffer(), 0, H - 1), "portrait_origin");
 
     // LandscapeClockwise: (0,0) -> (W-1, H-1) = (799, 479)
-    EInkDisplay d2(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display d2(0, 0, 0, 0, 0, 0);
     GfxRenderer g2(d2);
     g2.begin();
     g2.setOrientation(GfxRenderer::LandscapeClockwise);
@@ -178,7 +200,7 @@ int main() {
     runner.expectTrue(isPixelSet(g2.getFrameBuffer(), W - 1, H - 1), "landscape_cw_origin");
 
     // PortraitInverted: (0,0) -> (W-1, 0) = (799, 0)
-    EInkDisplay d3(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display d3(0, 0, 0, 0, 0, 0);
     GfxRenderer g3(d3);
     g3.begin();
     g3.setOrientation(GfxRenderer::PortraitInverted);
@@ -186,7 +208,7 @@ int main() {
     runner.expectTrue(isPixelSet(g3.getFrameBuffer(), W - 1, 0), "portrait_inv_origin");
 
     // LandscapeCounterClockwise: (0,0) -> (0, 0)
-    EInkDisplay d4(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display d4(0, 0, 0, 0, 0, 0);
     GfxRenderer g4(d4);
     g4.begin();
     g4.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -196,7 +218,7 @@ int main() {
 
   // Test 6: begin() caches framebuffer pointer
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
 
     runner.expectTrue(gfx.getFrameBuffer() == nullptr, "framebuffer_null_before_begin");
@@ -208,7 +230,7 @@ int main() {
 
   // Test 7: drawPixel in Portrait sets correct bit
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::Portrait);
@@ -225,7 +247,7 @@ int main() {
 
   // Test 8: drawPixel in LandscapeCounterClockwise - identity mapping
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -236,7 +258,7 @@ int main() {
 
   // Test 9: drawPixel out-of-bounds - no crash, framebuffer unchanged
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -253,7 +275,7 @@ int main() {
 
   // Test 10: clearScreen + drawPixel
   {
-    EInkDisplay display(0, 0, 0, 0, 0, 0);
+    papyrix::hal::Display display(0, 0, 0, 0, 0, 0);
     GfxRenderer gfx(display);
     gfx.begin();
     gfx.setOrientation(GfxRenderer::LandscapeCounterClockwise);
@@ -263,7 +285,7 @@ int main() {
     gfx.drawPixel(5, 5, false);
 
     // Physical (5,5) should now have its bit SET (white)
-    uint16_t byteIndex = 5 * EInkDisplay::DISPLAY_WIDTH_BYTES + (5 / 8);
+    uint16_t byteIndex = 5 * papyrix::hal::Display::DISPLAY_WIDTH_BYTES + (5 / 8);
     uint8_t bitPos = 7 - (5 % 8);
     bool bitIsSet = (gfx.getFrameBuffer()[byteIndex] & (1 << bitPos)) != 0;
     runner.expectTrue(bitIsSet, "clearScreen_then_drawPixel_white");

@@ -53,16 +53,12 @@ The device file browser uses the built-in UI font. Web-created filenames are sup
 
 ### PT Serif
 
-A serif typeface that you can use for many texts. Good for body text. Good readability on e-paper displays.
-
 - **Styles**: Regular, Bold
 - **License**: OFL (Open Font License)
 
 ![PT Serif Sample](examples/images/pt-serif-sample.png)
 
 ### Bookerly
-
-Amazon custom font made for e-readers. Made for readability on low-resolution displays.
 
 - **Styles**: Regular, Bold, Italic
 - **License**: Proprietary (Amazon)
@@ -71,16 +67,12 @@ Amazon custom font made for e-readers. Made for readability on low-resolution di
 
 ### Literata
 
-A contemporary serif typeface made for long-form reading. Good legibility.
-
 - **Styles**: Regular, Bold, Italic
 - **License**: OFL (Open Font License)
 
 ![Literata Sample](examples/images/literata-sample.png)
 
 ### Noto Serif
-
-A serif font from the Google Noto family. Good readability with support for many languages.
 
 - **Styles**: Regular
 - **License**: OFL (Open Font License)
@@ -89,16 +81,12 @@ A serif font from the Google Noto family. Good readability with support for many
 
 ### Noto Sans
 
-A sans-serif font from the Google Noto family. Modern appearance with support for many languages.
-
 - **Styles**: Regular, Italic (Variable font)
 - **License**: OFL (Open Font License)
 
 ![Noto Sans Sample](examples/images/noto-sans-sample.png)
 
 ### Roboto
-
-Google signature font family. Clean, modern design. Good for UI and reading.
 
 - **Styles**: Regular, Italic (Variable font)
 - **License**: Apache 2.0
@@ -107,16 +95,12 @@ Google signature font family. Clean, modern design. Good for UI and reading.
 
 ### Ubuntu
 
-The Ubuntu font family has a contemporary style. It is made for screen reading.
-
 - **Styles**: Regular, Bold, Italic
 - **License**: Ubuntu Font License
 
 ![Ubuntu Sample](examples/images/ubuntu-sample.png)
 
 ### OpenDyslexic
-
-A typeface made to increase readability for readers with dyslexia. Weighted bottoms prevent letter rotation.
 
 - **Styles**: Regular, Bold, Italic
 - **License**: OFL (Open Font License)
@@ -134,7 +118,7 @@ A sans-serif font with full Arabic script support, including contextual shaping 
 
 ### IBM Plex Sans Arabic
 
-IBM Arabic typeface from the Plex family. A modern sans-serif design with good Arabic presentation forms coverage (140/144 in Forms-B). This makes it compatible with the Papyrix Arabic shaper. It gives a good reading result for Arabic content.
+This font supports Arabic presentation forms used by the Papyrix Arabic shaper.
 
 - **Styles**: Regular, Bold
 - **Theme**: `light-ibm-plex-arabic.theme`
@@ -148,7 +132,8 @@ For CJK texts, Papyrix uses external `.bin` format fonts. These fonts stream fro
 
 #### Quick Start with gen_cjk_theme.sh
 
-The easiest method to make CJK fonts is `gen_cjk_theme.sh`. It makes a `.bin` font and a matching `.theme` file. The script downloads the `fontconvert-bin` binary if it is not built locally (no Go installation is necessary):
+`gen_cjk_theme.sh` creates a `.bin` font and a matching `.theme` file.
+The script downloads `fontconvert-bin` if no local build exists:
 
 ```bash
 # CJK font renders everything (Latin + CJK)

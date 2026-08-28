@@ -1,6 +1,6 @@
 #include "BootSleepViews.h"
 
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <I18n.h>
 
 namespace ui {
@@ -63,7 +63,7 @@ void render(const GfxRenderer& r, const Theme& t, const SleepView& v) {
   }
 
   // Use HALF_REFRESH for sleep (matches old SleepActivity)
-  r.displayBuffer(EInkDisplay::HALF_REFRESH);
+  r.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
 }
 
 }  // namespace ui

@@ -1,8 +1,9 @@
 # Xteink X3 Specifications
 
-This document gives the hardware specifications for the Xteink X3 e-reader. See [Device Specifications](device-specifications.md) for the shared hardware.
+See [Device Specifications](device-specifications.md) for shared hardware information.
 
-The firmware detects the X3 at startup with an I²C probe. See [Device Specifications § Auto-Detection](device-specifications.md#device-auto-detection) for the detection algorithm.
+The C3 firmware supports both X3 and X4. Startup selection uses the policy below.
+See [Hardware Selection](device-specifications.md#hardware-selection).
 
 ---
 
@@ -113,7 +114,6 @@ See [X3 LUT Waveforms](x3-lut-waveforms.md) for the full structure, voltage enco
 
 At 10 MHz SPI, a UC8253 full-frame transfer takes approximately 42 ms. At 20 MHz SPI, a UC8279d full-frame transfer takes approximately 21 ms. The host writes two planes for a differential refresh.
 
----
 
 ## I²C Bus
 
@@ -164,7 +164,7 @@ The power button on GPIO3 wakes the device from deep sleep.
 Most pins are the same as the X4. See [X4 Specifications § Pin Summary](x4-specifications.md#pin-summary). These pins are different:
 
 - **GPIO 0** — I²C SCL (X4: Battery ADC)
-- **GPIO 13** — SD power enable, active HIGH (X4: not used for SD power)
+- **GPIO 13** — SD power enable, active HIGH (X4: battery power latch)
 - **GPIO 20** — I²C SDA (X4: UART0_RXD / USB detect)
 
 ---
@@ -172,5 +172,3 @@ Most pins are the same as the X4. See [X4 Specifications § Pin Summary](x4-spec
 ## Cache Path
 
 The firmware stores X3 page caches in `/.papyrix/cache/x3/`. It stores X4 page caches in `/.papyrix/cache/`. The separate paths prevent layout errors when you move an SD card between devices. X3 pages use a 528×792 viewport. X4 pages use a 480×800 viewport.
-
-Source: `src/drivers/Device.cpp` — `Device::cacheDir()`

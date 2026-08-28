@@ -7,13 +7,13 @@
 #include <cstdio>
 #include <cstring>
 
-#include "../drivers/Storage.h"
+#include "../hal/Storage.h"
 
 #define TAG "BOOKMARK"
 
 namespace papyrix {
 
-bool BookmarkManager::save(drivers::Storage& storage, const char* cacheDir, ContentType type, const Bookmark* bookmarks,
+bool BookmarkManager::save(hal::Storage& storage, const char* cacheDir, ContentType type, const Bookmark* bookmarks,
                            int count) {
   if (!cacheDir || cacheDir[0] == '\0') return false;
   if (count < 0 || count > MAX_BOOKMARKS) return false;
@@ -80,7 +80,7 @@ bool BookmarkManager::save(drivers::Storage& storage, const char* cacheDir, Cont
   return true;
 }
 
-int BookmarkManager::load(drivers::Storage& storage, const char* cacheDir, Bookmark* bookmarks, int maxCount) {
+int BookmarkManager::load(hal::Storage& storage, const char* cacheDir, Bookmark* bookmarks, int maxCount) {
   if (!cacheDir || cacheDir[0] == '\0') return 0;
 
   char path[280];

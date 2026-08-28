@@ -1,6 +1,6 @@
 # Image Rendering
 
-This document describes how Papyrix handles images in EPUB content.
+Papyrix converts supported EPUB images for the active display.
 
 ## Pipeline
 
@@ -92,30 +92,22 @@ Images are shown when all these conditions are true:
 
 ## Data URI Handling
 
-### The Problem
-
 Some EPUBs put images in as base64 data URIs:
 
 ```html
 <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD..." />
 ```
 
-These can be 1MB or more of text. They can cause out-of-memory crashes during XML parse. The expat XML parser must allocate memory to store the full attribute value.
-
-### The Solution
-
-The `DataUriStripper` processes HTML buffers before the XML parser sees them:
-
-1. Scans for `src="data:` patterns (case-insensitive, handles single quotes and double quotes).
-2. Replaces the data URI with `src="#"` in the same buffer.
-3. Handles patterns that go across buffer boundaries (safe for streaming).
-
-This prevents memory allocation for embedded image data. The document structure stays.
+`DataUriStripper` removes image data URIs before XML parsing.
+It replaces each matching `src` value with `#`.
+It accepts single quotes and double quotes.
+It matches the prefix without case sensitivity.
+It handles values that cross input buffer boundaries.
+The XML parser does not allocate the embedded image data.
 
 ### Key Files
 
-- `lib/Epub/Epub/parsers/DataUriStripper.h` — Header with interface
-- `lib/Epub/Epub/parsers/DataUriStripper.cpp` — Implementation
+- `lib/Epub/src/Epub/parsers/DataUriStripper.h`
 
 ---
 
@@ -123,10 +115,11 @@ This prevents memory allocation for embedded image data. The document structure 
 
 ### Cache Location
 
-Images are cached to the SD card in `/.papyrix/epub_<hash>/images/`:
+Images use `<device-cache>/epub_<hash>/images/` on the SD card.
+The [device cache root](device-specifications.md#storage) depends on the device.
 
 ```
-.papyrix/
+<device-cache>/
 └── epub_12345678/
     └── images/
         ├── a1b2c3d4.bmp      # Converted image
@@ -191,7 +184,7 @@ This prevents the full source image from staying in RAM.
 
 ### Show Images
 
-**Settings > Display > Show Images**
+**Settings > Reader > Show Images**
 
 - **On** (default): Images are shown in the text
 - **Off**: All images show as `[Image: alt-text]` placeholders
@@ -207,9 +200,9 @@ If you set images to off:
 
 ### Images Not Displaying
 
-1. Make sure **Settings > Display > Show Images** is on.
-2. Make sure the image format is JPEG/PNG/BMP.
-3. Make sure the SD card has free space for the cache.
+1. Enable **Settings > Reader > Show Images**.
+2. Check that the image uses JPEG, PNG, or BMP format.
+3. Check the free space on the SD card.
 4. Try to clear the book cache (**Settings > Cleanup > Clear Book Cache**).
 
 ### Slow Page Loading with Images

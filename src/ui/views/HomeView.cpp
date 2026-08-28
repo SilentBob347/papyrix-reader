@@ -118,7 +118,7 @@ void render(const GfxRenderer& r, const Theme& t, const FileListView& v) {
   r.drawText(t.smallFontId, t.screenMarginSide + 8, pathY, truncPath.c_str(), t.secondaryTextBlack);
 
   // File list
-  const int listStartY = 65;
+  const int listStartY = FileListView::LIST_START_Y;
   const int pageStart = v.getPageStart();
   const int pageEnd = v.getPageEnd();
 

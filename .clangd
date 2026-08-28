@@ -1,2 +1,2 @@
 CompileFlags:
-    Add: [-std=c++2a]
+    Add: [-std=c++2a, -DPAPYRIX_TARGET_XTEINK_C3=1, -Ilib/BoardSupport/include, -Ilib/EInkDisplay/include, -Isrc]

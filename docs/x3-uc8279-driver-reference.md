@@ -31,14 +31,14 @@ MTP layout (first 48 bytes):
 - `0x01A`–`0x027` — LUT version
 - `0x028` and above — Temperature boundaries
 
-### Field Observations
+### Identification Responses
 
 - **X3, UC8279d (field modules)** — VER `FF FF FF FF FF`. FLG `0x13`. The controller drives the RMTP readback. The dump is not uniform. The dump repeats on a second read. The dump contains zeros and the LUT version stamp at `0x01A`. Byte 0 is not `0xA5`.
 - **X3, UC8279d (stock firmware descriptor)** — `LUT_VER` is `0x66`.
-- **X4 Pro, UC8179 (for comparison)** — VER `00 00 01 FF FF`. FLG `0x13`. The MTP is programmed. Byte 0 is `0xA5`.
 - **X3, UC8253** — The VER response is not observed. The classifier accepts a floating FLG or a driven idle FLG. The RMTP line floats. The read gives uniform `0xFF` through the pull-up (field-confirmed).
 
-A released SDA reads uniform `0x00` or `0xFF`. A floating bus can give one non-uniform RMTP read. It cannot give the same 48 bytes on a second read.
+A released SDA reads uniform `0x00` or `0xFF`.
+The classifier requires repeatable RMTP data before it accepts UC8279.
 
 ### Probe Timing
 

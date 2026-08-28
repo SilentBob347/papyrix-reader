@@ -100,25 +100,4 @@ void render(const GfxRenderer& r, const Theme& t, const ReaderMenuView& v) {
   r.displayBuffer();
 }
 
-void render(const GfxRenderer& r, const Theme& t, const JumpToPageView& v) {
-  r.clearScreen(t.backgroundColor);
-
-  title(r, t, t.screenMarginTop, tr(GO_TO_PAGE));
-
-  const int centerY = r.getScreenHeight() / 2 - 40;
-
-  char pageStr[16];
-  snprintf(pageStr, sizeof(pageStr), "%d", v.targetPage);
-  r.drawCenteredText(t.readerFontIdLarge, centerY, pageStr, t.primaryTextBlack, EpdFontFamily::BOLD);
-
-  char rangeStr[32];
-  snprintf(rangeStr, sizeof(rangeStr), tr(FMT_PAGE_OF), v.maxPage);
-  centeredText(r, t, centerY + 50, rangeStr);
-
-  ButtonBar btns{tr(CANCEL), tr(GO), "-10", "+10"};
-  buttonBar(r, t, btns);
-
-  r.displayBuffer();
-}
-
 }  // namespace ui

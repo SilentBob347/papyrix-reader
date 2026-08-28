@@ -5,12 +5,14 @@
 #include "test_utils.h"
 
 using papyrix::eink::classifyX3Display;
+using papyrix::eink::classifyX4ProPanel;
 using papyrix::eink::runX3DisplayProbe;
 using papyrix::eink::X3_DISPLAY_MTP_SIZE;
 using papyrix::eink::X3DisplayProbeReport;
 using papyrix::eink::X3DisplayProbeSample;
 using papyrix::eink::X3DisplayProbeTransport;
 using papyrix::eink::X3DisplayVerdict;
+using papyrix::eink::X4ProPanelVariant;
 
 namespace {
 
@@ -74,13 +76,34 @@ int main() {
   report.pass2 = sample(fieldLut66, 0x13);
   runner.expectEq(static_cast<int>(X3DisplayVerdict::UC8279Confirmed), static_cast<int>(classifyX3Display(report)),
                   "LUT 66 structured response confirms UC8279");
+  report.verdict = classifyX3Display(report);
+  runner.expectEq(static_cast<int>(X4ProPanelVariant::Ssd1677), static_cast<int>(classifyX4ProPanel(report)),
+                  "X3 LUT 66 does not select an X4 Pro UC driver");
 
   const uint8_t fieldLut01[5] = {0x00, 0x00, 0x01, 0xFF, 0xFF};
   report = {};
   report.pass1 = sample(fieldLut01, 0x13);
   report.pass2 = sample(fieldLut01, 0x13);
+  report.verdict = classifyX3Display(report);
   runner.expectEq(static_cast<int>(X3DisplayVerdict::UC8279Confirmed), static_cast<int>(classifyX3Display(report)),
                   "LUT 01 structured response confirms UC8279");
+  runner.expectEq(static_cast<int>(X4ProPanelVariant::Uc8179), static_cast<int>(classifyX4ProPanel(report)),
+                  "LUT 01 selects the UC8179 X4 Pro driver");
+
+  const uint8_t fieldLut68[5] = {0x00, 0x0F, 0x68, 0x00, 0x00};
+  report = {};
+  report.pass1 = sample(fieldLut68, 0x13);
+  report.pass2 = sample(fieldLut68, 0x13);
+  report.verdict = classifyX3Display(report);
+  runner.expectEq(static_cast<int>(X4ProPanelVariant::Uc8279), static_cast<int>(classifyX4ProPanel(report)),
+                  "physical LUT 68 signature selects the UC8279 X4 Pro driver");
+
+  const uint8_t fieldLut02[5] = {0x00, 0x0F, 0x02, 0x00, 0x00};
+  report.pass1 = sample(fieldLut02, 0x13);
+  report.pass2 = sample(fieldLut02, 0x13);
+  report.verdict = classifyX3Display(report);
+  runner.expectEq(static_cast<int>(X4ProPanelVariant::Uc8279), static_cast<int>(classifyX4ProPanel(report)),
+                  "LUT 02 selects the UC8279 X4 Pro driver");
 
   const uint8_t floatingHigh[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   report = {};
@@ -88,6 +111,9 @@ int main() {
   report.pass2 = sample(floatingHigh, 0xFF);
   runner.expectEq(static_cast<int>(X3DisplayVerdict::UC8253StableDefault), static_cast<int>(classifyX3Display(report)),
                   "stable floating high selects UC8253");
+  report.verdict = classifyX3Display(report);
+  runner.expectEq(static_cast<int>(X4ProPanelVariant::Ssd1677), static_cast<int>(classifyX4ProPanel(report)),
+                  "floating response keeps the conservative SSD1677 X4 Pro default");
 
   const uint8_t floatingLow[5] = {0, 0, 0, 0, 0};
   report = {};
@@ -111,6 +137,9 @@ int main() {
   report.mtp[0] = 0xA5;
   runner.expectEq(static_cast<int>(X3DisplayVerdict::UC8279Confirmed), static_cast<int>(classifyX3Display(report)),
                   "field fallback confirms UC8279");
+  report.verdict = classifyX3Display(report);
+  runner.expectEq(static_cast<int>(X4ProPanelVariant::Ssd1677), static_cast<int>(classifyX4ProPanel(report)),
+                  "uniform field-fallback VER does not identify UC8179");
 
   report.mtp[0] = 0xFF;
   runner.expectEq(static_cast<int>(X3DisplayVerdict::Inconclusive), static_cast<int>(classifyX3Display(report)),

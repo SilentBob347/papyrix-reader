@@ -1,6 +1,6 @@
 #pragma once
 
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <EpdFontFamily.h>
 #include <Utf8.h>
 
@@ -26,23 +26,26 @@ class GfxRenderer {
   };
 
  private:
-  EInkDisplay& einkDisplay;
+  papyrix::hal::Display& einkDisplay;
   RenderMode renderMode;
   Orientation orientation;
   std::map<int, EpdFontFamily> fontMap;
-  static uint8_t frameBuffer_[EInkDisplay::BUFFER_SIZE];
+  static uint8_t frameBuffer_[papyrix::hal::Display::BUFFER_SIZE];
   mutable int lastWrapMaxWidth_ = 0;
   mutable int lastWrapMaxLines_ = 0;
   mutable std::vector<CenteredTextCall> centeredTextCalls_;
   std::vector<std::string> wrappedTextResult_;
+  mutable std::string lastText_;
 
  public:
+  static constexpr int BUTTON_HINT_WIDTH = 106;
+  static constexpr int BUTTON_HINT_MAX_TEXT_WIDTH = 94;
   static constexpr int VIEWABLE_MARGIN_TOP = 9;
   static constexpr int VIEWABLE_MARGIN_RIGHT = 3;
   static constexpr int VIEWABLE_MARGIN_BOTTOM = 3;
   static constexpr int VIEWABLE_MARGIN_LEFT = 3;
 
-  explicit GfxRenderer(EInkDisplay& einkDisplay) : einkDisplay(einkDisplay), renderMode(BW), orientation(Portrait) {}
+  explicit GfxRenderer(papyrix::hal::Display& einkDisplay) : einkDisplay(einkDisplay), renderMode(BW), orientation(Portrait) {}
 
   void begin() {}
   void insertFont(int fontId, EpdFontFamily font) { fontMap.emplace(fontId, font); }
@@ -108,6 +111,8 @@ class GfxRenderer {
   int lastWrapMaxLines() const { return lastWrapMaxLines_; }
   const std::vector<CenteredTextCall>& centeredTextCalls() const { return centeredTextCalls_; }
   void clearCenteredTextCalls() const { centeredTextCalls_.clear(); }
+  const std::string& lastText() const { return lastText_; }
+  std::string truncatedText(int, const char* text, int) const { return text ? text : ""; }
 
   std::vector<std::string> wrapTextWithHyphenation(
       int, const char* text, int maxWidth, int maxLines,
@@ -158,7 +163,9 @@ class GfxRenderer {
     return chunks;
   }
 
-  void drawText(int, int, int, const char*, bool = true, EpdFontFamily::Style = EpdFontFamily::REGULAR) const {}
+  void drawText(int, int, int, const char* text, bool = true, EpdFontFamily::Style = EpdFontFamily::REGULAR) const {
+    lastText_ = text ? text : "";
+  }
   void drawCenteredText(int fontId, int y, const char* text, bool black = true,
                         EpdFontFamily::Style style = EpdFontFamily::REGULAR) const {
     centeredTextCalls_.push_back({fontId, y, text ? text : "", black, style});
@@ -170,12 +177,15 @@ class GfxRenderer {
   void drawImage(const uint8_t*, int, int, int, int) const {}
   void clearScreen(uint8_t = 0xFF) const {}
   void drawPixel(int, int, bool = true) const {}
-  void displayBuffer(EInkDisplay::RefreshMode = EInkDisplay::FAST_REFRESH, bool = false) const {}
+  void drawLine(int, int, int, int, bool = true) const {}
+  void drawRect(int, int, int, int, bool = true) const {}
+  void fillRect(int, int, int, int, bool = true) const {}
+  void displayBuffer(papyrix::hal::Display::RefreshMode = papyrix::hal::Display::FAST_REFRESH, bool = false) const {}
   void copyGrayscaleLsbBuffers() const {}
   void copyGrayscaleMsbBuffers() const {}
   void displayGrayBuffer(bool = false) const {}
   void cleanupGrayscaleWithFrameBuffer() const {}
 
   uint8_t* getFrameBuffer() const { return frameBuffer_; }
-  static size_t getBufferSize() { return EInkDisplay::BUFFER_SIZE; }
+  static size_t getBufferSize() { return papyrix::hal::Display::BUFFER_SIZE; }
 };

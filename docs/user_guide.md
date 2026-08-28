@@ -1,15 +1,37 @@
 # Papyrix User Guide
 
-This guide describes the hardware controls, navigation, and reading features of the **Papyrix** firmware.
+This guide describes controls, navigation, and reading features for supported
+Papyrix devices.
 
 ## 1. Hardware Overview
 
-The device uses the standard buttons on the Xteink X4 / X3 in the same layout:
+Use the firmware file for the device:
 
-### Button Layout
+- X3/X4: `papyrix-xteink-c3.bin`
+- X4 Pro: `papyrix-x4pro.bin`
 
-- **Bottom Edge:** Back, Confirm, Left, Right
-- **Right Side:** Power, Volume Up, Volume Down
+X3 and X4 use physical buttons. X4 Pro also has tap-only touch input.
+All three devices have partial hardware verification. See the device support
+matrix for the tested scenarios.
+
+### Button and Touch Layout
+
+X3/X4 bottom buttons are Back, Confirm, Left, and Right. The side controls are
+Power, Up, and Down.
+X4 Pro has three physical buttons: Up (GPIO0), Down (GPIO7), and Power (GPIO3).
+It has no physical Back, Confirm, Left, or Right buttons.
+GT911 touch supplies the other controls.
+The capacitive Home key sends Back when released.
+
+On touch devices, reader taps use these zones:
+
+- Left 24 percent: previous page
+- Center 52 percent: reader menu
+- Right 24 percent: next page
+
+The side-button preference can reverse the page zones. Menus, lists, dialogs,
+the keyboard, and reader overlays accept direct taps. Swipe gestures are not
+supported.
 
 ---
 
@@ -106,7 +128,7 @@ The Files screen is a folder and file browser.
 
 ### 3.3 Reading Screen
 
-Test:
+Text:
 
 ![Reading View: Text](images/reading-text.jpg)
 
@@ -142,18 +164,16 @@ how to connect and upload files.
 
 ### 3.5 Settings
 
-![Settings](images/settings.jpg)
-
-The Settings screen has five categories:
+The Settings screen has six categories. X3, X4, and X4 Pro use the same order.
+Reader, Screen, and Device are separate entries on the same level.
+Existing settings keep their values when a control moves to another category.
+The settings file format and front-light storage keys do not change.
+Older locale files use the English fallback for new labels. Update the locale
+file from [the examples](examples/locale/) to translate Screen.
 
 #### Reader
 
-Reading and display settings:
-
-- **Theme** (default: light)
-  - Select from available themes (light, dark, or custom themes from the SD card)
-  - Themes control colors, layout, and fonts
-  - See [Customization Guide](customization.md) to make custom themes
+Text and reading settings, in menu order:
 
 - **Font Size** (default: Small)
   - Options: XSmall (12pt), Small (14pt), Normal (16pt), Large (18pt)
@@ -175,11 +195,6 @@ Reading and display settings:
     - **Large:** Maximum line spacing (1.20×)
   - A change of line spacing can increase readability for different fonts and preferences
 
-- **Text Anti-Aliasing** (default: OFF)
-  - Set grayscale text rendering to on for smoother font edges
-  - Operates with builtin fonts and custom fonts converted with `--2bit`
-  - Set to off for faster page turns and to remove the short "thick text" flash during transitions
-
 - **Paragraph Alignment** (default: Justified)
   - Options: Justified, Left, Center, Right
   - Text alignment for paragraphs (headers stay centered)
@@ -199,11 +214,12 @@ Reading and display settings:
   - **Full:** Shows battery, book title, and page number (for example, "5 / 12")
   - **No Progress:** Shows battery and book title only
   - **None:** Hides the status bar fully for maximum reading area
-  - **Note:** The total page count for a chapter shows only after the chapter is fully cached. While you read a chapter the first time, only the current page number is shown until all pages are rendered. Overall book completion percentage is not available because of memory limits on the device.
+  - The page indicator marks estimated totals with `~`. See [Status Bar](#status-bar).
 
-- **Reading Orientation** (default: Portrait)
-  - Options: Portrait, Landscape CW, Inverted, Landscape CCW
-  - Screen orientation for reading
+- **Touch page turns** (X4 Pro only, default: ON)
+  - Enable or disable taps in the previous-page and next-page zones.
+  - Center menu taps and overlay controls stay active.
+  - X3 and X4 hide this setting. Physical buttons stay active.
 
 - **Full Book Process** (default: OFF)
   - When this is on, the device indexes all pages of the book before you start reading
@@ -212,29 +228,33 @@ Reading and display settings:
   - Useful for books where you want accurate page counts from the start (skipped for XTC/XTCH files)
   - Sections that are already cached are skipped, so a book that you indexed before opens immediately
 
-#### Device
 
-Power and device behavior settings:
 
-- **Auto Sleep Timeout** (default: 10 min)
-  - Options: 5 min, 10 min, 15 min, 30 min, Never
-  - Time with no activity before the device sleeps
+#### Screen
 
-- **Sleep Screen** (default: Dark)
-  - Options: Dark, Light, Custom, Cover, Keep Page
-  - Which image to show when the device sleeps
+Display settings, in menu order:
 
-- **Startup Behavior** (default: Last Document)
-  - Options: Last Document, Home
-  - **Last Document:** Continue the last opened book on start
-  - **Home:** Always start at the Home screen
+- **Theme** (default: light)
+  - Select from available themes (light, dark, or custom themes from the SD card)
+  - Themes control colors, layout, and fonts
+  - See [Customization Guide](customization.md) to make custom themes
 
-- **Short Power Button** (default: Ignore)
-  - Options: Ignore, Sleep, Page Turn, Bookmark
-  - **Ignore:** Short press does nothing (long press for sleep)
-  - **Sleep:** Short press puts the device to sleep
-  - **Page Turn:** Short press goes to the next page while you read (useful for one-handed reading)
-  - **Bookmark:** Short press bookmarks the current page while you read (shows a short notification)
+- **Brightness** (X4 Pro only)
+  - Adjust front-light brightness from 0 to 100 percent in steps of 5.
+  - Zero turns the front light off.
+
+- **Warmth** (X4 Pro only)
+  - Adjust the cool/warm light mix from 0 to 100 percent in steps of 5.
+  - X3 and X4 hide both front-light settings.
+
+- **Reading Orientation** (default: Portrait)
+  - Options: Portrait, Landscape CW, Inverted, Landscape CCW
+  - Screen orientation for reading
+
+- **Text Anti-Aliasing** (default: OFF)
+  - Set grayscale text rendering to on for smoother font edges
+  - Operates with builtin fonts and custom fonts converted with `--2bit`
+  - Set to off for faster page turns and to remove the short "thick text" flash during transitions
 
 - **Pages Per Refresh** (default: 15)
   - Options: 1, 5, 10, 15, 30
@@ -246,6 +266,14 @@ Power and device behavior settings:
   - Adds approximately 100-200ms overhead for each page turn
   - Recommended for white X4 devices that you use outdoors
 
+- **Sleep Screen** (default: Dark)
+  - Options: Dark, Light, Custom, Cover, Keep Page
+  - Which image to show when the device sleeps
+
+#### Device
+
+Controls and device behavior, in menu order:
+
 - **Front Buttons** (default: B/C/L/R)
   - Options: B/C/L/R, L/R/B/C
   - **B/C/L/R:** Back, Confirm, Left, Right (default layout)
@@ -256,10 +284,27 @@ Power and device behavior settings:
   - **Prev/Next:** Volume Up = previous page, Volume Down = next page
   - **Next/Prev:** Volume Up = next page, Volume Down = previous page
 
+- **Short Power Button** (default: Ignore)
+  - Options: Ignore, Sleep, Page Turn, Bookmark
+  - **Ignore:** Short press does nothing (long press for sleep)
+  - **Sleep:** Short press puts the device to sleep
+  - **Page Turn:** Short press goes to the next page while you read (useful for one-handed reading)
+  - **Bookmark:** Short press bookmarks the current page while you read (shows a short notification)
+
+
+- **Startup Behavior** (default: Last Document)
+  - Options: Last Document, Home
+  - **Last Document:** Continue the last opened book on start
+  - **Home:** Always start at the Home screen
+
 - **Show Recents** (default: ON)
   - Options: OFF, ON
   - **ON:** The Home screen shows a **Books** button that opens the books that you opened before (with a **Files** button to browse the SD card).
-  - **OFF:** The Home screen shows a **Files** button that opens the file browser directly (the behavior before #141). Books that you opened before are still recorded. If you set this to ON again, you see the full history. Book Stats stays available from the Reader Menu.
+  - **OFF:** The Home screen shows a **Files** button that opens the file browser. The device still records opened books. Enable this setting to show the history again. Book Stats remains available from the Reader Menu.
+
+- **Auto Sleep Timeout** (default: 10 min)
+  - Options: 5 min, 10 min, 15 min, 30 min, Never
+  - Time with no activity before the device sleeps
 
 - **Recycle bin** (default: ON)
   - Options: OFF, ON
@@ -286,7 +331,12 @@ Install firmware updates from an SD card:
 - The device flashes the firmware and restarts
 - **Do not power off or remove the SD card during the update**
 
-For emergency recovery (device does not start), copy the firmware as `/force_update.bin` to the SD card. On the next start, the device flashes it before it starts the UI.
+For emergency recovery, copy the firmware as `/force_update.bin` to the SD card.
+On the next start, the device shows **Firmware update in progress** and **Do not
+power off**, applies the update, and restarts. If the display is unavailable,
+the update continues without changing the previous e-ink frame. Do not remove
+power or the SD card before the restart.
+
 
 You can also upload firmware binaries through the [web server](webserver.md). Use the **Firmware** tab to upload a `.bin` file, then run the update from the device.
 
@@ -369,7 +419,7 @@ You can change the sleep screen. Put custom images in specified locations on the
 - **Display levels:** 4 grayscale (black, dark gray, light gray, white)
 
 > [!TIP]
-> - Use 8-bit grayscale for the best results. Many image editors support it.
+> - Use 8-bit grayscale images.
 > - Larger images are scaled down. Aspect ratio stays the same.
 > - All color images are converted to 4-level grayscale on the e-ink display.
 
@@ -464,13 +514,10 @@ Available from the Reader Menu if you select **Chapters**. The screen header sho
 
 ---
 
-## 6. Current Limitations & Roadmap
+## 6. Unsupported Content
 
-This firmware is in active development. These features are **not supported** at this time. They
-are planned for later updates:
-
-* **Tables:** HTML tables are not shown. A `[Table omitted]` placeholder is shown.
-* **Image formats:** Only JPEG and PNG images are supported in EPUB. Other formats (GIF, SVG, WebP) show a placeholder.
+* **Tables:** The reader shows a `[Table omitted]` placeholder for HTML tables.
+* **Image formats:** EPUB supports JPEG, PNG, and BMP images. GIF, SVG, and WebP images show a placeholder.
 
 ---
 

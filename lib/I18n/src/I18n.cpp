@@ -36,6 +36,7 @@ static constexpr KeyMapping KEY_MAP[] = {
     {"NO", StrId::STR_NO},
     {"SETTINGS", StrId::STR_SETTINGS},
     {"READER", StrId::STR_READER},
+    {"SCREEN", StrId::STR_SCREEN},
     {"DEVICE", StrId::STR_DEVICE},
     {"CLEANUP", StrId::STR_CLEANUP},
     {"SYSTEM_INFO", StrId::STR_SYSTEM_INFO},
@@ -48,6 +49,7 @@ static constexpr KeyMapping KEY_MAP[] = {
     {"CALIBRE_SYNC", StrId::STR_CALIBRE_SYNC},
     {"LANGUAGE", StrId::STR_LANGUAGE},
     {"READER_SETTINGS", StrId::STR_READER_SETTINGS},
+    {"SCREEN_SETTINGS", StrId::STR_SCREEN_SETTINGS},
     {"DEVICE_SETTINGS", StrId::STR_DEVICE_SETTINGS},
     {"FILES", StrId::STR_FILES},
     {"NETWORK_MODE", StrId::STR_NETWORK_MODE},
@@ -79,6 +81,7 @@ static constexpr KeyMapping KEY_MAP[] = {
     {"FRONT_BUTTONS", StrId::STR_FRONT_BUTTONS},
     {"SIDE_BUTTONS", StrId::STR_SIDE_BUTTONS},
     {"FULL_BOOK_PROCESS", StrId::STR_FULL_BOOK_PROCESS},
+    {"TOUCH_PAGE_TURNS", StrId::STR_TOUCH_PAGE_TURNS},
     {"ON", StrId::STR_ON},
     {"OFF", StrId::STR_OFF},
     {"XSMALL", StrId::STR_XSMALL},
@@ -240,6 +243,8 @@ static constexpr KeyMapping KEY_MAP[] = {
     {"RESTORE_FILE_Q", StrId::STR_RESTORE_FILE_Q},
     {"DELETE_PERMANENTLY_Q", StrId::STR_DELETE_PERMANENTLY_Q},
     {"CANNOT_DELETE_TRASH", StrId::STR_CANNOT_DELETE_TRASH},
+    {"BRIGHTNESS", StrId::STR_BRIGHTNESS},
+    {"WARMTH", StrId::STR_WARMTH},
 };
 // clang-format on
 

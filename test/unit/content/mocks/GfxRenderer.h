@@ -5,7 +5,7 @@
 // display-path members are no-ops and text metrics are constants because the
 // tests that use this stub never render to a display or measure real glyphs.
 
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <EpdFontFamily.h>
 
 #include <cstddef>
@@ -20,7 +20,7 @@ class GfxRenderer {
   enum Orientation { Portrait, LandscapeClockwise, PortraitInverted, LandscapeCounterClockwise };
   enum RenderMode { BW, GRAYSCALE_LSB, GRAYSCALE_MSB };
 
-  explicit GfxRenderer(EInkDisplay& display) : display_(display) {}
+  explicit GfxRenderer(papyrix::hal::Display& display) : display_(display) {}
 
   int getScreenWidth() const { return 480; }
   int getScreenHeight() const { return 800; }
@@ -42,7 +42,7 @@ class GfxRenderer {
   void clearScreen(const uint8_t = 0xFF) const {}
   void clearArea(int, int, int, int, const uint8_t = 0xFF) const {}
   void drawBitmap(Bitmap&, const int, const int, const int, const int) {}
-  void displayBuffer(const EInkDisplay::RefreshMode = EInkDisplay::FULL_REFRESH, const bool = false) {}
+  void displayBuffer(const papyrix::hal::Display::RefreshMode = papyrix::hal::Display::FULL_REFRESH, const bool = false) {}
   bool storeBwBuffer() { return false; }
   void setRenderMode(const RenderMode) {}
   void copyGrayscaleLsbBuffers() {}
@@ -54,5 +54,5 @@ class GfxRenderer {
   size_t getBufferSize() const { return 48000; }
 
  private:
-  EInkDisplay& display_;
+  papyrix::hal::Display& display_;
 };

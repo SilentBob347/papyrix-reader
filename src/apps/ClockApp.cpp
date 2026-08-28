@@ -1,7 +1,7 @@
 #include "ClockApp.h"
 
 #include <Arduino.h>
-#include <EInkDisplay.h>
+#include <Display.h>
 #include <GfxRenderer.h>
 #include <Logging.h>
 #include <SdFat.h>
@@ -11,7 +11,6 @@
 #include <ctime>
 #include <iterator>
 
-#include "../Battery.h"
 #include "../core/Core.h"
 #include "../network/WifiCredentialStore.h"
 #include "../ui/Elements.h"
@@ -135,7 +134,7 @@ static void saveSettings(Core& core) {
   file.close();
 }
 
-static void syncNtpWithConnection() {
+static void syncNtpWithConnection(Core& core) {
   const char* servers[NTP_SERVER_MAX];
   int count = parseNtpServers(state.ntpServers, servers);
   if (count == 0) {
@@ -155,9 +154,12 @@ static void syncNtpWithConnection() {
     delay(500);
   }
   struct tm timeinfo;
-  if (synced && getLocalTime(&timeinfo, 0)) {
+  if (synced && core.clock.updateFromSystem()) {
     applyTimezone(state.utcOffset);
-    getLocalTime(&timeinfo, 0);
+    if (!core.clock.localTime(timeinfo)) {
+      LOG_ERR(TAG, "NTP system time unavailable");
+      return;
+    }
     LOG_INF(TAG, "NTP sync OK: %04d-%02d-%02d %02d:%02d:%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1,
             timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
   } else {
@@ -166,6 +168,7 @@ static void syncNtpWithConnection() {
 }
 
 static void syncNtpAutoConnect(Core& core) {
+  hal::WifiSession wifiSession(core.wifi, core.cpu);
   ui::centeredMessage(renderer, THEME, THEME.uiFontId, "Syncing time...");
   renderer.displayBuffer();
 
@@ -183,12 +186,12 @@ static void syncNtpAutoConnect(Core& core) {
   bool connected = false;
   for (int i = 0; i < credCount; i++) {
     LOG_INF(TAG, "Trying WiFi: %s", creds[i].ssid);
-    auto connResult = core.network.connect(creds[i].ssid, creds[i].password);
+    auto connResult = core.wifi.connect(creds[i].ssid, creds[i].password);
     if (connResult.ok()) {
       connected = true;
       break;
     }
-    core.network.shutdown();
+    core.wifi.shutdown();
   }
 
   if (!connected) {
@@ -196,12 +199,10 @@ static void syncNtpAutoConnect(Core& core) {
     ui::centeredMessage(renderer, THEME, THEME.uiFontId, "WiFi connection failed");
     renderer.displayBuffer();
     delay(2000);
-    core.network.shutdown();
     return;
   }
 
-  syncNtpWithConnection();
-  core.network.shutdown();
+  syncNtpWithConnection(core);
 }
 
 void enter(Core& core) {
@@ -215,9 +216,9 @@ void enter(Core& core) {
   ui::centeredMessage(renderer, THEME, THEME.uiFontId, "Syncing time...");
   renderer.displayBuffer();
 
-  if (core.network.isConnected()) {
-    syncNtpWithConnection();
-    core.network.shutdown();
+  if (core.wifi.isConnected()) {
+    hal::WifiSession wifiSession(core.wifi, core.cpu);
+    syncNtpWithConnection(core);
   } else {
     syncNtpAutoConnect(core);
   }
@@ -238,7 +239,7 @@ bool update(Core& core) {
 
   // Refresh when the minute changes
   struct tm timeinfo;
-  if (getLocalTime(&timeinfo, 0)) {
+  if (core.clock.localTime(timeinfo)) {
     if (timeinfo.tm_min != state.lastRenderedMin) {
       core.cpu.unthrottle();
       return true;
@@ -301,13 +302,11 @@ static void drawDayOfWeek(const Theme& theme, int x, int y, int wday) {
 }
 
 bool render(Core& core) {
-  (void)core;
-
   const Theme& theme = THEME;
   renderer.clearScreen(theme.backgroundColor);
 
   struct tm timeinfo;
-  if (getLocalTime(&timeinfo, 0)) {
+  if (core.clock.localTime(timeinfo)) {
     state.lastRenderedMin = timeinfo.tm_min;
 
     // Date string top-left
@@ -332,8 +331,10 @@ bool render(Core& core) {
     renderer.drawText(theme.uiFontId, 20, 26, dateStr, theme.primaryTextBlack);
     drawDayOfWeek(theme, 20, 50, timeinfo.tm_wday);
 
-    // Battery top-right
-    ui::battery(renderer, theme, 380, 26, batteryMonitor.readSmoothedPercentage(), isUsbConnected());
+    const auto batteryStatus = core.battery.readStatus();
+    ui::battery(renderer, theme, 380, 26,
+                batteryStatus.percentageKnown ? static_cast<int>(batteryStatus.percentage) : -1,
+                core.usb.isConnected());
 
     // Determine digits
     int hour = timeinfo.tm_hour;
@@ -396,7 +397,7 @@ bool render(Core& core) {
 void exit(Core& core) {
   core.cpu.unthrottle();
   renderer.clearScreen(THEME.backgroundColor);
-  renderer.displayBuffer(EInkDisplay::HALF_REFRESH);
+  renderer.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
   LOG_INF(TAG, "Clock app exit");
 }
 

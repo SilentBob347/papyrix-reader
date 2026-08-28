@@ -29,6 +29,9 @@ inline size_t heap_caps_get_free_size(uint32_t) { return testLargestFreeBlock();
 #ifndef pgm_read_byte
 #define pgm_read_byte(addr) (*(const unsigned char*)(addr))
 #endif
+inline void* memcpy_P(void* destination, const void* source, size_t size) {
+  return std::memcpy(destination, source, size);
+}
 
 // Minimal SPISettings stub
 struct SPISettings {
@@ -86,7 +89,15 @@ extern MockSPI SPI;
 class String;
 
 // Arduino GPIO and timing stubs
-enum class TestGpioEventType : uint8_t { PinMode, DigitalWrite, HoldDisable, HoldEnable, DeepSleepHold, Delay };
+enum class TestGpioEventType : uint8_t {
+  PinMode,
+  DigitalWrite,
+  HoldDisable,
+  HoldEnable,
+  DeepSleepHold,
+  DeepSleepHoldDisable,
+  Delay
+};
 
 struct TestGpioEvent {
   TestGpioEventType type;
@@ -134,9 +145,36 @@ inline void delay(unsigned long ms) {
   if (testManualMillisEnabled) testManualMillisValue += ms;
   testRecordGpioEvent(TestGpioEventType::Delay, -1, static_cast<int>(ms));
 }
-inline uint32_t analogReadMilliVolts(uint8_t) { return 0; }
+inline void delayMicroseconds(unsigned int) {}
+using TestAnalogMillivoltsHook = uint32_t (*)(uint8_t);
+inline TestAnalogMillivoltsHook& testAnalogMillivoltsHook() {
+  static TestAnalogMillivoltsHook hook = nullptr;
+  return hook;
+}
+inline uint32_t analogReadMilliVolts(uint8_t pin) {
+  auto hook = testAnalogMillivoltsHook();
+  return hook ? hook(pin) : 0;
+}
+inline unsigned testAnalogReadCount = 0;
+inline int analogRead(int) {
+  ++testAnalogReadCount;
+  return 4095;
+}
+inline constexpr int ADC_11db = 3;
+inline void analogSetAttenuation(int) {}
+#ifndef F_CPU
+#define F_CPU 160000000L
+#endif
+inline bool g_mockCpuFreqAccepted = true;
 inline uint32_t g_mockCpuFreqMhz = 160;
-inline void setCpuFrequencyMhz(uint32_t freq) { g_mockCpuFreqMhz = freq; }
+inline bool ledcAttach(uint8_t, uint32_t, uint8_t) { return true; }
+inline bool ledcDetach(uint8_t) { return true; }
+inline bool ledcWrite(uint8_t, uint32_t) { return true; }
+inline bool setCpuFrequencyMhz(uint32_t freq) {
+  if (!g_mockCpuFreqAccepted) return false;
+  g_mockCpuFreqMhz = freq;
+  return true;
+}
 
 // Arduino constants
 #ifndef OUTPUT
@@ -145,12 +183,16 @@ inline void setCpuFrequencyMhz(uint32_t freq) { g_mockCpuFreqMhz = freq; }
 #ifndef INPUT
 #define INPUT 0
 #endif
+#ifndef INPUT_PULLUP
+#define INPUT_PULLUP 2
+#endif
 #ifndef HIGH
 #define HIGH 1
 #endif
 #ifndef LOW
 #define LOW 0
 #endif
+
 
 // Mock Serial for test output
 struct MockSerial : public Print {

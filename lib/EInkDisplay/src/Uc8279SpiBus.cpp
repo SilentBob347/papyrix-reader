@@ -75,14 +75,21 @@ void Uc8279SpiBus::endData() {
   SPI.endTransaction();
 }
 
-bool Uc8279SpiBus::waitBusy(const char* operation) {
+bool Uc8279SpiBus::waitBusy(const char* operation, bool requireAssertion) {
   const unsigned long assertionStart = millis();
   while (digitalRead(busy_) == HIGH && millis() - assertionStart <= 1000) delay(1);
   if (digitalRead(busy_) != LOW) {
-    LOG_DBG(TAG, "BUSY did not assert for %s", operation == nullptr ? "operation" : operation);
-    return true;
+    if (requireAssertion) {
+      LOG_ERR(TAG, "BUSY did not assert for %s", operation == nullptr ? "operation" : operation);
+    } else {
+      LOG_DBG(TAG, "BUSY did not assert for %s", operation == nullptr ? "operation" : operation);
+    }
+    return !requireAssertion;
   }
+  return waitReady(operation);
+}
 
+bool Uc8279SpiBus::waitReady(const char* operation) {
   const unsigned long completionStart = millis();
   while (digitalRead(busy_) == LOW && millis() - completionStart <= 30000) delay(1);
   if (digitalRead(busy_) != HIGH) {

@@ -32,6 +32,7 @@ static constexpr const char* DEFAULTS[static_cast<int>(StrId::STR__COUNT)] = {
     // Menu items
     "Settings",               // SETTINGS
     "Reader",                 // READER
+    "Screen",                 // SCREEN
     "Device",                 // DEVICE
     "Cleanup",                // CLEANUP
     "System Info",            // SYSTEM_INFO
@@ -46,6 +47,7 @@ static constexpr const char* DEFAULTS[static_cast<int>(StrId::STR__COUNT)] = {
 
     // Screen titles
     "Reader Settings",        // READER_SETTINGS
+    "Screen Settings",        // SCREEN_SETTINGS
     "Device Settings",        // DEVICE_SETTINGS
     "Files",                  // FILES
     "Network Mode",           // NETWORK_MODE
@@ -79,6 +81,7 @@ static constexpr const char* DEFAULTS[static_cast<int>(StrId::STR__COUNT)] = {
     "Front Buttons",          // FRONT_BUTTONS
     "Side Buttons",           // SIDE_BUTTONS
     "Full Book Process",      // FULL_BOOK_PROCESS
+    "Touch page turns",        // TOUCH_PAGE_TURNS
 
     // Settings enum values
     "ON",                     // ON
@@ -264,6 +267,8 @@ static constexpr const char* DEFAULTS[static_cast<int>(StrId::STR__COUNT)] = {
     "Restore to original folder?",     // RESTORE_FILE_Q
     "Delete this file permanently?",   // DELETE_PERMANENTLY_Q
     "Cannot delete the trash folder",  // CANNOT_DELETE_TRASH
+    "Brightness",                      // BRIGHTNESS
+    "Warmth",                          // WARMTH
 };
 // clang-format on
 

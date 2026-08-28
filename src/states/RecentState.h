@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "../content/RecentBooksStore.h"
+#include "../ui/views/HomeView.h"
 #include "../ui/views/ReaderViews.h"
 #include "State.h"
 

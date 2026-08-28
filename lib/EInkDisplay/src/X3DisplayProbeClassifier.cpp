@@ -54,6 +54,13 @@ X3DisplayVerdict classifyX3Display(const X3DisplayProbeReport& report) {
   return stableDefault ? X3DisplayVerdict::UC8253StableDefault : X3DisplayVerdict::Inconclusive;
 }
 
+X4ProPanelVariant classifyX4ProPanel(const X3DisplayProbeReport& report) {
+  if (report.verdict != X3DisplayVerdict::UC8279Confirmed) return X4ProPanelVariant::Ssd1677;
+  const uint8_t lutVersion = report.pass2.ver[2];
+  if (lutVersion == 0x02 || lutVersion == 0x68 || lutVersion == 0x69) return X4ProPanelVariant::Uc8279;
+  return lutVersion == 0x01 ? X4ProPanelVariant::Uc8179 : X4ProPanelVariant::Ssd1677;
+}
+
 X3DisplayProbeReport runX3DisplayProbe(X3DisplayProbeTransport& transport) {
   X3DisplayProbeReport report{};
   transport.readPass(1, report.pass1);

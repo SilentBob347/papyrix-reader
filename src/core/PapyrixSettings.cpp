@@ -1,5 +1,6 @@
 #include "PapyrixSettings.h"
 
+#include <HardwareIdentity.h>
 #include <Logging.h>
 #include <SDCardManager.h>
 #include <SdFat.h>
@@ -8,8 +9,7 @@
 #include "../FontManager.h"
 #include "../Theme.h"
 #include "../config.h"
-#include "../drivers/Device.h"
-#include "../drivers/Storage.h"
+#include "../hal/Storage.h"
 #include "SettingsSerialization.h"
 
 #define TAG "SETTINGS"
@@ -51,16 +51,17 @@ constexpr uint32_t kMinSettingsBytes =
     sizeof(kSizeProbe.pendingTransition) + sizeof(kSizeProbe.transitionReturnTo) +
     sizeof(kSizeProbe.sunlightFadingFix) + sizeof(kSizeProbe.fileListDir) + sizeof(kSizeProbe.fileListSelectedName) +
     sizeof(kSizeProbe.fileListSelectedIndex) + sizeof(kSizeProbe.frontButtonLayout) +
-    sizeof(kSizeProbe.fullBookProcess) + sizeof(kSizeProbe.showRecents) + sizeof(kSizeProbe.recycleBinEnabled);
+    sizeof(kSizeProbe.fullBookProcess) + sizeof(kSizeProbe.showRecents) + sizeof(kSizeProbe.recycleBinEnabled) +
+    sizeof(kSizeProbe.touchPageTurns);
 }  // namespace
 
-Result<void> Settings::save(drivers::Storage& storage) const {
+Result<void> Settings::save(hal::Storage& storage) const {
   // Make sure the directories exist
   storage.mkdir(PAPYRIX_DIR);
   storage.mkdir(PAPYRIX_CACHE_DIR);
   // X3 caches live in a subdirectory so an SD card moved between an X4 and an X3
   // doesn't load X4-shaped page layouts on the X3 panel. No-op on X4 (path matches above).
-  storage.mkdir(drivers::Device::instance().cacheDir());
+  storage.mkdir(board::HardwareIdentity::instance().cacheDir());
 
   // Publish via temp so readers never see a partial write. SdFat can't rename
   // over an existing file, so commitFile removes the stale final first.
@@ -90,7 +91,7 @@ Result<void> Settings::save(drivers::Storage& storage) const {
   return Ok();
 }
 
-Result<void> Settings::load(drivers::Storage& storage) {
+Result<void> Settings::load(hal::Storage& storage) {
   FsFile inputFile;
   auto result = storage.openRead(PAPYRIX_SETTINGS_FILE, inputFile);
   if (!result.ok()) return result;
@@ -158,7 +159,7 @@ RenderConfig Settings::getRenderConfig(const Theme& theme, uint16_t viewportWidt
 bool Settings::saveToFile() const {
   SdMan.mkdir(PAPYRIX_DIR);
   SdMan.mkdir(PAPYRIX_CACHE_DIR);
-  SdMan.mkdir(drivers::Device::instance().cacheDir());
+  SdMan.mkdir(board::HardwareIdentity::instance().cacheDir());
 
   FsFile outputFile;
   if (!SdMan.openFileForWrite("SET", kSettingsTmp, outputFile)) {

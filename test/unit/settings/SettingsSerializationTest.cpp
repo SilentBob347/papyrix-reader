@@ -170,6 +170,7 @@ int main() {
     expected.fullBookProcess = 1;
     expected.showRecents = 0;
     expected.recycleBinEnabled = 0;
+    expected.touchPageTurns = 0;
 
     FsFile file;
     file.setBuffer("");
@@ -193,7 +194,8 @@ int main() {
         decoded.fileListSelectedIndex == expected.fileListSelectedIndex &&
         decoded.frontButtonLayout == expected.frontButtonLayout &&
         decoded.fullBookProcess == expected.fullBookProcess && decoded.showRecents == expected.showRecents &&
-        decoded.recycleBinEnabled == expected.recycleBinEnabled;
+        decoded.recycleBinEnabled == expected.recycleBinEnabled &&
+        decoded.touchPageTurns == expected.touchPageTurns;
     runner.expectTrue(scalarMatch, "full_settings_scalar_roundtrip");
     runner.expectTrue(memcmp(decoded.themeName, expected.themeName, sizeof(expected.themeName)) == 0,
                       "full_settings_theme_roundtrip");
@@ -223,6 +225,7 @@ int main() {
     expectStatus(runner, SettingsReadStatus::Ok, readSettingsFile(file, defaults, decoded),
                  "previous_settings_version_accepted");
     runner.expectEq(uint8_t(1), decoded.recycleBinEnabled, "previous_settings_default_recycle_bin_enabled");
+    runner.expectEq(uint8_t(1), decoded.touchPageTurns, "previous_settings_default_touch_page_turns");
   }
 
   {

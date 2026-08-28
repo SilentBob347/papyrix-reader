@@ -4,6 +4,7 @@
 #include <I18n.h>
 #include <Theme.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -11,13 +12,34 @@
 #include "../Elements.h"
 
 namespace ui {
+struct SettingsListHit {
+  static constexpr int LIST_START_Y = 60;
+  enum class Type : uint8_t { None, Row, Back, Open, Previous, Next };
+  Type type = Type::None;
+  int index = -1;
+};
+
+inline SettingsListHit settingsListHitTest(touch::Point point, int16_t screenWidth, int16_t screenHeight,
+                                           int16_t rowHeight, int rowCount, bool frontLrbc = false) {
+  const int action = touch::semanticButtonBarIndex(point, screenWidth, screenHeight, frontLrbc);
+  if (action >= 0) {
+    constexpr SettingsListHit::Type actions[] = {SettingsListHit::Type::Back, SettingsListHit::Type::Open,
+                                                 SettingsListHit::Type::Previous, SettingsListHit::Type::Next};
+    return {actions[action], -1};
+  }
+  const int row = touch::rowAt(point,
+                               {0, SettingsListHit::LIST_START_Y, screenWidth,
+                                static_cast<int16_t>(screenHeight - SettingsListHit::LIST_START_Y - 70)},
+                               rowHeight, rowCount);
+  return row < 0 ? SettingsListHit{} : SettingsListHit{SettingsListHit::Type::Row, row};
+}
 
 // ============================================================================
 // SettingsMenuView - Main settings category selection
 // ============================================================================
 
 struct SettingsMenuView {
-  enum class Item : int8_t { Reader, Device, Cleanup, FirmwareUpdate, SystemInfo, Count };
+  enum class Item : int8_t { Reader, Screen, Device, Cleanup, FirmwareUpdate, SystemInfo, Count };
   static constexpr int ITEM_COUNT = static_cast<int>(Item::Count);
 
   ButtonBar buttons;
@@ -119,7 +141,7 @@ void render(const GfxRenderer& r, const Theme& t, const SystemInfoView& v);
 // ============================================================================
 
 struct ReaderSettingsView {
-  enum class SettingType : uint8_t { Toggle, Enum, ThemeSelect };
+  enum class SettingType : uint8_t { Toggle, Enum };
 
   struct SettingDef {
     const char* label;
@@ -128,41 +150,36 @@ struct ReaderSettingsView {
     uint8_t enumCount;
   };
 
-  static constexpr int SETTING_COUNT = 11;
-  static constexpr int MAX_THEMES = 16;
+  static constexpr int SETTING_COUNT = 9;
   static SettingDef DEFS[SETTING_COUNT];
   static void initDefs();
 
   ButtonBar buttons{"", "", "<", ">"};
 
-  char themeNames[MAX_THEMES][32] = {};
-  int themeCount = 0;
-  int currentThemeIndex = 0;
-
   uint8_t values[SETTING_COUNT] = {0};
   int8_t selected = 0;
+  int8_t visibleCount = SETTING_COUNT - 1;
   bool needsRender = true;
 
+  int settingIndex(int row) const { return row + (visibleCount < SETTING_COUNT && row >= 7 ? 1 : 0); }
+
   void moveUp() {
-    selected = (selected == 0) ? SETTING_COUNT - 1 : selected - 1;
+    selected = (selected == 0) ? visibleCount - 1 : selected - 1;
     needsRender = true;
   }
 
   void moveDown() {
-    selected = (selected + 1) % SETTING_COUNT;
+    selected = (selected + 1) % visibleCount;
     needsRender = true;
   }
 
   void cycleValue(int delta) {
-    const auto& def = DEFS[selected];
+    const int index = settingIndex(selected);
+    const auto& def = DEFS[index];
     if (def.type == SettingType::Toggle) {
-      values[selected] = values[selected] ? 0 : 1;
-    } else if (def.type == SettingType::ThemeSelect) {
-      if (themeCount > 0) {
-        currentThemeIndex = (currentThemeIndex + themeCount + delta) % themeCount;
-      }
+      values[index] = values[index] ? 0 : 1;
     } else {
-      values[selected] = static_cast<uint8_t>((values[selected] + def.enumCount + delta) % def.enumCount);
+      values[index] = static_cast<uint8_t>((values[index] + def.enumCount + delta) % def.enumCount);
     }
     needsRender = true;
   }
@@ -172,27 +189,77 @@ struct ReaderSettingsView {
     if (def.type == SettingType::Toggle) {
       return values[index] ? tr(ON) : tr(OFF);
     }
-    if (def.type == SettingType::ThemeSelect) {
-      if (themeCount > 0 && currentThemeIndex < themeCount) {
-        return themeNames[currentThemeIndex];
-      }
-      return "light";
-    }
     if (def.enumCount == 0 || values[index] >= def.enumCount) {
       return def.enumCount > 0 ? def.enumValues[0] : "???";
     }
     return def.enumValues[values[index]];
   }
-
-  const char* getCurrentThemeName() const {
-    if (themeCount > 0 && currentThemeIndex < themeCount) {
-      return themeNames[currentThemeIndex];
-    }
-    return "light";
-  }
 };
 
 void render(const GfxRenderer& r, const Theme& t, const ReaderSettingsView& v);
+
+struct ScreenSettingsView {
+  using SettingDef = ReaderSettingsView::SettingDef;
+  using SettingType = ReaderSettingsView::SettingType;
+  static constexpr int SETTING_COUNT = 8;
+  static constexpr int MAX_THEMES = 16;
+  static SettingDef DEFS[SETTING_COUNT];
+  static void initDefs();
+
+  ButtonBar buttons{"", "", "<", ">"};
+  char themeNames[MAX_THEMES][32] = {};
+  int themeCount = 0;
+  int currentThemeIndex = 0;
+  uint8_t values[SETTING_COUNT] = {0};
+  int8_t selected = 0;
+  int8_t visibleCount = SETTING_COUNT - 2;
+  bool needsRender = true;
+
+  int settingIndex(int row) const { return row + (visibleCount < SETTING_COUNT && row >= 1 ? 2 : 0); }
+  bool lightSelected() const {
+    const int index = settingIndex(selected);
+    return index == 1 || index == 2;
+  }
+  uint8_t adjustedLightValue(int delta) const {
+    return static_cast<uint8_t>(std::clamp(values[settingIndex(selected)] + delta * 5, 0, 100));
+  }
+  void moveUp() {
+    selected = (selected == 0) ? visibleCount - 1 : selected - 1;
+    needsRender = true;
+  }
+  void moveDown() {
+    selected = (selected + 1) % visibleCount;
+    needsRender = true;
+  }
+  void cycleValue(int delta) {
+    const int index = settingIndex(selected);
+    if (index == 0) {
+      if (themeCount > 0) currentThemeIndex = (currentThemeIndex + themeCount + delta) % themeCount;
+    } else if (!lightSelected()) {
+      const auto& def = DEFS[index];
+      if (def.type == SettingType::Toggle) {
+        values[index] = values[index] ? 0 : 1;
+      } else {
+        values[index] = static_cast<uint8_t>((values[index] + def.enumCount + delta) % def.enumCount);
+      }
+    }
+    needsRender = true;
+  }
+  const char* getCurrentThemeName() const {
+    return themeCount > 0 && currentThemeIndex < themeCount ? themeNames[currentThemeIndex] : "light";
+  }
+  const char* getCurrentValueStr(int index) const {
+    if (index == 0) return getCurrentThemeName();
+    const auto& def = DEFS[index];
+    if (def.type == SettingType::Toggle) return values[index] ? tr(ON) : tr(OFF);
+    if (def.enumCount == 0 || values[index] >= def.enumCount) {
+      return def.enumCount > 0 ? def.enumValues[0] : "???";
+    }
+    return def.enumValues[values[index]];
+  }
+};
+
+void render(const GfxRenderer& r, const Theme& t, const ScreenSettingsView& v);
 
 // ============================================================================
 // DeviceSettingsView - Device configuration
@@ -205,26 +272,28 @@ struct DeviceSettingsView {
     uint8_t valueCount;
   };
 
-  static constexpr int SETTING_COUNT = 10;
+  static constexpr int SETTING_COUNT = 7;
   static SettingDef DEFS[SETTING_COUNT];
   static void initDefs();
 
   ButtonBar buttons{"", "", "<", ">"};
   uint8_t values[SETTING_COUNT] = {0};
   int8_t selected = 0;
+  int8_t visibleCount = SETTING_COUNT;
   bool needsRender = true;
 
   void moveUp() {
-    selected = (selected == 0) ? SETTING_COUNT - 1 : selected - 1;
+    selected = (selected == 0) ? visibleCount - 1 : selected - 1;
     needsRender = true;
   }
 
   void moveDown() {
-    selected = (selected + 1) % SETTING_COUNT;
+    selected = (selected + 1) % visibleCount;
     needsRender = true;
   }
 
   void cycleValue(int delta) {
+    if (selected >= SETTING_COUNT) return;
     const auto& def = DEFS[selected];
     values[selected] = static_cast<uint8_t>((values[selected] + def.valueCount + delta) % def.valueCount);
     needsRender = true;
@@ -245,7 +314,21 @@ void render(const GfxRenderer& r, const Theme& t, const DeviceSettingsView& v);
 // ConfirmDialogView - Yes/No confirmation dialog (matches old ConfirmActionActivity)
 // ============================================================================
 
+inline touch::DialogLayout confirmDialogLayout(int16_t pageWidth, int16_t pageHeight, int16_t lineHeight,
+                                               int messageLines) {
+  const int16_t top = (pageHeight - lineHeight * 3) / 2;
+  const int16_t buttonY = top + (messageLines + 1 < 3 ? 3 : messageLines + 1) * lineHeight;
+  constexpr int16_t buttonWidth = 80;
+  constexpr int16_t buttonHeight = 36;
+  constexpr int16_t buttonSpacing = 20;
+  const int16_t startX = (pageWidth - (buttonWidth * 2 + buttonSpacing)) / 2;
+  return {{0, 0, pageWidth, pageHeight},
+          {{startX, buttonY, buttonWidth, buttonHeight},
+           {static_cast<int16_t>(startX + buttonWidth + buttonSpacing), buttonY, buttonWidth, buttonHeight}}};
+}
+
 struct ConfirmDialogView {
+  enum class Hit : uint8_t { None, Yes, No, Back, Select };
   static constexpr int MAX_TITLE_LEN = 48;
   static constexpr int MAX_LINE_LEN = 80;
   static constexpr int MAX_TITLE_LINES = 2;
@@ -279,9 +362,20 @@ struct ConfirmDialogView {
   }
 
   bool isYesSelected() const { return selection == 0; }
+
+  Hit hitTest(touch::Point point, const touch::DialogLayout& layout, bool frontLrbc = false) const {
+    const int choice = touch::dialogChoiceAt(point, layout);
+    if (choice == 0) return Hit::Yes;
+    if (choice == 1) return Hit::No;
+    const int action = touch::semanticButtonBarIndex(point, layout.bounds.width, layout.bounds.height, frontLrbc);
+    if (action == 0) return Hit::Back;
+    if (action == 1) return Hit::Select;
+    return Hit::None;
+  }
 };
 
 void render(const GfxRenderer& r, const Theme& t, const ConfirmDialogView& v);
+touch::DialogLayout confirmDialogBounds(const GfxRenderer& r, const Theme& t, const ConfirmDialogView& v);
 
 // ============================================================================
 // FirmwareUpdateView - Firmware update from SD card
