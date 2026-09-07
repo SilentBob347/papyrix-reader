@@ -24,6 +24,7 @@ release: build-release ## Alias for build-release
 
 package: ## Build, check, and package all release firmware
 	python3 scripts/package_firmware.py
+	python3 test/scripts/test_sdmmc_mount.py
 
 # Upload targets
 upload: ## Build and flash to device
@@ -148,6 +149,7 @@ test-run: ## Run unit tests (build first if needed)
 	@python3 test/scripts/test_target_features.py
 	@python3 test/scripts/test_sdmmc_lifecycle.py
 	@python3 test/scripts/test_wakeup.py
+	@python3 test/scripts/test_sleep_cancellation.py
 	@python3 test/scripts/test_package_firmware.py
 	@python3 test/scripts/test_build_html.py
 

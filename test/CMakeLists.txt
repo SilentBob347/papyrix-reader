@@ -97,21 +97,6 @@ foreach(TEST_SRC ${TEST_SOURCES})
     continue()
   endif()
 
-  if(TEST_NAME STREQUAL "HardwareServicePolicyTest")
-    foreach(SERVICE_TARGET C3 X4Pro)
-      add_executable(HardwareServicePolicy${SERVICE_TARGET}Test ${TEST_SRC}
-        ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/common/test_utils.cpp)
-      target_include_directories(HardwareServicePolicy${SERVICE_TARGET}Test PRIVATE
-        ${PROJECT_ROOT}/lib/BoardSupport/include)
-      set_target_properties(HardwareServicePolicy${SERVICE_TARGET}Test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/bin)
-    endforeach()
-    target_compile_definitions(HardwareServicePolicyC3Test PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
-    target_compile_definitions(HardwareServicePolicyX4ProTest PRIVATE PAPYRIX_TARGET_X4PRO=1)
-    continue()
-  endif()
-
   # Special handling for tests that need additional source files
   if(TEST_NAME STREQUAL "BoardSelectorTest")
     add_executable(${TEST_NAME}

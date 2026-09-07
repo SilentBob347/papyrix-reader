@@ -166,10 +166,8 @@ how to connect and upload files.
 
 The Settings screen has six categories. X3, X4, and X4 Pro use the same order.
 Reader, Screen, and Device are separate entries on the same level.
-Existing settings keep their values when a control moves to another category.
-The settings file format and front-light storage keys do not change.
-Older locale files use the English fallback for new labels. Update the locale
-file from [the examples](examples/locale/) to translate Screen.
+Missing translations use the English fallback. Use the
+[locale examples](examples/locale/) for translated labels.
 
 #### Reader
 

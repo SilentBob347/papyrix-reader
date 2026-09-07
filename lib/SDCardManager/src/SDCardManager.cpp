@@ -25,7 +25,7 @@ bool SDCardManager::begin() {
   if (initialized) return true;
 #if PAPYRIX_CAP_SDMMC
   const auto& storage = papyrix::board::HardwareIdentity::instance().profile().storage;
-  initialized = sdmmc.begin(storage) && sd.begin(&sdmmc);
+  initialized = sdmmc.begin(storage) && (sd.begin(&sdmmc) || sd.begin(&sdmmc, true, 0));
 #else
   initialized = sd.begin(papyrix::sd::SD_CHIP_SELECT_PIN, SPI_FQ);
 #endif

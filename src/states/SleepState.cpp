@@ -113,6 +113,7 @@ void SleepState::enter(Core& core) {
   if (!core.display.deepSleep()) {
     LOG_ERR(TAG, "Display power-off failed; sleep cancelled");
     snprintf(core.buf.text, sizeof(core.buf.text), "Display power-off failed. Sleep cancelled.");
+    core.input.resetIdleTimer();
     return;
   }
   core.frontLight.shutdown();
