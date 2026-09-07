@@ -431,6 +431,20 @@ Cover mode:
 > [!TIP]
 > The **Keep Page** sleep screen option keeps the current book page visible while the device sleeps. It does not show a sleep screen. It is only available while you read. If you are not in a book, it uses the Light sleep screen.
 
+### 3.8 Clock
+
+Open **Apps → Clock**. If the device has valid time, Clock opens without a WiFi connection.
+If time is not set, connect to WiFi to synchronize it.
+
+Open **Menu** to change the time zone, time format, date format, or NTP interval.
+Press **Confirm** or **Right** to select the next value. Press **Left** to select the previous value.
+Press **Back** to apply and save changes. Clock then makes one synchronization attempt.
+Select **Sync Now** and press **Confirm** to request synchronization when you close the menu.
+Closing the menu without changes or a synchronization request does not request a time update.
+
+Automatic synchronization pauses while the settings menu is open.
+The **Off** NTP interval disables periodic synchronization.
+
 ---
 
 ## 4. Reading Mode

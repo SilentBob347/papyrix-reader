@@ -48,6 +48,8 @@ static struct {
   int8_t ntpSyncSetting = 0;  // default: 3h
   int8_t dateFormat = 0;      // default: YYYY/MM/DD
   int8_t menuSelected = 0;
+  bool settingsChanged = false;
+  bool syncRequested = false;
   char ntpServers[128] = "pool.ntp.org,time.nist.gov";
 } state;
 
@@ -121,6 +123,8 @@ static void loadSettings(Core& core) {
 }
 
 static void saveSettings(Core& core) {
+  if (!state.settingsChanged) return;
+  applyTimezone(state.utcOffset);
   core.storage.mkdir("/.papyrix/apps");
 
   FsFile file;
@@ -132,6 +136,7 @@ static void saveSettings(Core& core) {
            state.use24h ? 1 : 0, state.ntpSyncSetting, state.dateFormat, state.ntpServers);
   file.write(reinterpret_cast<const uint8_t*>(buf), strlen(buf));
   file.close();
+  state.settingsChanged = false;
 }
 
 static void syncNtpWithConnection(Core& core) {
@@ -144,6 +149,7 @@ static void syncNtpWithConnection(Core& core) {
   }
   LOG_INF(TAG, "NTP servers: %s", state.ntpServers);
   configTime(0, 0, servers[0], count > 1 ? servers[1] : nullptr, count > 2 ? servers[2] : nullptr);
+  applyTimezone(state.utcOffset);
 
   bool synced = false;
   for (int i = 0; i < 20; i++) {
@@ -155,7 +161,6 @@ static void syncNtpWithConnection(Core& core) {
   }
   struct tm timeinfo;
   if (synced && core.clock.updateFromSystem()) {
-    applyTimezone(state.utcOffset);
     if (!core.clock.localTime(timeinfo)) {
       LOG_ERR(TAG, "NTP system time unavailable");
       return;
@@ -209,9 +214,16 @@ void enter(Core& core) {
   LOG_INF(TAG, "Clock app enter");
   state.lastRenderedMin = -1;
   state.menuSelected = 0;
+  state.syncRequested = false;
 
   loadSettings(core);
   applyTimezone(state.utcOffset);
+
+  std::tm timeinfo{};
+  if (core.clock.localTime(timeinfo)) {
+    state.lastNtpSyncMs = millis();
+    return;
+  }
 
   ui::centeredMessage(renderer, THEME, THEME.uiFontId, "Syncing time...");
   renderer.displayBuffer();
@@ -396,6 +408,7 @@ bool render(Core& core) {
 
 void exit(Core& core) {
   core.cpu.unthrottle();
+  saveSettings(core);
   renderer.clearScreen(THEME.backgroundColor);
   renderer.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
   LOG_INF(TAG, "Clock app exit");
@@ -414,7 +427,7 @@ void renderMenu(Core& core) {
 
   const char* dateFmtLabel = DATE_FORMAT_LABELS[state.dateFormat];
 
-  const char* items[] = {tzLabel, fmtLabel, dateFmtLabel, ntpLabel, "Sync Now"};
+  const char* items[] = {tzLabel, fmtLabel, dateFmtLabel, ntpLabel, state.syncRequested ? "Sync on close" : "Sync Now"};
   static_assert(std::size(items) == MENU_ITEM_COUNT);
 
   ui::popupMenu(renderer, THEME, "Clock Settings", items, MENU_ITEM_COUNT, state.menuSelected);
@@ -422,6 +435,15 @@ void renderMenu(Core& core) {
 
 void onMenuButton(Core& core, Button btn) {
   switch (btn) {
+    case Button::Back:
+      if (state.settingsChanged || state.syncRequested) {
+        core.cpu.unthrottle();
+        saveSettings(core);
+        state.syncRequested = false;
+        syncNtpAutoConnect(core);
+        state.lastNtpSyncMs = millis();
+      }
+      break;
     case Button::Up:
       state.menuSelected = (state.menuSelected == 0) ? MENU_ITEM_COUNT - 1 : state.menuSelected - 1;
       break;
@@ -430,20 +452,18 @@ void onMenuButton(Core& core, Button btn) {
       break;
     case Button::Center:
       if (static_cast<MenuItem>(state.menuSelected) == MenuItem::SyncNow) {
-        core.cpu.unthrottle();
-        syncNtpAutoConnect(core);
-        state.lastNtpSyncMs = millis();
+        state.syncRequested = true;
+        break;
       }
-      break;
+      [[fallthrough]];
     case Button::Left:
     case Button::Right: {
-      int delta = (btn == Button::Right) ? 1 : -1;
+      int delta = (btn == Button::Left) ? -1 : 1;
       switch (static_cast<MenuItem>(state.menuSelected)) {
         case MenuItem::UtcOffset:
           state.utcOffset = static_cast<int8_t>(state.utcOffset + delta);
           if (state.utcOffset > 14) state.utcOffset = -12;
           if (state.utcOffset < -12) state.utcOffset = 14;
-          applyTimezone(state.utcOffset);
           break;
         case MenuItem::TimeFormat:
           state.use24h = !state.use24h;
@@ -456,9 +476,9 @@ void onMenuButton(Core& core, Button btn) {
           break;
         case MenuItem::SyncNow:
         case MenuItem::Count:
-          break;
+          return;
       }
-      saveSettings(core);
+      state.settingsChanged = true;
       break;
     }
     default:

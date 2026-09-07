@@ -51,7 +51,8 @@ void AppLauncherState::exit(Core& core) {
 void AppLauncherState::activateMenuItem(Core& core) {
   if (menuView_.selected >= ui::AppMenuView::EXTRA_COUNT) {
     const int appIdx = menuView_.selected - ui::AppMenuView::EXTRA_COUNT;
-    if (appIdx == APP_CLOCK) {
+    std::tm timeinfo{};
+    if (appIdx == APP_CLOCK && !core.clock.localTime(timeinfo)) {
       core.pendingSync = SyncMode::NtpSync;
       core.pendingAppId = APP_CLOCK;
       goNetwork_ = true;
@@ -145,8 +146,12 @@ StateTransition AppLauncherState::update(Core& core) {
 
       case Mode::Overlay:
         if (e.type == EventType::ButtonRepeat) break;
+        core.cpu.unthrottle();
         switch (e.button) {
           case Button::Back:
+            if (activeApp_ >= 0 && APPS[activeApp_].onMenuButton) {
+              APPS[activeApp_].onMenuButton(core, e.button);
+            }
             hideOverlay();
             break;
           default:
@@ -165,13 +170,15 @@ StateTransition AppLauncherState::update(Core& core) {
     // Prevent auto-sleep while an app is running
     core.input.resetIdleTimer();
 
-    if (APPS[activeApp_].update && APPS[activeApp_].update(core)) {
+    if (mode_ == Mode::App && APPS[activeApp_].update && APPS[activeApp_].update(core)) {
       needsRender_ = true;
     }
 
     // Ensure full CPU speed for responsive display I/O when rendering
     if (needsRender_) {
       core.cpu.unthrottle();
+    } else if (mode_ == Mode::Overlay) {
+      core.cpu.throttle();
     }
   }
 
