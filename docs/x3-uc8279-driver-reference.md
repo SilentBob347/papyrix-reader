@@ -109,7 +109,7 @@ A DU refresh does not drive unchanged pixels. On a dark background, the light re
 
 ### 4-Level Grayscale (XTF AA)
 
-The stock firmware functions are `FUN_42015108` (planes) and `FUN_42013be0` (LUT load). This path is not validated on UC8279d hardware.
+The stock firmware functions are `FUN_42015108` (planes) and `FUN_42013be0` (LUT load).
 
 1. PTIN, PTL (full window)
 2. DTM1 = plane A (LSB), DSP

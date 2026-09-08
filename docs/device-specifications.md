@@ -8,8 +8,7 @@
 | [X4](x4-specifications.md) | ESP32-C3 | 800 × 480, SSD1677 | SPI SD | None |
 | [X4 Pro](x4pro-specifications.md) | ESP32-S3, 8 MB octal PSRAM | 800 × 480, UC8279 or UC8179 | 1-bit SDMMC | GT911 |
 
-See the [device support matrix](device-support-matrix.md) for hardware services
-and physical verification limits.
+See the [device support matrix](device-support-matrix.md) for build targets and hardware services.
 
 ## Firmware
 

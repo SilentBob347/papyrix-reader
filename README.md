@@ -17,7 +17,6 @@
 
 Papyrix is firmware for Xteink X3, X4, and X4 Pro e-paper readers.
 It uses one ESP32-C3 image for X3/X4 and one ESP32-S3 image for X4 Pro.
-All three devices have partial hardware verification.
 
 > **Warning:** Some Xteink units (for example, units from AliExpress) lock USB flash.
 > If USB flash is locked, you cannot update or recover through USB.
@@ -31,13 +30,13 @@ It is a community project.
 
 ## Supported devices
 
-| Device | Release file | Panel | Hardware status |
-|---|---|---|---|
-| Xteink X4 | `papyrix-xteink-c3.bin` | 800×480 SSD1677 | Partial verification |
-| Xteink X3 | `papyrix-xteink-c3.bin` | 792×528 UC8253 or UC8279 | Partial verification |
-| Xteink X4 Pro | `papyrix-x4pro.bin` | 800×480 UC8279 or UC8179 | Partial verification on UC8279, including the packaged release |
+| Device | Release file | Panel |
+|---|---|---|
+| Xteink X4 | `papyrix-xteink-c3.bin` | 800×480 SSD1677 |
+| Xteink X3 | `papyrix-xteink-c3.bin` | 792×528 UC8253 or UC8279 |
+| Xteink X4 Pro | `papyrix-x4pro.bin` | 800×480 UC8279 or UC8179 |
 
-See the [device support matrix](docs/device-support-matrix.md) for exact results.
+See the [device support matrix](docs/device-support-matrix.md) for build targets and hardware services.
 Using the wrong binary can drive incorrect pins and can damage hardware.
 
 Page caches use profile-specific folders. Moving an SD card between supported

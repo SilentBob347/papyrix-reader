@@ -14,9 +14,7 @@
 Unconfirmed probes and other LUT versions use the SSD1677 fallback.
 The X3 field-fallback signature does not select UC8179.
 
-Physical verification covers a UC8279 unit only.
-See the [device support matrix](device-support-matrix.md) for tested operations
-and verification limits.
+See the [device support matrix](device-support-matrix.md) for build targets and hardware services.
 
 ## Hardware
 

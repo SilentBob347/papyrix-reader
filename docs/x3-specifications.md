@@ -85,7 +85,7 @@ The UC8279d uses an external GC waveform for full and half refreshes. It uses an
 
 Both X3 controllers use a full-frame fast refresh for a window request. The UC8253 has no window RAM commands. The UC8279d driver does not support a safe small window update.
 
-The UC8279d grayscale path uses two 1-bit planes and the external XTF AA waveform. The project has not validated this path on UC8279d hardware.
+The UC8279d grayscale path uses two 1-bit planes and the external XTF AA waveform.
 
 ### Display Pin Mapping
 

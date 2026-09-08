@@ -11,8 +11,6 @@ Use the firmware file for the device:
 - X4 Pro: `papyrix-x4pro.bin`
 
 X3 and X4 use physical buttons. X4 Pro also has tap-only touch input.
-All three devices have partial hardware verification. See the device support
-matrix for the tested scenarios.
 
 ### Button and Touch Layout
 

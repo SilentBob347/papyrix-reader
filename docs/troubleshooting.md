@@ -51,8 +51,6 @@ Press the power button or send `retry` to restore storage power and retry
 display initialization. The last result and bounded attempt count are stored in
 RTC memory and the `papyrix_diag` NVS namespace.
 
-X4 Pro physical verification does not cover display initialization recovery.
-
 ## Repeated Sleep at Startup
 
 Custom firmware can enter sleep immediately after reset.
