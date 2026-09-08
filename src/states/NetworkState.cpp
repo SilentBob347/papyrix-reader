@@ -255,6 +255,8 @@ StateTransition NetworkState::update(Core& core) {
 
   if (goBack_) {
     goBack_ = false;
+    core.pendingSync = SyncMode::None;
+    core.pendingAppId = -1;
     return StateTransition::to(returnState_);
   }
 

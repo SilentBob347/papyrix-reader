@@ -143,6 +143,8 @@ class Display {
 
   // State
   bool isScreenOn;
+  bool ssd1677BaselineValid_ = false;
+  bool ssd1677RefreshSucceeded_ = false;
   bool customLutActive;
   bool inGrayscaleMode;
   bool drawGrayscale;
@@ -155,7 +157,7 @@ class Display {
   void sendDataBatchBegin();
   void sendDataBatchEnd();
   void waitForRefresh(const char* comment = nullptr);
-  void waitWhileBusy(const char* comment = nullptr);
+  bool waitWhileBusy(const char* comment = nullptr);
   void initDisplayController();
 
   // Low-level display operations

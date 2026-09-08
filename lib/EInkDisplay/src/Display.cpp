@@ -339,6 +339,8 @@ Display::InitResult Display::begin() {
   // Especially important after deep-sleep wake-up where the display
   // controller needs to be treated as a fresh initialization.
   isScreenOn = false;
+  ssd1677BaselineValid_ = false;
+  ssd1677RefreshSucceeded_ = false;
 #if !PAPYRIX_TARGET_XTEINK_C3
   if (!frameBuffer0) {
     frameBuffer0 = static_cast<uint8_t*>(heap_caps_malloc(MAX_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
@@ -527,14 +529,14 @@ void Display::sendDataBatchEnd() {
   SPI.endTransaction();
 }
 
-void Display::waitWhileBusy(const char* comment) {
+bool Display::waitWhileBusy(const char* comment) {
   unsigned long start = millis();
   if (!_x3Mode) {
     while (digitalRead(_busy) == HIGH) {
       delay(1);
       if (millis() - start > 10000) {
         LOG_ERR(TAG, "Timeout waiting for busy%s", comment ? comment : "");
-        break;
+        return false;
       }
     }
   } else {
@@ -547,14 +549,15 @@ void Display::waitWhileBusy(const char* comment) {
       sawLow = true;
       while (digitalRead(_busy) == LOW) {
         delay(1);
-        if (millis() - start > 30000) break;
+        if (millis() - start > 30000) return false;
       }
     }
-    if (!sawLow) return;
+    if (!sawLow) return false;
   }
   if (comment) {
     LOG_DBG(TAG, "Wait complete: %s (%lu ms)", comment, millis() - start);
   }
+  return true;
 }
 
 void Display::initDisplayController() {
@@ -818,12 +821,14 @@ void Display::displayBufferDriveAll(bool turnOffScreen) {
   swapBuffers();
 #endif
   refreshDisplay(FAST_REFRESH, turnOffScreen);
+  if (!ssd1677RefreshSucceeded_) return;
   setRamArea(0, 0, displayWidth, displayHeight);
 #ifdef EINK_DISPLAY_SINGLE_BUFFER_MODE
   writeRamBuffer(CMD_WRITE_RAM_RED, frameBuffer, bufferSize);
 #else
   writeRamBuffer(CMD_WRITE_RAM_RED, frameBufferActive, bufferSize);
 #endif
+  ssd1677BaselineValid_ = true;
 }
 
 void Display::setFramebuffer(const uint8_t* bwBuffer) const { memcpy(frameBuffer, bwBuffer, bufferSize); }
@@ -938,6 +943,7 @@ void Display::copyGrayscaleMsbBuffers(const uint8_t* msbBuffer) {
     sendDataBatchEnd();
     return;
   }
+  ssd1677BaselineValid_ = false;
   setRamArea(0, 0, displayWidth, displayHeight);
   writeRamBuffer(CMD_WRITE_RAM_RED, msbBuffer, bufferSize);
 }
@@ -956,6 +962,7 @@ void Display::copyGrayscaleBuffers(const uint8_t* lsbBuffer, const uint8_t* msbB
     copyGrayscaleMsbBuffers(msbBuffer);
     return;
   }
+  ssd1677BaselineValid_ = false;
   setRamArea(0, 0, displayWidth, displayHeight);
   writeRamBuffer(CMD_WRITE_RAM_BW, lsbBuffer, bufferSize);
   writeRamBuffer(CMD_WRITE_RAM_RED, msbBuffer, bufferSize);
@@ -1015,6 +1022,11 @@ void Display::cleanupGrayscaleBuffers(const uint8_t* bwBuffer) {
     return;
   }
 
+  if (!ssd1677RefreshSucceeded_) {
+    inGrayscaleMode = false;
+    return;
+  }
+
   // X4 single-buffer cleanup: also write BW so the next fast-diff has a current
   // current-frame baseline; otherwise the controller compares against a stale
   // BW plane left over from the grayscale write.
@@ -1022,6 +1034,7 @@ void Display::cleanupGrayscaleBuffers(const uint8_t* bwBuffer) {
   writeRamBuffer(CMD_WRITE_RAM_BW, bwBuffer, bufferSize);
   writeRamBuffer(CMD_WRITE_RAM_RED, bwBuffer, bufferSize);
   inGrayscaleMode = false;
+  ssd1677BaselineValid_ = true;
 }
 #endif
 
@@ -1062,10 +1075,7 @@ void Display::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
     papyrix::eink::uc8279X3Driver().display(bus, frameBuffer, ucMode, turnOffScreen);
     return;
   }
-  if (!isScreenOn && mode == FAST_REFRESH && !(_x3Mode && turnOffScreen)) {
-    // Force half refresh if screen is off — FAST_REFRESH requires valid
-    // previous frame data in RED RAM which may be stale after power-off.
-    // FULL/HALF rebuild RED RAM themselves so they don't need coercion.
+  if (_x3Mode && !isScreenOn && mode == FAST_REFRESH && !turnOffScreen) {
     mode = HALF_REFRESH;
   }
 
@@ -1278,6 +1288,10 @@ void Display::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
     return;
   }
 
+  if (mode == FAST_REFRESH && !ssd1677BaselineValid_) {
+    mode = HALF_REFRESH;
+  }
+
   const auto plan = papyrix::eink::makeSsd1677UpdatePlan(
       mode == FAST_REFRESH ? papyrix::eink::Ssd1677RefreshMode::Fast : papyrix::eink::Ssd1677RefreshMode::Full,
       bufferSize);
@@ -1297,6 +1311,7 @@ void Display::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
 #endif
 
   refreshDisplay(mode, turnOffScreen);
+  if (!ssd1677RefreshSucceeded_) return;
 
 #ifdef EINK_DISPLAY_SINGLE_BUFFER_MODE
   if (plan.syncRedAfterRefresh) {
@@ -1304,6 +1319,7 @@ void Display::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
     writeRamBuffer(CMD_WRITE_RAM_RED, frameBuffer, plan.transferBytes);
   }
 #endif
+  ssd1677BaselineValid_ = true;
 }
 
 // EXPERIMENTAL: Windowed update support
@@ -1343,6 +1359,10 @@ void Display::displayWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h, cons
 
   // displayWindow is not supported while the rest of the screen has grayscale content, revert it
   grayscaleRevert();
+  if (!ssd1677BaselineValid_) {
+    displayBuffer(HALF_REFRESH, turnOffScreen);
+    return;
+  }
 
   // Calculate window buffer size
   const uint16_t windowWidthBytes = w / 8;
@@ -1381,6 +1401,7 @@ void Display::displayWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h, cons
 #endif
 
   refreshDisplay(FAST_REFRESH, turnOffScreen);
+  if (!ssd1677RefreshSucceeded_) return;
 
 #ifdef EINK_DISPLAY_SINGLE_BUFFER_MODE
   if (plan.syncRedAfterRefresh) {
@@ -1388,6 +1409,7 @@ void Display::displayWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h, cons
     writeRamBuffer(CMD_WRITE_RAM_RED, windowBuffer.data(), plan.transferBytes);
   }
 #endif
+  ssd1677BaselineValid_ = true;
 
   LOG_DBG(TAG, "Window display complete");
 }
@@ -1515,6 +1537,8 @@ void Display::refreshDisplay(const RefreshMode mode, const bool turnOffScreen) {
     return;
   }
 
+  ssd1677BaselineValid_ = false;
+
   // Configure Display Update Control 1
   sendCommand(CMD_DISPLAY_UPDATE_CTRL1);
   sendData((mode == FAST_REFRESH) ? CTRL1_NORMAL : CTRL1_BYPASS_RED);  // Configure buffer comparison mode
@@ -1567,7 +1591,8 @@ void Display::refreshDisplay(const RefreshMode mode, const bool turnOffScreen) {
 
   // Wait for display to finish updating
   LOG_DBG(TAG, "Waiting for display refresh...");
-  waitWhileBusy(refreshType);
+  ssd1677RefreshSucceeded_ = waitWhileBusy(refreshType);
+  if (!ssd1677RefreshSucceeded_) isScreenOn = false;
 }
 
 void Display::setCustomLUT(const bool enabled, const unsigned char* lutData) {
@@ -1633,6 +1658,9 @@ bool Display::deepSleep() {
     sendData(0xA5);
     return true;
   }
+
+  ssd1677BaselineValid_ = false;
+  ssd1677RefreshSucceeded_ = false;
 
   // First, power down the display properly
   // This shuts down the analog power rails and clock

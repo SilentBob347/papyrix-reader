@@ -434,18 +434,27 @@ Cover mode:
 ### 3.8 Clock
 
 Open **Apps → Clock**. If the device has valid time, Clock opens without a WiFi connection.
-If time is not set, connect to WiFi to synchronize it.
+If time is not set, Clock opens WiFi setup. Connect to a network to synchronize the time.
+Press **Back** in WiFi setup to return to Apps without synchronization.
 
 Open **Menu** to change the time zone, time format, date format, or NTP interval.
-Press **Confirm** or **Right** to select the next value. Press **Left** to select the previous value.
-Press **Back** to apply and save changes. Clock then makes one synchronization attempt.
-Select **Sync Now** and press **Confirm** to request synchronization when you close the menu.
-Closing the menu without changes or a synchronization request does not request a time update.
+Settings use a full-screen list. Each setting shows its current value on the right.
+The settings menu does not show the clock face or battery indicator.
+Press **Right** to select the next value. Press **Left** to select the previous value.
+Press **Back** to apply and save changes. Saving settings does not request synchronization.
 
-Automatic synchronization pauses while the settings menu is open.
+Select **Sync Now** and press **Right** to synchronize immediately, even when the NTP interval is **Off**.
+The right button shows **Sync** on this row. Other settings show `<` and `>`.
+If no WiFi network is saved, Clock opens WiFi setup. Connect to a network to complete the synchronization.
+
+Automatic synchronization pauses while the settings menu is open. An overdue attempt can run after you close the menu.
+Clock skips automatic synchronization when no WiFi network is saved.
 The **Off** NTP interval disables periodic synchronization.
 
-Clock turns off panel power after each update of the clock display or its settings menu.
+The settings menu keeps panel power on between updates.
+The CPU stays at full speed while the settings menu is open.
+Clock turns off panel power after each update of the clock face.
+Clock also turns off panel power after synchronization status messages, before it waits for WiFi or NTP.
 The image remains visible. This does not change the front-light brightness.
 
 ---

@@ -14,6 +14,7 @@
 #include "../core/Core.h"
 #include "../network/WifiCredentialStore.h"
 #include "../ui/Elements.h"
+#include "../ui/views/SettingsViews.h"
 #include "MiniApp.h"
 #include "ThemeManager.h"
 
@@ -27,9 +28,7 @@ namespace clock_app {
 static constexpr const char* SETTINGS_PATH = "/.papyrix/apps/clock.txt";
 
 static constexpr uint32_t NTP_SYNC_INTERVALS[] = {10800000, 21600000, 86400000, 0};
-static constexpr const char* NTP_SYNC_LABELS[] = {"3h", "6h", "24h", "Off"};
 static constexpr int NTP_SYNC_COUNT = static_cast<int>(std::size(NTP_SYNC_INTERVALS));
-static_assert(std::size(NTP_SYNC_INTERVALS) == std::size(NTP_SYNC_LABELS));
 
 static constexpr const char* DATE_FORMAT_LABELS[] = {"YYYY/MM/DD", "DD/MM/YYYY", "MM/DD/YYYY", "DD.MM.YYYY"};
 static constexpr int DATE_FORMAT_COUNT = static_cast<int>(std::size(DATE_FORMAT_LABELS));
@@ -44,12 +43,11 @@ static struct {
   int8_t utcOffset = 0;
   bool use24h = true;
   int8_t lastRenderedMin = -1;
-  unsigned long lastNtpSyncMs = 0;
+  uint32_t lastNtpSyncMs = 0;
   int8_t ntpSyncSetting = 0;  // default: 3h
   int8_t dateFormat = 0;      // default: YYYY/MM/DD
   int8_t menuSelected = 0;
   bool settingsChanged = false;
-  bool syncRequested = false;
   char ntpServers[128] = "pool.ntp.org,time.nist.gov";
 } state;
 
@@ -159,6 +157,7 @@ static void syncNtpWithConnection(Core& core) {
     }
     delay(500);
   }
+  esp_sntp_stop();
   struct tm timeinfo;
   if (synced && core.clock.updateFromSystem()) {
     if (!core.clock.localTime(timeinfo)) {
@@ -172,19 +171,19 @@ static void syncNtpWithConnection(Core& core) {
   }
 }
 
-static void syncNtpAutoConnect(Core& core) {
+static void syncNtpAutoConnect(Core& core, bool manualSync) {
   hal::WifiSession wifiSession(core.wifi, core.cpu);
-  ui::centeredMessage(renderer, THEME, THEME.uiFontId, "Syncing time...");
-  renderer.displayBuffer();
-
   WIFI_STORE.loadFromFile();
   if (WIFI_STORE.getCount() == 0) {
-    LOG_ERR(TAG, "No saved WiFi credentials");
-    ui::centeredMessage(renderer, THEME, THEME.uiFontId, "No saved WiFi");
-    renderer.displayBuffer();
-    delay(2000);
+    if (manualSync) {
+      core.pendingSync = SyncMode::NtpSync;
+      core.pendingAppId = APP_CLOCK;
+    }
     return;
   }
+
+  ui::centeredMessage(renderer, THEME, THEME.uiFontId, "Syncing time...");
+  renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH, true);
 
   const auto& creds = WIFI_STORE.getCredentials();
   int credCount = WIFI_STORE.getCount();
@@ -202,7 +201,7 @@ static void syncNtpAutoConnect(Core& core) {
   if (!connected) {
     LOG_ERR(TAG, "All WiFi credentials failed");
     ui::centeredMessage(renderer, THEME, THEME.uiFontId, "WiFi connection failed");
-    renderer.displayBuffer();
+    renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH, true);
     delay(2000);
     return;
   }
@@ -214,62 +213,46 @@ void enter(Core& core) {
   LOG_INF(TAG, "Clock app enter");
   state.lastRenderedMin = -1;
   state.menuSelected = 0;
-  state.syncRequested = false;
 
   loadSettings(core);
   applyTimezone(state.utcOffset);
 
   std::tm timeinfo{};
-  if (core.clock.localTime(timeinfo)) {
+  if (core.pendingSync != SyncMode::NtpSync && core.clock.localTime(timeinfo)) {
+    hal::WifiSession wifiSession(core.wifi, core.cpu);
     state.lastNtpSyncMs = millis();
     return;
   }
 
-  ui::centeredMessage(renderer, THEME, THEME.uiFontId, "Syncing time...");
-  renderer.displayBuffer();
-
   if (core.wifi.isConnected()) {
     hal::WifiSession wifiSession(core.wifi, core.cpu);
+    ui::centeredMessage(renderer, THEME, THEME.uiFontId, "Syncing time...");
+    renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH, true);
     syncNtpWithConnection(core);
   } else {
-    syncNtpAutoConnect(core);
+    syncNtpAutoConnect(core, false);
   }
   state.lastNtpSyncMs = millis();
 }
 
 bool update(Core& core) {
-  const unsigned long now = millis();
-
-  // Periodic NTP sync
-  uint32_t ntpInterval = NTP_SYNC_INTERVALS[state.ntpSyncSetting];
+  const uint32_t now = millis();
+  const uint32_t ntpInterval = NTP_SYNC_INTERVALS[state.ntpSyncSetting];
   if (ntpInterval > 0 && now - state.lastNtpSyncMs >= ntpInterval) {
     core.cpu.unthrottle();
-    syncNtpAutoConnect(core);
-    state.lastNtpSyncMs = now;
+    syncNtpAutoConnect(core, false);
+    state.lastNtpSyncMs = millis();
     return true;
   }
 
-  // Refresh when the minute changes
-  struct tm timeinfo;
-  if (core.clock.localTime(timeinfo)) {
-    if (timeinfo.tm_min != state.lastRenderedMin) {
-      core.cpu.unthrottle();
-      return true;
-    }
-  } else if (now - state.lastNtpSyncMs >= 10000) {
-    // No time yet — refresh periodically so display updates after NTP sync
+  std::tm timeinfo{};
+  const int minute = core.clock.localTime(timeinfo) ? timeinfo.tm_min : -1;
+  if (minute != state.lastRenderedMin) {
     core.cpu.unthrottle();
-    state.lastNtpSyncMs = now;
     return true;
   }
-
   core.cpu.throttle();
   return false;
-}
-
-void onButton(Core& core, Button btn) {
-  (void)core;
-  (void)btn;
 }
 
 // 7-segment display constants
@@ -313,9 +296,19 @@ static void drawDayOfWeek(const Theme& theme, int x, int y, int wday) {
   renderer.drawText(theme.uiFontId, x, y, DAYS[wday], theme.secondaryTextBlack);
 }
 
+static void drawBattery(Core& core, const Theme& theme) {
+  LOG_DBG(TAG, "Battery begin");
+  const auto status = core.battery.readStatus();
+  const int width = 38 + renderer.getTextWidth(theme.smallFontId, "100%");
+  ui::battery(renderer, theme, renderer.getScreenWidth() - 20 - width, 26,
+              status.percentageKnown ? static_cast<int>(status.percentage) : -1, core.usb.isConnected());
+  LOG_DBG(TAG, "Battery end");
+}
+
 bool render(Core& core) {
   const Theme& theme = THEME;
   renderer.clearScreen(theme.backgroundColor);
+  state.lastRenderedMin = -1;
 
   struct tm timeinfo;
   if (core.clock.localTime(timeinfo)) {
@@ -342,11 +335,6 @@ bool render(Core& core) {
     }
     renderer.drawText(theme.uiFontId, 20, 26, dateStr, theme.primaryTextBlack);
     drawDayOfWeek(theme, 20, 50, timeinfo.tm_wday);
-
-    const auto batteryStatus = core.battery.readStatus();
-    ui::battery(renderer, theme, 380, 26,
-                batteryStatus.percentageKnown ? static_cast<int>(batteryStatus.percentage) : -1,
-                core.usb.isConnected());
 
     // Determine digits
     int hour = timeinfo.tm_hour;
@@ -400,6 +388,7 @@ bool render(Core& core) {
     ui::centeredMessage(renderer, theme, theme.uiFontId, "Time not synced");
   }
 
+  drawBattery(core, theme);
   ui::ButtonBar buttons("Back", "Menu", "", "");
   ui::buttonBar(renderer, theme, buttons);
 
@@ -414,35 +403,38 @@ void exit(Core& core) {
   LOG_INF(TAG, "Clock app exit");
 }
 
-void renderMenu(Core& core) {
-  (void)core;
+void renderMenu(Core&) {
+  LOG_DBG(TAG, "Menu render: selected=%d", state.menuSelected);
+  const Theme& theme = THEME;
+  ui::title(renderer, theme, theme.screenMarginTop, "Clock Settings");
 
-  char tzLabel[24];
-  snprintf(tzLabel, sizeof(tzLabel), "UTC%+d", state.utcOffset);
+  char timezone[8];
+  snprintf(timezone, sizeof(timezone), "UTC%+d", state.utcOffset);
+  static constexpr const char* syncValues[] = {"Every 3 hours", "Every 6 hours", "Every 24 hours", "Off"};
+  static_assert(std::size(syncValues) == NTP_SYNC_COUNT);
+  static constexpr const char* labels[] = {"Time zone", "Time format", "Date format", "Auto sync"};
+  const char* values[] = {timezone, state.use24h ? "24-hour" : "12-hour", DATE_FORMAT_LABELS[state.dateFormat],
+                          syncValues[state.ntpSyncSetting]};
+  static_assert(std::size(labels) == std::size(values));
+  static_assert(std::size(labels) == static_cast<int>(MenuItem::SyncNow));
 
-  const char* fmtLabel = state.use24h ? "24h" : "12h";
-
-  char ntpLabel[24];
-  snprintf(ntpLabel, sizeof(ntpLabel), "NTP: %s", NTP_SYNC_LABELS[state.ntpSyncSetting]);
-
-  const char* dateFmtLabel = DATE_FORMAT_LABELS[state.dateFormat];
-
-  const char* items[] = {tzLabel, fmtLabel, dateFmtLabel, ntpLabel, state.syncRequested ? "Sync on close" : "Sync Now"};
-  static_assert(std::size(items) == MENU_ITEM_COUNT);
-
-  ui::popupMenu(renderer, THEME, "Clock Settings", items, MENU_ITEM_COUNT, state.menuSelected);
+  int y = ui::SettingsListHit::LIST_START_Y;
+  for (int i = 0; i < static_cast<int>(std::size(labels)); ++i) {
+    ui::enumValue(renderer, theme, y, labels[i], values[i], state.menuSelected == i);
+    y += theme.itemHeight + theme.itemSpacing;
+  }
+  const bool syncSelected = static_cast<MenuItem>(state.menuSelected) == MenuItem::SyncNow;
+  ui::menuItem(renderer, theme, y, "Sync Now", syncSelected);
+  ui::ButtonBar buttons("Back", "", syncSelected ? "" : "<", syncSelected ? "Sync" : ">");
+  ui::buttonBar(renderer, theme, buttons);
 }
 
 void onMenuButton(Core& core, Button btn) {
+  LOG_DBG(TAG, "Menu input: button=%u selected=%d cpu=%u MHz", static_cast<unsigned>(btn), state.menuSelected,
+          static_cast<unsigned>(getCpuFrequencyMhz()));
   switch (btn) {
     case Button::Back:
-      if (state.settingsChanged || state.syncRequested) {
-        core.cpu.unthrottle();
-        saveSettings(core);
-        state.syncRequested = false;
-        syncNtpAutoConnect(core);
-        state.lastNtpSyncMs = millis();
-      }
+      saveSettings(core);
       break;
     case Button::Up:
       state.menuSelected = (state.menuSelected == 0) ? MENU_ITEM_COUNT - 1 : state.menuSelected - 1;
@@ -450,12 +442,6 @@ void onMenuButton(Core& core, Button btn) {
     case Button::Down:
       state.menuSelected = (state.menuSelected + 1) % MENU_ITEM_COUNT;
       break;
-    case Button::Center:
-      if (static_cast<MenuItem>(state.menuSelected) == MenuItem::SyncNow) {
-        state.syncRequested = true;
-        break;
-      }
-      [[fallthrough]];
     case Button::Left:
     case Button::Right: {
       int delta = (btn == Button::Left) ? -1 : 1;
@@ -475,6 +461,11 @@ void onMenuButton(Core& core, Button btn) {
           state.ntpSyncSetting = static_cast<int8_t>((state.ntpSyncSetting + delta + NTP_SYNC_COUNT) % NTP_SYNC_COUNT);
           break;
         case MenuItem::SyncNow:
+          if (btn == Button::Right) {
+            syncNtpAutoConnect(core, true);
+            state.lastNtpSyncMs = millis();
+          }
+          return;
         case MenuItem::Count:
           return;
       }

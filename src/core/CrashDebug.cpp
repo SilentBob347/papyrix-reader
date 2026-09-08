@@ -135,7 +135,11 @@ void clearDisplayFailure() {
 }
 
 void logBootInfo(const esp_reset_reason_t reason) {
-  LOG_ERR(TAG, "Reset reason: %s (%d)", resetReasonName(reason), static_cast<int>(reason));
+  if (isAbnormalReset(reason)) {
+    LOG_ERR(TAG, "Reset reason: %s (%d)", resetReasonName(reason), static_cast<int>(reason));
+  } else {
+    LOG_INF(TAG, "Reset reason: %s (%d)", resetReasonName(reason), static_cast<int>(reason));
+  }
   Preferences preferences;
   if (preferences.begin(DIAGNOSTIC_NAMESPACE, false)) {
     if (preferences.isKey(DISPLAY_RESULT_KEY)) {

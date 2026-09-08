@@ -33,10 +33,10 @@ void AppLauncherState::enter(Core& core) {
   menuView_.needsRender = true;
 
   if (core.pendingAppId >= 0 && static_cast<unsigned>(core.pendingAppId) < APP_COUNT) {
-    core.pendingSync = SyncMode::None;
     activeApp_ = core.pendingAppId;
     core.pendingAppId = -1;
     launchApp(core);
+    core.pendingSync = SyncMode::None;
     return;
   }
 }
@@ -146,6 +146,7 @@ StateTransition AppLauncherState::update(Core& core) {
 
       case Mode::Overlay:
         if (e.type == EventType::ButtonRepeat) break;
+        if (activeApp_ == APP_CLOCK && e.button == Button::Center) break;
         core.cpu.unthrottle();
         switch (e.button) {
           case Button::Back:
@@ -177,13 +178,15 @@ StateTransition AppLauncherState::update(Core& core) {
     // Ensure full CPU speed for responsive display I/O when rendering
     if (needsRender_) {
       core.cpu.unthrottle();
-    } else if (mode_ == Mode::Overlay) {
-      core.cpu.throttle();
     }
   }
 
   if (core.pendingSync == SyncMode::WifiSetup) {
     core.pendingSync = SyncMode::None;
+    return StateTransition::to(StateId::Network);
+  }
+
+  if (core.pendingSync == SyncMode::NtpSync) {
     return StateTransition::to(StateId::Network);
   }
 
@@ -220,11 +223,13 @@ void AppLauncherState::render(Core& core) {
         if (APPS[activeApp_].renderMenu) {
           APPS[activeApp_].renderMenu(core);
         }
-        const int btnY = renderer_.getScreenHeight() - 50;
-        renderer_.clearArea(0, btnY, renderer_.getScreenWidth(), 50, THEME.backgroundColor);
-        ui::ButtonBar buttons(tr(BACK), tr(CONFIRM), "<", ">");
-        ui::buttonBar(renderer_, THEME, buttons);
-        renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH, activeApp_ == APP_CLOCK);
+        if (activeApp_ != APP_CLOCK) {
+          const int btnY = renderer_.getScreenHeight() - 50;
+          renderer_.clearArea(0, btnY, renderer_.getScreenWidth(), 50, THEME.backgroundColor);
+          ui::ButtonBar buttons(tr(BACK), tr(CONFIRM), "<", ">");
+          ui::buttonBar(renderer_, THEME, buttons);
+        }
+        renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
       }
       break;
   }

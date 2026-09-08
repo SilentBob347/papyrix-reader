@@ -456,6 +456,12 @@ The controller retains the previous image in RAM `0x26`.
 After a differential refresh, the driver copies the new frame to `0x26`.
 The next refresh compares the target in `0x24` with that saved image.
 
+Panel power-off stops the analog supply and clock but retains the previous frame.
+A later FAST refresh powers the panel on and uses that frame.
+The driver rejects the saved frame after initialization, deep sleep, or a BUSY timeout.
+A FAST or window request uses HALF while the saved frame is invalid.
+Grayscale cleanup restores the comparison frame only after a successful refresh.
+
 Without this define, the driver uses two host framebuffers.
 It writes the previous host buffer to `0x26` before refresh and swaps the host buffers.
 Both modes support this API:

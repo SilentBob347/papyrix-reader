@@ -7,7 +7,6 @@ namespace clock_app {
 
 void enter(Core& core);
 bool update(Core& core);
-void onButton(Core& core, Button btn);
 bool render(Core& core);
 void exit(Core& core);
 void renderMenu(Core& core);

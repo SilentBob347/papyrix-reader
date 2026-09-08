@@ -621,9 +621,12 @@ void GfxRenderer::displayBufferDriveAll(bool turnOffScreen) const {
 
 void GfxRenderer::displayBuffer(const papyrix::hal::Display::RefreshMode refreshMode, bool turnOffScreen) const {
   logRenderTime();
+  LOG_DBG(TAG, "Display begin: refresh=%u powerOff=%u", static_cast<unsigned>(refreshMode),
+          static_cast<unsigned>(turnOffScreen));
   papyrix::board::suppressTouchUntilIdle();
   display_.setBackgroundHint(darkBackground_);
   display_.displayBuffer(refreshMode, turnOffScreen);
+  LOG_DBG(TAG, "Display end");
 }
 
 void GfxRenderer::displayWindow(int x, int y, int width, int height, bool turnOffScreen) const {

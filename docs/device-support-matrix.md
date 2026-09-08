@@ -12,31 +12,14 @@
 `make package` writes the release images and `manifest.json` to `dist/`.
 Packaging checks target features before it copies an image.
 
-| Artifact | Devices | Hardware status |
-| --- | --- | --- |
-| `papyrix-xteink-c3.bin` | X3, X4 | Partial verification |
-| `papyrix-x4pro.bin` | X4 Pro | Partial verification on UC8279 |
+| Artifact | Devices |
+| --- | --- |
+| `papyrix-xteink-c3.bin` | X3, X4 |
+| `papyrix-x4pro.bin` | X4 Pro |
 
 The manifest contains the version, environment, MCU, flash offset, SHA-256,
-profile schema, board values, panel values, and hardware status.
+profile schema, board values, and panel values.
 The panel list identifies supported controllers.
-It does not identify physically tested variants.
-The X4 Pro UC8179 path has host-test coverage only.
-
-## Physical Verification
-
-The table lists tested operations, not complete device certification.
-
-| Device | Tested operations |
-| --- | --- |
-| X3 | USB and pogo installation; Settings and emergency firmware update; unplugged cold boot; Home; buttons; SD access and remount; book access; page turns; UI/Reader transitions; Wi-Fi start and shutdown; short and extended unplugged sleep; exact-page resume; four orientations; BQ27220 battery; RTC time; display patterns; forced reset during refresh |
-| X4 | USB installation; Settings and emergency firmware update; unplugged cold boot; Home; buttons; SD access and remount; book access; page turns; UI/Reader transitions; Wi-Fi start and shutdown; short and extended unplugged sleep; exact-page resume; four orientations; ADC battery; USB charging indication; display patterns; forced reset during refresh |
-| X4 Pro, UC8279 | Packaged USB installation; application power latch; SDMMC mount; buttons; GT911 taps; CW2017 battery; BM8563 RTC; Home and reader navigation; cover resume; Screen settings; front-light controls; Wi-Fi book transfer; antialiasing; 20 forward and 5 backward page turns; full refresh on each page; short sleep and wake; button and touch input after idle |
-
-X4 Pro physical verification does not cover UC8179, extended sleep,
-forced-reset display recovery, all touch orientations, Settings firmware update,
-or emergency firmware update.
-No current or inactive-rail voltage measurements establish power consumption.
 
 ## Hardware Services
 
@@ -73,16 +56,6 @@ It suppresses contacts during refresh and stale contacts after wake.
 
 ## Target Isolation
 
-Run the checker on a demangled symbol listing:
-
-```bash
-nm -C .pio/build/release_xteink_c3/firmware.elf > symbols.txt
-python scripts/check_target_features.py symbols.txt default
-```
-
-The checker returns `0` for success, `1` for a forbidden symbol,
-and `2` for a usage error.
-
 | Symbol group | C3 | X4 Pro |
 | --- | --- | --- |
 | X4 Pro board code | Forbidden | Allowed |
@@ -92,5 +65,3 @@ and `2` for a usage error.
 | Swipe | Forbidden | Forbidden |
 | Bluetooth | Forbidden | Forbidden |
 | `X4ProVariant` | Forbidden | Forbidden |
-
-`make test` checks valid listings, forbidden listings, and usage errors.

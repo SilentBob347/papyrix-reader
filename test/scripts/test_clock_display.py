@@ -39,6 +39,7 @@ HARNESS = r'''
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -51,6 +52,7 @@ int dcPin, csPin, busyPin;
 int dc = HIGH, cs = HIGH;
 unsigned busyReads = 2;
 bool waiting = false;
+bool busyStuck = false;
 
 void check(bool condition, const char* message) {
   if (!condition) throw std::runtime_error(message);
@@ -87,6 +89,7 @@ void recordSpi(const uint8_t* data, size_t length) {
 
 int readBusy(int pin) {
   check(pin == busyPin, "display reads its selected BUSY pin");
+  if (busyStuck) return HIGH;
   const bool active = busyReads++ < 2;
   if (!active) waiting = false;
   return panel == DisplayController::SSD1677 ? (active ? HIGH : LOW) : (active ? LOW : HIGH);
@@ -121,14 +124,46 @@ class GfxRenderer {
   void displayBuffer(Display::RefreshMode mode = Display::FAST_REFRESH, bool turnOffScreen = false) const;
 };
 
+#define TAG "GFX"
 @GFX_DISPLAY@
+#undef TAG
 
+void checkClockWait();
+unsigned statusFrames = 0, syncAttempts = 0;
+
+namespace papyrix::hal {
+struct Cpu {
+  class PerformanceLock {
+   public:
+    explicit PerformanceLock(Cpu&) {}
+  };
+  void unthrottle() {}
+};
+struct WifiRadio {
+  bool connected = false, succeeds = true;
+  bool isConnected() const { return connected; }
+  struct Result { bool connected; bool ok() const { return connected; } };
+  Result connect(const char*, const char*) {
+    checkClockWait();
+    connected = succeeds;
+    return {connected};
+  }
+  void shutdown() { connected = false; }
+};
+@WIFI_SESSION@
+}
 namespace papyrix {
+static constexpr const char* TAG = "CLOCK-DISPLAY-TEST";
 struct Core {
   Display& display;
   uint8_t seed = 0;
   bool ownsDisplay = false;
   std::vector<uint8_t> frame;
+  hal::Cpu cpu;
+  hal::WifiRadio wifi;
+  struct Clock { bool localTime(std::tm&) const { return false; } } clock;
+  SyncMode pendingSync = SyncMode::None;
+  int pendingAppId = -1;
 };
 
 void paint(Core& core) {
@@ -148,24 +183,68 @@ bool renderApp(Core& core) {
   return core.ownsDisplay;
 }
 
-const int8_t APP_CLOCK = 1;
-const int8_t APP_IMAGEVIEWER = 0;
-const uint8_t APP_COUNT = 2;
-const MiniApp APPS[] = {
-    {"Image", nullptr, nullptr, nullptr, renderApp, nullptr, paint, nullptr},
-    {"Clock", nullptr, nullptr, nullptr, renderApp, nullptr, paint, nullptr},
-};
-struct { uint8_t backgroundColor = 0xFF; } theme;
+struct Theme { uint8_t backgroundColor = 0xFF; int uiFontId = 0; } theme;
+Core* statusCore = nullptr;
 #define THEME theme
 constexpr int BACK = 0, CONFIRM = 1;
-const char* tr(int) { return ""; }
+const char* tr(int key) { return key == CONFIRM ? "Confirm" : "Back"; }
 
 namespace ui {
+std::string confirmHint;
 struct AppMenuView { bool needsRender = false; };
-struct ButtonBar { ButtonBar(const char*, const char*, const char*, const char*) {} };
-void buttonBar(GfxRenderer&, const decltype(theme)&, const ButtonBar&) {}
+struct ButtonBar {
+  const char* confirm;
+  ButtonBar(const char*, const char* label, const char*, const char*) : confirm(label) {}
+};
+void buttonBar(GfxRenderer&, const decltype(theme)&, const ButtonBar& buttons) { confirmHint = buttons.confirm; }
 void render(GfxRenderer&, const decltype(theme)&, AppMenuView&, const MiniApp*) {}
+void centeredMessage(GfxRenderer&, const Theme&, int, const char*) {
+  if (statusFrames) checkClockWait();
+  commands.clear();
+  ++statusFrames;
+  ++statusCore->seed;
+  paint(*statusCore);
 }
+}
+
+namespace clock_app {
+GfxRenderer* clockRenderer = nullptr;
+#define renderer (*clockRenderer)
+struct {
+  int lastRenderedMin, menuSelected, utcOffset;
+  uint32_t lastNtpSyncMs;
+} state;
+struct {
+  struct Credential { const char* ssid = "home"; const char* password = "secret"; } creds[2];
+  int count = 1;
+  void loadFromFile() {}
+  int getCount() const { return count; }
+  const Credential* getCredentials() const { return creds; }
+} credentials;
+#define WIFI_STORE credentials
+void loadSettings(Core&) {}
+void applyTimezone(int) {}
+void delay(unsigned long ms) { checkClockWait(); ::delay(ms); }
+void syncNtpWithConnection(Core&) { checkClockWait(); ++syncAttempts; }
+@SYNC_AUTO@
+@CLOCK_ENTER@
+bool update(Core&) { return false; }
+bool render(Core& core) { return renderApp(core); }
+void exit(Core&) {}
+void renderMenu(Core& core) { paint(core); }
+void onMenuButton(Core&, Button) {}
+#undef renderer
+}
+namespace imageviewer_app {
+void enter(Core&) {}
+bool update(Core&) { return false; }
+void onButton(Core&, Button) {}
+bool render(Core& core) { return renderApp(core); }
+void exit(Core&) {}
+void renderMenu(Core& core) { paint(core); }
+void onMenuButton(Core&, Button) {}
+}
+@REGISTRY@
 
 class AppLauncherState {
  public:
@@ -176,9 +255,23 @@ class AppLauncherState {
   bool needsRender_ = true;
   ui::AppMenuView menuView_;
   void render(Core& core);
+  void stopApp(Core& core);
+  void showOverlay();
+  void hideOverlay();
+  void press(Core& core, Button button, bool repeat = false) {
+    enum class EventType { ButtonPress, ButtonRepeat };
+    struct { Button button; EventType type; } e{button, repeat ? EventType::ButtonRepeat : EventType::ButtonPress};
+    switch (mode_) {
+@KEY_DISPATCH@
+      default: break;
+    }
+  }
 };
 
 @LAUNCHER_RENDER@
+@STOP_APP@
+@SHOW_OVERLAY@
+@HIDE_OVERLAY@
 }
 
 void checkFrame(const papyrix::Core& core, bool turnOff, bool cold) {
@@ -199,12 +292,14 @@ void checkFrame(const papyrix::Core& core, bool turnOff, bool cold) {
     check(commandCount(0x20) == 1, "launcher submits one SSD1677 refresh");
     check(lastData(0x24) == expected, "SSD1677 current plane contains the submitted frame");
     check(lastData(0x26) == expected, "SSD1677 baseline contains the submitted frame");
+    check(lastData(0x21) == std::vector<uint8_t>{static_cast<uint8_t>(cold ? 0x40 : 0x00)},
+          "SSD1677 uses FAST once the previous frame is valid");
     if (turnOff) {
-      check(lastData(0x21) == std::vector<uint8_t>{0x40}, "powered-off SSD1677 uses HALF baseline recovery");
-      check(lastData(0x22) == std::vector<uint8_t>{0xD7}, "Clock HALF update powers SSD1677 on and off");
+      check(lastData(0x22).size() == 1 && (lastData(0x22)[0] & 0x03) == 0x03,
+            "Clock face powers SSD1677 off");
     } else {
       check(lastData(0x22).size() == 1 && (lastData(0x22)[0] & 0x03) == 0,
-            "other apps must not power SSD1677 off");
+            "menus and other apps keep SSD1677 powered");
     }
     return;
   }
@@ -215,7 +310,6 @@ void checkFrame(const papyrix::Core& core, bool turnOff, bool cold) {
   check(lastData(0x10) == expected, "UC old plane contains the submitted frame");
   check(commandCount(0x02) == (turnOff ? 1 : 0), "only Clock requests UC panel power-off");
   if (turnOff) {
-    check(lastCommand(0x04) < lastCommand(0x12), "UC panel powers on before refresh");
     check(lastCommand(0x12) < lastCommand(0x02), "UC panel powers off after refresh");
     if (panel == DisplayController::UC8253) {
       if (!cold) {
@@ -227,6 +321,11 @@ void checkFrame(const papyrix::Core& core, bool turnOff, bool cold) {
             "UC old plane is synchronized between refresh and power-off");
     }
   }
+}
+
+void checkClockWait() {
+  check(statusFrames > 0, "Clock displays status before waiting");
+  checkFrame(*papyrix::statusCore, true, statusFrames == 1);
 }
 
 int main(int argc, char** argv) {
@@ -267,8 +366,97 @@ int main(int argc, char** argv) {
     Core core{display};
     AppLauncherState launcher{renderer};
     const std::string scenario = argv[2];
-    check(scenario == "app" || scenario == "overlay", "unsupported render scenario");
-    launcher.mode_ = scenario == "app" ? AppLauncherState::Mode::App : AppLauncherState::Mode::Overlay;
+    statusCore = &core;
+    clock_app::clockRenderer = &renderer;
+    if (scenario == "retention") {
+      check(panel == DisplayController::SSD1677, "retention scenario requires SSD1677");
+      auto frame = [&](bool fast) {
+        ++core.seed;
+        paint(core);
+        commands.clear();
+        display.displayBuffer(Display::FAST_REFRESH, true);
+        checkFrame(core, true, !fast);
+        if (fast) {
+          check(lastData(0x22) == std::vector<uint8_t>{0xDF},
+                "retained FAST powers the panel on and off");
+          check(lastCommand(0x20) < lastCommand(0x26),
+                "FAST preserves the old plane until activation completes");
+        }
+      };
+      frame(false);
+      frame(true);
+      check(display.deepSleep(), "SSD1677 enters deep sleep");
+      check(lastData(0x10) == std::vector<uint8_t>{0x01}, "deep sleep reaches the controller");
+      check(display.begin() == Display::InitResult::Ok, "SSD1677 initializes after sleep");
+      frame(false);
+      frame(true);
+
+      display.copyGrayscaleBuffers(core.frame.data(), core.frame.data());
+      display.displayGrayBuffer(true);
+      display.cleanupGrayscaleBuffers(core.frame.data());
+      frame(true);
+      display.copyGrayscaleMsbBuffers(core.frame.data());
+      frame(false);
+
+      commands.clear();
+      display.displayWindow(0, 0, 8, 8, true);
+      check(lastData(0x21) == std::vector<uint8_t>{0x00}, "retained window remains differential");
+      check(lastData(0x22) == std::vector<uint8_t>{0xDF}, "window preserves power-off policy");
+      frame(true);
+
+      busyStuck = true;
+      commands.clear();
+      display.displayBuffer(Display::FAST_REFRESH, true);
+      check(commandCount(0x26) == 0, "failed refresh does not overwrite the old plane");
+      busyStuck = false;
+      busyReads = 2;
+      waiting = false;
+      frame(false);
+      frame(true);
+
+      display.copyGrayscaleBuffers(core.frame.data(), core.frame.data());
+      busyStuck = true;
+      display.displayGrayBuffer(true);
+      busyStuck = false;
+      busyReads = 2;
+      waiting = false;
+      display.cleanupGrayscaleBuffers(core.frame.data());
+      commands.clear();
+      display.displayWindow(0, 0, 8, 8, true);
+      checkFrame(core, true, true);
+      frame(true);
+
+      display.displayBuffer(Display::FAST_REFRESH);
+      ++core.seed;
+      paint(core);
+      commands.clear();
+      display.displayBufferDriveAll(true);
+      checkFrame(core, true, false);
+      frame(true);
+
+      check(display.recover() == Display::InitResult::Ok, "recovery resets the controller");
+      display.cleanupGrayscaleBuffers(core.frame.data());
+      frame(false);
+      display.refreshDisplay(Display::FAST_REFRESH, true);
+      frame(false);
+    } else if (scenario.rfind("status-", 0) == 0) {
+      core.wifi.connected = scenario == "status-connected";
+      core.wifi.succeeds = scenario != "status-failed";
+      clock_app::credentials.count = scenario == "status-missing" ? 0 : 2;
+      commands.clear();
+      clock_app::enter(core);
+      if (scenario == "status-missing") {
+        check(statusFrames == 0 && commands.empty(), "missing credentials must not replace the Clock display");
+      } else {
+        checkClockWait();
+        check(statusFrames == (scenario == "status-failed" ? 2u : 1u), "Clock displays each status only once");
+      }
+      const bool failed = scenario == "status-failed" || scenario == "status-missing";
+      check(syncAttempts == (failed ? 0u : 1u), "only a connected radio starts NTP");
+      check(!core.wifi.connected, "Clock consumes inherited and acquired radio ownership");
+    } else {
+    check(scenario == "app" || scenario == "overlay" || scenario == "keys", "unsupported render scenario");
+    launcher.mode_ = scenario == "overlay" ? AppLauncherState::Mode::Overlay : AppLauncherState::Mode::App;
     for (int frame = 0; frame < 6; ++frame) {
       renderer.darkBackground_ = frame >= 3;
       theme.backgroundColor = renderer.darkBackground_ ? 0x00 : 0xFF;
@@ -276,10 +464,42 @@ int main(int argc, char** argv) {
       commands.clear();
       launcher.needsRender_ = true;
       launcher.render(core);
-      checkFrame(core, true, frame == 0);
+      checkFrame(core, scenario != "overlay", frame == 0);
       commands.clear();
       launcher.render(core);
       check(commands.empty(), "clean Clock frame must not refresh");
+    }
+    if (scenario == "keys") {
+      for (const Button button : {Button::Up, Button::Down, Button::Left, Button::Right}) {
+        commands.clear();
+        launcher.press(core, button);
+        launcher.render(core);
+        check(commands.empty(), "unsupported Clock key must not submit a frame");
+      }
+      launcher.press(core, Button::Center, true);
+      check(launcher.mode_ == AppLauncherState::Mode::App, "repeat must not open the menu");
+      launcher.press(core, Button::Center);
+      check(launcher.mode_ == AppLauncherState::Mode::Overlay, "Center opens the Clock menu");
+      commands.clear();
+      launcher.render(core);
+      checkFrame(core, false, false);
+      check(ui::confirmHint.empty(), "Clock settings have no Confirm action");
+      commands.clear();
+      launcher.press(core, Button::Center);
+      launcher.render(core);
+      check(commands.empty(), "Center in Clock settings must not refresh the display");
+      commands.clear();
+      launcher.press(core, Button::Down);
+      launcher.render(core);
+      checkFrame(core, false, false);
+      launcher.press(core, Button::Back);
+      check(launcher.mode_ == AppLauncherState::Mode::App, "Back closes the Clock menu");
+      commands.clear();
+      launcher.render(core);
+      checkFrame(core, true, false);
+      launcher.press(core, Button::Back);
+      check(launcher.mode_ == AppLauncherState::Mode::Menu && launcher.activeApp_ < 0,
+            "Back leaves the Clock face");
     }
     launcher.activeApp_ = APP_IMAGEVIEWER;
     launcher.mode_ = AppLauncherState::Mode::App;
@@ -290,6 +510,7 @@ int main(int argc, char** argv) {
       launcher.needsRender_ = true;
       launcher.render(core);
       checkFrame(core, false, false);
+      if (frame == 2) check(!ui::confirmHint.empty(), "Image Viewer retains its Confirm action");
       if (frame == 1 && panel == DisplayController::SSD1677) {
         check(lastData(0x21) == std::vector<uint8_t>{0x00}, "powered-on SSD1677 resumes differential refresh");
       }
@@ -301,6 +522,7 @@ int main(int argc, char** argv) {
     launcher.needsRender_ = true;
     launcher.render(core);
     checkFrame(core, false, false);
+    }
     testSetDigitalReadHook(nullptr);
     testSetDigitalWriteHook(nullptr);
     testSetSpiWriteHook(nullptr);
@@ -317,8 +539,23 @@ int main(int argc, char** argv) {
 def main():
     launcher = (ROOT / "src/states/AppLauncherState.cpp").read_text()
     gfx = (ROOT / "lib/GfxRenderer/src/GfxRenderer.cpp").read_text()
+    clock = (ROOT / "src/apps/ClockApp.cpp").read_text()
+    registry = (ROOT / "src/apps/AppRegistry.cpp").read_text()
+    wifi = (ROOT / "src/hal/WifiRadio.h").read_text()
     harness = HARNESS.replace("@LAUNCHER_RENDER@", block(launcher, "void AppLauncherState::render("))
     harness = harness.replace("@GFX_DISPLAY@", block(gfx, "void GfxRenderer::displayBuffer("))
+    replacements = {
+        "WIFI_SESSION": block(wifi, "class WifiSession final") + ";",
+        "SYNC_AUTO": block(clock, "static void syncNtpAutoConnect("),
+        "CLOCK_ENTER": block(clock, "void enter("),
+        "REGISTRY": registry[registry.index("const MiniApp APPS[]"):registry.rindex("\n}")],
+        "KEY_DISPATCH": launcher[launcher.index("case Mode::App:"):launcher.index("\n    }\n  }")],
+        "STOP_APP": block(launcher, "void AppLauncherState::stopApp("),
+        "SHOW_OVERLAY": block(launcher, "void AppLauncherState::showOverlay("),
+        "HIDE_OVERLAY": block(launcher, "void AppLauncherState::hideOverlay("),
+    }
+    for marker, code in replacements.items():
+        harness = harness.replace(f"@{marker}@", code)
     with tempfile.TemporaryDirectory(prefix="papyrix-clock-display-") as directory:
         path = Path(directory)
         source = path / "clock_display.cpp"
@@ -333,7 +570,10 @@ def main():
                 str(source), *(str(ROOT / item) for item in SOURCES), "-o", str(binary),
             ], check=True)
             for panel in panels:
-                for scenario in ("app", "overlay"):
+                scenarios = ("app", "overlay", "keys", "status-connected", "status-success", "status-missing", "status-failed")
+                if panel == "ssd1677":
+                    scenarios += ("retention",)
+                for scenario in scenarios:
                     result = subprocess.run([str(binary), panel, scenario], capture_output=True, text=True)
                     if result.returncode:
                         print(result.stdout, end="")
