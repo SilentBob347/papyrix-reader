@@ -39,6 +39,13 @@ struct SPISettings {
   SPISettings(uint32_t, int, int) {}
 };
 
+using TestSpiWriteHook = void (*)(const uint8_t*, size_t);
+inline TestSpiWriteHook& testSpiWriteHook() {
+  static TestSpiWriteHook hook = nullptr;
+  return hook;
+}
+inline void testSetSpiWriteHook(TestSpiWriteHook hook) { testSpiWriteHook() = hook; }
+
 // Minimal SPI mock
 struct MockSPI {
   static constexpr size_t RECORD_CAPACITY = 64;
@@ -61,9 +68,10 @@ struct MockSPI {
   void transfer(uint8_t value) {
     if (transferCount < RECORD_CAPACITY) transferValues[transferCount] = value;
     transferCount++;
+    if (testSpiWriteHook()) testSpiWriteHook()(&value, 1);
   }
   void writeBytes(const uint8_t* data, size_t length) {
-    (void)data;
+    if (testSpiWriteHook()) testSpiWriteHook()(data, length);
     if (writeCount < RECORD_CAPACITY) writeSizes[writeCount] = length;
     writeCount++;
   }
@@ -112,7 +120,16 @@ void testRecordGpioEvent(TestGpioEventType type, int pin, int value);
 void testResetGpioEvents();
 
 inline void pinMode(int pin, int mode) { testRecordGpioEvent(TestGpioEventType::PinMode, pin, mode); }
-inline void digitalWrite(int pin, int value) { testRecordGpioEvent(TestGpioEventType::DigitalWrite, pin, value); }
+using TestDigitalWriteHook = void (*)(int, int);
+inline TestDigitalWriteHook& testDigitalWriteHook() {
+  static TestDigitalWriteHook hook = nullptr;
+  return hook;
+}
+inline void testSetDigitalWriteHook(TestDigitalWriteHook hook) { testDigitalWriteHook() = hook; }
+inline void digitalWrite(int pin, int value) {
+  testRecordGpioEvent(TestGpioEventType::DigitalWrite, pin, value);
+  if (testDigitalWriteHook()) testDigitalWriteHook()(pin, value);
+}
 using TestDigitalReadHook = int (*)(int);
 inline TestDigitalReadHook& testDigitalReadHook() {
   static TestDigitalReadHook hook = nullptr;

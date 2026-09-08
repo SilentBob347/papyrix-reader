@@ -209,7 +209,7 @@ void AppLauncherState::render(Core& core) {
     case Mode::App:
       if (activeApp_ >= 0 && APPS[activeApp_].render) {
         if (!APPS[activeApp_].render(core)) {
-          renderer_.displayBuffer();
+          renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH, activeApp_ == APP_CLOCK);
         }
       }
       break;
@@ -224,7 +224,7 @@ void AppLauncherState::render(Core& core) {
         renderer_.clearArea(0, btnY, renderer_.getScreenWidth(), 50, THEME.backgroundColor);
         ui::ButtonBar buttons(tr(BACK), tr(CONFIRM), "<", ">");
         ui::buttonBar(renderer_, THEME, buttons);
-        renderer_.displayBuffer();
+        renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH, activeApp_ == APP_CLOCK);
       }
       break;
   }

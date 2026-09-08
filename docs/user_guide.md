@@ -445,6 +445,9 @@ Closing the menu without changes or a synchronization request does not request a
 Automatic synchronization pauses while the settings menu is open.
 The **Off** NTP interval disables periodic synchronization.
 
+Clock turns off panel power after each update of the clock display or its settings menu.
+The image remains visible. This does not change the front-light brightness.
+
 ---
 
 ## 4. Reading Mode
