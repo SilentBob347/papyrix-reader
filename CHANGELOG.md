@@ -1,5 +1,31 @@
 
 
+## v1.29.0 (2026-09-08)
+
+*  Add support for X3 UC8279. Issue #160 [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  X3: Add UC8253 half-refresh scrub waveform [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Reader: Block menu on the cover page [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  GfxRenderer: Log render time on grayscale display [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  X3: Use full-frame refresh for window updates [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Add shared hardware support for X3, X4, and X4 Pr [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Add SDMMC fallback for whole-device FAT16 and reset idle timer on sleep failure [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Defer Clock settings save and NTP sync to Back button [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Use fast refresh for Clock app [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Correct Clock power and sync behavior [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Bump version [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+
+
+## v1.28.2 (2026-08-25)
+
+*  Bump version [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+
+
+## v1.28.1 (2026-08-25)
+
+*  Update CHANGELOG [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Bookmarks: Increase per-book limit to 50. Issue 159 [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+
+
 ## v1.28.0 (2026-08-21)
 
 *  Bump version [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
