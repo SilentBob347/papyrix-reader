@@ -355,9 +355,29 @@ int main(int argc, char** argv) {
     renderer.clear(false);
     render({renderer, boundaryTheme, boundary, true, 0, 0}, Face::DayNight);
     const bool daytime = hour >= 6 && hour < 18;
-    assert(renderer.hasText("New Moon") != daytime);
+    assert(std::count_if(renderer.draws.begin(), renderer.draws.end(),
+                         [](const auto& draw) { return draw.kind == 'T'; }) == (daytime ? 1 : 2));
     assert(renderer.pixelAt(240, dayNightIconY(renderer, true) - 68) ==
            (daytime ? boundaryTheme.primaryTextBlack : false));
+  }
+
+  std::tm september{};
+  september.tm_year = 126;
+  september.tm_mon = 8;
+  september.tm_mday = 13;
+  september.tm_hour = 20;
+  GfxRenderer septemberRenderer(480, 800);
+  Theme septemberTheme = lightTheme();
+  septemberRenderer.clear(false);
+  render({septemberRenderer, septemberTheme, september, true, 1, 7}, Face::DayNight);
+  assert(septemberRenderer.hasText("Waxing Crescent"));
+
+  september.tm_hour = 0;
+  for (int8_t utcOffset : {7, 14}) {
+    GfxRenderer earlySeptemberRenderer(480, 800);
+    earlySeptemberRenderer.clear(false);
+    render({earlySeptemberRenderer, septemberTheme, september, true, 1, utcOffset}, Face::DayNight);
+    assert(earlySeptemberRenderer.hasText("Waxing Crescent"));
   }
 
   struct PhaseCase {
@@ -393,6 +413,17 @@ int main(int argc, char** argv) {
   assert(phasePixels[2] < phasePixels[3]);
   assert(phasePixels[3] < phasePixels[4]);
 
+  std::tm outlineTime{};
+  outlineTime.tm_year = 100;
+  outlineTime.tm_mon = 0;
+  outlineTime.tm_mday = 6;
+  outlineTime.tm_hour = 23;
+  GfxRenderer outlineRenderer(480, 800);
+  Theme outlineTheme = lightTheme();
+  outlineRenderer.clear(false);
+  render({outlineRenderer, outlineTheme, outlineTime, true, 0, 0}, Face::DayNight);
+  assert(outlineRenderer.pixelAt(290, dayNightIconY(outlineRenderer, true)) == outlineTheme.primaryTextBlack);
+
   struct OffsetPhaseCase {
     int day;
     int hour;
@@ -401,7 +432,7 @@ int main(int argc, char** argv) {
     const char* name;
   };
   const OffsetPhaseCase offsetCases[] = {
-      {9, 3, 30, 14, "New Moon"},
+      {8, 3, 30, 14, "New Moon"},
       {8, 3, 30, -12, "Waxing Crescent"},
   };
   for (const OffsetPhaseCase& phaseCase : offsetCases) {

@@ -3,6 +3,8 @@
 #include <GfxRenderer.h>
 #include <Theme.h>
 
+#include <cmath>
+
 #include "ClockFacePrimitives.h"
 
 namespace papyrix::clock_faces {
@@ -224,15 +226,39 @@ int64_t gregorianDay(const std::tm& time) {
   return time.tm_mday + (153 * adjustedMonth + 2) / 5 + 365 * year + year / 4 - year / 100 + year / 400 - 32045;
 }
 
+float normalizeDegrees(float angle) { return angle - 360.0f * std::floor(angle / 360.0f); }
+
+float sinDegrees(float angle) { return std::sin(angle * 0.01745329252f); }
+
 LunarPhase lunarPhase(const std::tm& time, int8_t utcOffset) {
-  constexpr int64_t cycleMinutes = 42524;
-  constexpr int64_t newMoonDay = 2451550;
-  constexpr int newMoonMinute = 18 * 60 + 14;
-  int64_t ageMinutes = (gregorianDay(time) - newMoonDay) * 24 * 60 + time.tm_hour * 60 + time.tm_min - newMoonMinute -
-                       static_cast<int>(utcOffset) * 60;
-  ageMinutes %= cycleMinutes;
-  if (ageMinutes < 0) ageMinutes += cycleMinutes;
-  return static_cast<LunarPhase>(((ageMinutes * 8 + cycleMinutes / 2) / cycleMinutes) % 8);
+  constexpr int32_t epochHour = 2444239 * 24;
+  static int32_t cachedUtcHour = -1;
+  static LunarPhase cachedPhase = LunarPhase::New;
+  const int32_t utcHour = static_cast<int32_t>(gregorianDay(time) * 24 + time.tm_hour - utcOffset);
+  if (utcHour == cachedUtcHour) return cachedPhase;
+
+  cachedUtcHour = utcHour;
+  const float days = static_cast<float>(utcHour - epochHour) / 24.0f + 1.0f / 48.0f;
+  const float sunMeanLongitude = normalizeDegrees((360.0f / 365.2422f) * days);
+  const float sunMeanAnomaly = normalizeDegrees(sunMeanLongitude + 278.833540f - 282.596403f);
+  const float sunAnomalySin = sinDegrees(sunMeanAnomaly);
+  const float sunLongitude =
+      normalizeDegrees(sunMeanAnomaly + 1.9148f * sunAnomalySin + 0.0200f * sinDegrees(2 * sunMeanAnomaly) +
+                       0.0003f * sinDegrees(3 * sunMeanAnomaly) + 282.596403f);
+  const float moonMeanLongitude = normalizeDegrees(13.1763966f * days + 64.975464f);
+  const float moonMeanAnomaly = normalizeDegrees(moonMeanLongitude - 0.1114041f * days - 349.383063f);
+  const float evection = 1.2739f * sinDegrees(2 * (moonMeanLongitude - sunLongitude) - moonMeanAnomaly);
+  const float annualEquation = 0.1858f * sunAnomalySin;
+  const float correctedMoonAnomaly = moonMeanAnomaly + evection - annualEquation - 0.37f * sunAnomalySin;
+  const float correctedMoonLongitude = moonMeanLongitude + evection + 6.2886f * sinDegrees(correctedMoonAnomaly) -
+                                       annualEquation + 0.214f * sinDegrees(2 * correctedMoonAnomaly);
+  const float phase =
+      normalizeDegrees(correctedMoonLongitude + 0.6583f * sinDegrees(2 * (correctedMoonLongitude - sunLongitude)) -
+                       sunLongitude) /
+      360.0f;
+  const int slot = static_cast<int>(phase * 16.0f + 0.5f) % 16;
+  cachedPhase = slot % 4 == 0 ? static_cast<LunarPhase>(slot / 2) : static_cast<LunarPhase>((slot / 4) * 2 + 1);
+  return cachedPhase;
 }
 
 void drawLunarPhase(const Context& context, const Layout& layout, int centerY, LunarPhase phase) {
@@ -286,7 +312,7 @@ void drawLunarPhase(const Context& context, const Layout& layout, int centerY, L
       context.renderer.fillRect(rowX, centerY - deltaY, rowWidth, 1, context.theme.primaryTextBlack);
     }
   }
-  drawCircle(context.renderer, centerX, centerY, radius, 3, context.theme.primaryTextBlack);
+  drawCircle(context.renderer, centerX, centerY, radius, 5, context.theme.primaryTextBlack);
 }
 
 void drawDayNight(const Context& context) {
