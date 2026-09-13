@@ -380,42 +380,44 @@ char getKeyboardChar(const KeyboardState& state) {
   return '\0';
 }
 
-void battery(const GfxRenderer& r, const Theme& t, int x, int y, int percent, bool charging) {
-  // Simple battery icon: [====]
-  const int battW = 30;
-  const int battH = 14;
-  const int tipW = 3;
-  const int tipH = 6;
+static void drawBatteryBody(const GfxRenderer& r, const Theme& t, int x, int y, int percent, bool charging) {
+  constexpr int battW = 30;
+  constexpr int battH = 14;
+  constexpr int tipW = 3;
+  constexpr int tipH = 6;
 
-  const int iconY = y + 3;  // shift icon down to align with text
+  r.drawRect(x, y, battW, battH, t.primaryTextBlack);
+  r.fillRect(x + battW, y + (battH - tipH) / 2, tipW, tipH, t.primaryTextBlack);
 
-  // Battery body outline
-  r.drawRect(x, iconY, battW, battH, t.primaryTextBlack);
-
-  // Battery tip (positive terminal)
-  r.fillRect(x + battW, iconY + (battH - tipH) / 2, tipW, tipH, t.primaryTextBlack);
-
-  // Fill level
-  const int fillW = ((battW - 4) * percent) / 100;
+  const int boundedPercent = percent > 100 ? 100 : percent;
+  const int fillW = boundedPercent > 0 ? ((battW - 4) * boundedPercent) / 100 : 0;
   if (fillW > 0) {
-    r.fillRect(x + 2, iconY + 2, fillW, battH - 4, t.primaryTextBlack);
+    r.fillRect(x + 2, y + 2, fillW, battH - 4, t.primaryTextBlack);
   }
 
   if (charging) {
-    // Small zig-zag bolt centered in the body. Punch a background-color halo
-    // first so the bolt stays readable both over the empty white area and
-    // over the filled black area.
     const int boltCx = x + battW / 2;
-    const int boltTop = iconY + 2;
-    const int boltBot = iconY + battH - 3;
+    const int boltTop = y + 2;
+    const int boltBot = y + battH - 3;
     const int boltMid = (boltTop + boltBot) / 2;
-    r.fillRect(boltCx - 3, boltTop - 1, 7, boltBot - boltTop + 3, t.backgroundColor);
+    r.fillRect(boltCx - 3, boltTop - 1, 7, boltBot - boltTop + 3, t.backgroundColor == 0x00);
     r.drawLine(boltCx + 2, boltTop, boltCx - 1, boltMid, t.primaryTextBlack);
     r.drawLine(boltCx - 1, boltMid, boltCx + 1, boltMid, t.primaryTextBlack);
     r.drawLine(boltCx + 1, boltMid, boltCx - 2, boltBot, t.primaryTextBlack);
   }
+}
 
-  // Percentage text
+void batteryIcon(const GfxRenderer& r, const Theme& t, int x, int y, int percent, bool charging) {
+  const int boundedPercent = percent > 100 ? 100 : percent;
+  const int level = boundedPercent > 0 ? (boundedPercent + 12) / 25 : 0;
+  drawBatteryBody(r, t, x, y, level * 25, charging);
+}
+
+void battery(const GfxRenderer& r, const Theme& t, int x, int y, int percent, bool charging) {
+  constexpr int battW = 30;
+  constexpr int tipW = 3;
+  drawBatteryBody(r, t, x, y + 3, percent, charging);
+
   char buf[8];
   if (percent < 0) {
     snprintf(buf, sizeof(buf), "--%%");

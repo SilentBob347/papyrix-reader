@@ -44,6 +44,7 @@ HARNESS = r'''
 uint32_t nowMs = 0;
 uint32_t millis() { return nowMs; }
 std::string settingsFile;
+bool settingsExists = false;
 int writes = 0, syncs = 0, statusFrames = 0;
 bool ntpSynced = true;
 bool sntpActive = false;
@@ -150,17 +151,28 @@ struct Core {
   } clock;
   struct Storage {
     Result readToBuffer(const char*, char* buf, size_t size) {
+      if (!settingsExists) return {0, false};
       std::snprintf(buf, size, "%s", settingsFile.c_str());
-      return {settingsFile.size()};
+      return {settingsFile.size(), true};
     }
     void mkdir(const char*) {}
-    Result openWrite(const char*, FsFile&) { return {}; }
+    Result openWrite(const char*, FsFile&) {
+      settingsExists = true;
+      return {};
+    }
   } storage;
   struct Input { void resetIdleTimer() {} } input;
   struct Battery {
-    struct Status { bool percentageKnown; unsigned percentage; };
+    struct Status {
+      bool percentageKnown;
+      unsigned percentage;
+    };
     Status status{true, 50};
-    Status readStatus() const { return status; }
+    mutable int reads = 0;
+    Status readStatus() const {
+      ++reads;
+      return status;
+    }
   } battery;
   struct Usb { bool isConnected() const { return false; } } usb;
   hal::Cpu cpu;
@@ -224,6 +236,8 @@ struct Theme {
 } THEME;
 namespace ui {
 void centeredMessage(Renderer&, const Theme&, int, const char*) { ++statusFrames; }
+@BATTERY_BODY@
+@BATTERY_ICON@
 @BATTERY@
 @TITLE@
 @ENUM_VALUE@
@@ -246,6 +260,64 @@ struct AppMenuView { static constexpr int EXTRA_COUNT = 2; };
 struct SettingsListHit { static constexpr int LIST_START_Y = 60; };
 }
 constexpr int APP_CLOCK = 0;
+namespace clock_faces {
+enum class Face : uint8_t {
+  Big = 0,
+  Classic = 1,
+  Analog = 2,
+  Retro = 3,
+  Flip = 4,
+  Minimal = 5,
+  Serif = 6,
+  DayNight = 7,
+  Count = 8,
+};
+struct Context {
+  Renderer& renderer;
+  const Theme& theme;
+  const std::tm& time;
+  bool use24h;
+  int8_t dateFormat;
+  int8_t utcOffset;
+};
+inline bool isSelectable(Face face) {
+  return face == Face::Big || face == Face::Analog || face == Face::Retro || face == Face::Flip ||
+         face == Face::DayNight;
+}
+inline Face selectRelative(Face face, int delta) {
+  static constexpr Face faces[] = {Face::Big, Face::Analog, Face::Retro, Face::Flip, Face::DayNight};
+  int index = 0;
+  while (index < 5 && faces[index] != face) ++index;
+  if (index == 5) return Face::Big;
+  return faces[(index + delta + 5) % 5];
+}
+inline const char* name(Face face) {
+  switch (face) {
+    case Face::Big:
+      return "Big";
+    case Face::Analog:
+      return "Analog";
+    case Face::Retro:
+      return "Retro";
+    case Face::Flip:
+      return "Flip";
+    case Face::DayNight:
+      return "Day & Night";
+    default:
+      return "";
+  }
+}
+inline int renderCalls = 0;
+inline Face lastFace = Face::Big;
+inline bool lastUse24h = true;
+inline int8_t lastDateFormat = 0;
+inline void render(const Context& context, Face face) {
+  ++renderCalls;
+  lastFace = face;
+  lastUse24h = context.use24h;
+  lastDateFormat = context.dateFormat;
+}
+}  // namespace clock_faces
 namespace clock_app {
 @STATE@
 @TIMEZONE@
@@ -326,6 +398,7 @@ int main(int argc, char** argv) {
     core.clock.localTime(before);
     state.lastRenderedMin = before.tm_min;
     state.lastNtpSyncMs = millis();
+    state.menuSelected = static_cast<int8_t>(MenuItem::UtcOffset);
     for (int i = 0; i < 3; ++i) app.press(core, Button::Right);
     assert(writes == 0 && syncs == 0);
     app.needsRender_ = false;
@@ -378,7 +451,7 @@ int main(int argc, char** argv) {
     core.clock.valid = scenario == "manual-wifi-cancel";
     AppLauncherState app;
     if (core.clock.valid) {
-      for (int i = 0; i < 4; ++i) app.press(core, Button::Down);
+      for (int i = 0; i < 5; ++i) app.press(core, Button::Down);
       app.press(core, Button::Right);
     } else {
       app.activateMenuItem(core);
@@ -400,6 +473,7 @@ int main(int argc, char** argv) {
     nowMs = NTP_SYNC_INTERVALS[0];
     std::tm before{};
     core.clock.localTime(before);
+    state.menuSelected = static_cast<int8_t>(MenuItem::UtcOffset);
     onMenuButton(core, Button::Right);
     ntpSynced = scenario != "timeout";
     core.clock.updateSucceeds = scenario != "sync-failure";
@@ -414,6 +488,40 @@ int main(int argc, char** argv) {
     assert(core.cpu.performanceLocks == 0);
     delay(1);
     assert(!sntpActive);
+  } else if (scenario == "battery-icon") {
+    renderer.draws.clear();
+    ui::batteryIcon(renderer, THEME, 20, 22, -1, false);
+    assert(std::none_of(renderer.draws.begin(), renderer.draws.end(),
+                        [](const auto& draw) { return draw.kind == 'T'; }));
+    assert(std::any_of(renderer.draws.begin(), renderer.draws.end(), [](const auto& draw) {
+      return draw.kind == 'R' && draw.x == 20 && draw.y == 22 && draw.w == 30 && draw.h == 14;
+    }));
+    assert(std::none_of(renderer.draws.begin(), renderer.draws.end(), [](const auto& draw) {
+      return draw.kind == 'F' && draw.x > 20 && draw.x < 50 && draw.w > 3;
+    }));
+
+    renderer.draws.clear();
+    ui::batteryIcon(renderer, THEME, 20, 22, 50, true);
+    auto halo = std::find_if(renderer.draws.begin(), renderer.draws.end(), [](const auto& draw) {
+      return draw.kind == 'F' && draw.x == 32 && draw.y == 23 && draw.w == 7 && draw.h == 12;
+    });
+    assert(halo != renderer.draws.end() && !halo->black);
+    assert(std::count_if(renderer.draws.begin(), renderer.draws.end(), [](const auto& draw) {
+      return draw.kind == 'L' && draw.black;
+    }) == 3);
+
+    Theme dark = THEME;
+    dark.backgroundColor = 0x00;
+    dark.primaryTextBlack = false;
+    renderer.draws.clear();
+    ui::batteryIcon(renderer, dark, 20, 22, 50, true);
+    halo = std::find_if(renderer.draws.begin(), renderer.draws.end(), [](const auto& draw) {
+      return draw.kind == 'F' && draw.x == 32 && draw.y == 23 && draw.w == 7 && draw.h == 12;
+    });
+    assert(halo != renderer.draws.end() && halo->black);
+    assert(std::count_if(renderer.draws.begin(), renderer.draws.end(), [](const auto& draw) {
+      return draw.kind == 'L' && !draw.black;
+    }) == 3);
   } else if (scenario == "layout") {
     state.utcOffset = -12;
     state.ntpSyncSetting = 2;
@@ -443,10 +551,13 @@ int main(int argc, char** argv) {
       }
       for (const bool valid : {false, true}) {
         core.clock.valid = valid;
+        renderer.clearScreen(THEME.backgroundColor);
         clock_app::render(core);
         assert(std::any_of(renderer.draws.begin(), renderer.draws.end(), [&](const auto& draw) {
-          return draw.kind == 'T' && draw.fontId == THEME.smallFontId && draw.y < 60 &&
-                 draw.x + draw.w <= width - 20;
+          return draw.kind == 'R' && draw.x == width - 53 && draw.y == 22 && draw.w == 30 && draw.h == 14;
+        }));
+        assert(std::none_of(renderer.draws.begin(), renderer.draws.end(), [](const auto& draw) {
+          return draw.kind == 'T' && draw.text.find('%') != std::string::npos;
         }));
       }
     }
@@ -471,7 +582,7 @@ int main(int argc, char** argv) {
     state.ntpSyncSetting = NTP_SYNC_COUNT - 1;
     enter(core);
     AppLauncherState app;
-    for (int i = 0; i < 4; ++i) app.press(core, Button::Down);
+    for (int i = 0; i < 5; ++i) app.press(core, Button::Down);
     app.press(core, Button::Left);
     assert(syncs == 0 && writes == 0);
     app.press(core, Button::Right);
@@ -654,6 +765,7 @@ int main(int argc, char** argv) {
     assert(!sntpActive);
     assert(statusFrames == 0 && nowMs == 0);
     AppLauncherState app;
+    state.menuSelected = static_cast<int8_t>(MenuItem::UtcOffset);
     app.press(core, Button::Right);
     nowMs = NTP_SYNC_INTERVALS[0];
     app.poll(core);
@@ -677,6 +789,69 @@ int main(int argc, char** argv) {
     assert(core.wifi.connects == 2);
     assert(!core.wifi.isConnected() && !core.wifi.isInitialized());
     assert(core.cpu.performanceLocks == 0);
+  } else if (scenario == "face-migration") {
+    settingsExists = false;
+    state.face = clock_faces::Face::DayNight;
+    loadSettings(core);
+    assert(state.face == clock_faces::Face::Big);
+
+    settingsExists = true;
+    settingsFile = "utcOffset=0\nuse24h=1\n";
+    state.face = clock_faces::Face::Big;
+    loadSettings(core);
+    assert(state.face == clock_faces::Face::Retro);
+
+    settingsFile += "face=7\n";
+    loadSettings(core);
+    assert(state.face == clock_faces::Face::DayNight);
+
+    settingsFile = "face=1\n";
+    loadSettings(core);
+    assert(state.face == clock_faces::Face::Retro);
+    settingsFile = "face=99\n";
+    loadSettings(core);
+    assert(state.face == clock_faces::Face::Retro);
+    settingsFile = "face=\n";
+    loadSettings(core);
+    assert(state.face == clock_faces::Face::Retro);
+    settingsFile = "face=garbage\n";
+    loadSettings(core);
+    assert(state.face == clock_faces::Face::Retro);
+    settingsFile = "face=7junk\n";
+    loadSettings(core);
+    assert(state.face == clock_faces::Face::Retro);
+  } else if (scenario == "face-selection") {
+    state.menuSelected = static_cast<int8_t>(MenuItem::Face);
+    state.face = clock_faces::Face::Big;
+    const clock_faces::Face expected[] = {
+        clock_faces::Face::Analog,
+        clock_faces::Face::Retro,
+        clock_faces::Face::Flip,
+        clock_faces::Face::DayNight,
+        clock_faces::Face::Big,
+    };
+    for (clock_faces::Face face : expected) {
+      onMenuButton(core, Button::Right);
+      assert(state.face == face);
+    }
+    onMenuButton(core, Button::Left);
+    assert(state.face == clock_faces::Face::DayNight);
+    onMenuButton(core, Button::Back);
+    assert(settingsFile.find("face=7\n") != std::string::npos);
+  } else if (scenario == "face-render") {
+    core.battery.reads = 0;
+    clock_faces::renderCalls = 0;
+    state.face = clock_faces::Face::Flip;
+    state.use24h = false;
+    state.dateFormat = 3;
+    render(core);
+    assert(clock_faces::renderCalls == 1);
+    assert(clock_faces::lastFace == clock_faces::Face::Flip);
+    assert(!clock_faces::lastUse24h && clock_faces::lastDateFormat == 3);
+    assert(core.battery.reads == 1);
+    assert(std::none_of(renderer.draws.begin(), renderer.draws.end(), [](const auto& draw) {
+      return draw.kind == 'T' && draw.text.find('%') != std::string::npos;
+    }));
   } else {
     assert(false);
   }
@@ -693,6 +868,8 @@ def main():
     state = clock[clock.index("static constexpr const char* SETTINGS_PATH"):
                   clock.index("static void applyTimezone")]
     replacements = {
+        "BATTERY_BODY": block(elements, "static void drawBatteryBody("),
+        "BATTERY_ICON": block(elements, "void batteryIcon("),
         "BATTERY": block(elements, "void battery("),
         "TITLE": block(elements, "void title("),
         "ENUM_VALUE": block(elements, "void enumValue("),
@@ -709,7 +886,7 @@ def main():
         "SYNC_AUTO": block(clock, "void syncNtpAutoConnect("),
         "ENTER": block(clock, "void enter("),
         "UPDATE": block(clock, "bool update("),
-        "RENDER": clock[clock.index("static constexpr int DIGIT_W"):clock.index("void exit(")],
+        "RENDER": block(clock, "bool render("),
         "RENDER_MENU": block(clock, "void renderMenu("),
         "MENU": block(clock, "void onMenuButton("),
         "EXIT": block(clock, "void exit("),
@@ -746,6 +923,7 @@ def main():
             "radio-inherited-connected", "radio-inherited-initialized", "connected-enter",
             "sync-cleanup", "no-credentials", "all-credentials-fail",
             "manual-sync", "manual-wifi", "manual-wifi-cancel",
+            "battery-icon", "face-migration", "face-selection", "face-render",
             "layout",
         )
         for scenario in scenarios:

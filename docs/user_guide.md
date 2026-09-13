@@ -435,7 +435,12 @@ Open **Apps → Clock**. If the device has valid time, Clock opens without a WiF
 If time is not set, Clock opens WiFi setup. Connect to a network to synchronize the time.
 Press **Back** in WiFi setup to return to Apps without synchronization.
 
-Open **Menu** to change the time zone, time format, date format, or NTP interval.
+Open **Menu** to change the clock face, time zone, time format, date format, or NTP interval.
+The available faces are **Big**, **Analog**, **Retro**, **Flip**, and **Day & Night**.
+Each face shows the date at the top and centers the clock in the usable screen area.
+**Day & Night** shows the sun below the time from 06:00 through 17:59 local time.
+At night, it shows the current lunar phase below the time and the phase name below the moon.
+New installations use **Big**. Existing Clock settings keep **Retro** until you select another face.
 Settings use a full-screen list. Each setting shows its current value on the right.
 The settings menu does not show the clock face or battery indicator.
 Press **Right** to select the next value. Press **Left** to select the previous value.

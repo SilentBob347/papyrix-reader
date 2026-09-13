@@ -91,8 +91,8 @@ struct KeyboardState {
 void keyboard(const GfxRenderer& r, const Theme& t, int y, const KeyboardState& state);
 char getKeyboardChar(const KeyboardState& state);
 
-// Battery indicator - Icon + percentage. When charging, draws a small bolt
-// inside the body to show USB power.
+// Battery indicator. Charging adds a small bolt inside the body.
+void batteryIcon(const GfxRenderer& r, const Theme& t, int x, int y, int percent, bool charging = false);
 void battery(const GfxRenderer& r, const Theme& t, int x, int y, int percent, bool charging = false);
 
 // Status bar - Page numbers and progress percentage
