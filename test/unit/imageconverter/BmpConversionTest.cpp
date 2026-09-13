@@ -180,6 +180,7 @@ int main() {
     runner.expectTrue(outputIsCanonical1Bit(out, 50, 25), "scale: output is 50x25");
   }
 
+
   // ---- Test: cancellation fails without publishing ----
   {
     SdMan.clearFiles();

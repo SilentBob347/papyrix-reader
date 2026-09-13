@@ -57,6 +57,7 @@ int main() {
   runner.expectEq(8, read32Signed(output, 18), "small JPEG width is not upscaled");
   runner.expectEq(-16, read32Signed(output, 22), "JPEG output is top-down at native height");
 
+
   SdMan.remove("/cover.bmp");
   int checks = 0;
   config.shouldAbort = [&checks]() { return ++checks >= 5; };

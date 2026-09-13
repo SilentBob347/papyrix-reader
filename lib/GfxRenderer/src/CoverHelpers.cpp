@@ -2,6 +2,7 @@
 
 #include <Bitmap.h>
 #include <GfxRenderer.h>
+#include <HardwareIdentity.h>
 #include <HomeThumbnail.h>
 #include <ImageConverter.h>
 #include <Logging.h>
@@ -103,6 +104,9 @@ std::string findCoverImage(const std::string& dirPath, const std::string& baseNa
 bool convertImageToBmp(const std::string& inputPath, const std::string& outputPath, const char* logTag,
                        bool use1BitDithering, const std::function<bool()>& shouldAbort) {
   ImageConvertConfig config;
+  const auto& display = papyrix::board::HardwareIdentity::instance().profile().display;
+  config.maxWidth = display.height;
+  config.maxHeight = display.width;
   config.oneBit = use1BitDithering;
   config.logTag = logTag;
   config.shouldAbort = shouldAbort;

@@ -1,7 +1,9 @@
 #include "test_utils.h"
 
 #include <ContentHandle.h>
+#include <CoverHelpers.h>
 #include <HomeThumbnail.h>
+#include <HardwareIdentity.h>
 #include <SDCardManager.h>
 #include <platform_stubs.h>
 
@@ -225,6 +227,37 @@ std::string buildFb2() {
 int main() {
   TestUtils::TestRunner runner("ContentHandleThumbnailTest");
   testResetLargestFreeBlock();
+  auto& identity = papyrix::board::HardwareIdentity::instance();
+  struct CoverSizeCase {
+    papyrix::board::BoardId board;
+    int sourceWidth;
+    int sourceHeight;
+    int expectedWidth;
+    int expectedHeight;
+    const char* name;
+  };
+  const CoverSizeCase coverSizeCases[] = {
+      {papyrix::board::BoardId::X4, 600, 300, 480, 240, "X4 cover uses 480x800 bounds"},
+      {papyrix::board::BoardId::X3, 600, 300, 528, 264, "X3 cover uses 528x792 bounds"},
+      {papyrix::board::BoardId::X4, 48, 24, 48, 24, "small cover is not upscaled"},
+  };
+  for (const CoverSizeCase& c : coverSizeCases) {
+    SdMan.clearFiles();
+    SdMan.clearWrittenFiles();
+    SdMan.reset();
+    runner.expectTrue(
+        identity.applyBoardSelection({c.board, papyrix::board::BoardSelectionSource::Override}, {}),
+        (std::string(c.name) + ": board selected").c_str());
+    SdMan.registerFile("/cover.bmp", build24bpp(c.sourceWidth, c.sourceHeight));
+    runner.expectTrue(CoverHelpers::convertImageToBmp("/cover.bmp", "/converted.bmp", "TEST", true),
+                      (std::string(c.name) + ": conversion succeeds").c_str());
+    home_thumbnail::Info info;
+    runner.expectTrue(home_thumbnail::validateCover("/converted.bmp", &info),
+                      (std::string(c.name) + ": output is valid").c_str());
+    runner.expectEq(c.expectedWidth, info.width, (std::string(c.name) + ": width").c_str());
+    runner.expectEq(c.expectedHeight, info.height, (std::string(c.name) + ": height").c_str());
+  }
+
 
   struct Case {
     const char* name;

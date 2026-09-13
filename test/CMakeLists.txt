@@ -485,9 +485,11 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/lib/Utf8/src/Utf8.cpp
       ${PROJECT_ROOT}/lib/Utf8/src/Utf8Nfc.cpp
       ${PROJECT_ROOT}/lib/FsHelpers/src/FsHelpers.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
       ${TEST_HELPERS}
     )
-    target_compile_definitions(${TEST_NAME} PRIVATE XML_GE=0 XML_DTD)
+    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_XTEINK_C3=1 XML_GE=0 XML_DTD)
     target_link_libraries(${TEST_NAME} PRIVATE EXPAT::EXPAT)
     target_compile_options(${TEST_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include Arduino.h>)
     target_include_directories(${TEST_NAME} BEFORE PRIVATE

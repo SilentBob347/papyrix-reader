@@ -54,6 +54,7 @@ int main() {
   runner.expectTrue((static_cast<uint8_t>(first[66]) & 0x80U) != 0,
                     "transparent black blends to white");
 
+
   SdMan.remove("/cover.bmp");
   runner.expectTrue(ImageConverterFactory::convertToBmp("/cover.img", "/second.bmp", config),
                     "repeat PNG conversion succeeds");

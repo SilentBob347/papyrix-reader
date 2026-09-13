@@ -443,7 +443,7 @@ See the [rendering pipeline](./docs/rendering-pipeline.md#page-cache) for cache 
 
 [epub-to-xtc-converter](https://github.com/bigbag/epub-to-xtc-converter) — browser-based converter from EPUB to the Xteink native XTC/XTCH format. It uses CREngine WASM for accurate rendering.
 
-- Device presets for Xteink X4/X3 (480x800)
+- Device presets for Xteink X4 (480×800) and X3 (528×792)
 - Font selection from Google Fonts or custom TTF/OTF
 - Margins, line height, and hyphenation that you can set (42 languages)
 - Dark mode and dithering options

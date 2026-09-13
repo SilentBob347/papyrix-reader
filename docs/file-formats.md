@@ -5,6 +5,9 @@ PapyriX stores EPUB, TXT, Markdown, FB2, and HTML page caches in binary files.
 `<device-cache>` is `/.papyrix/cache/` on X4, `/.papyrix/cache/x3/` on X3,
 and `/.papyrix/cache/x4pro/` on X4 Pro.
 
+Cover conversion keeps the aspect ratio. It reduces covers to 528×792 on X3
+or 480×800 on X4 and X4 Pro. It does not enlarge smaller covers.
+
 ## TXT Cache Files
 
 TXT files use a simple cache format in `<device-cache>/txt_<hash>/`.
