@@ -4,7 +4,7 @@ The built-in web server provides file upload and management through Wi-Fi.
 
 ## Overview
 
-Papyrix Reader includes a built-in web server that lets you:
+PapyriX Reader includes a built-in web server that lets you:
 
 - Upload books through WiFi from a device on the same WiFi network
 - Browse and manage files on the SD card of your device
@@ -15,7 +15,7 @@ Papyrix Reader includes a built-in web server that lets you:
 
 ## Prerequisites
 
-- Your Papyrix Reader device
+- Your PapyriX Reader device
 - A WiFi network
 - A computer, phone, or tablet connected to the **same WiFi network**
 
@@ -311,7 +311,7 @@ The Firmware tab manages firmware update files for the device.
 
 When you are done with file upload:
 
-1. Press the **Back** button on your Papyrix Reader.
+1. Press the **Back** button on your PapyriX Reader.
 2. The web server stops.
 3. WiFi disconnects.
 4. **The device restarts** to get memory back.

@@ -2,7 +2,7 @@
 
 ## Layers
 
-Papyrix supports ESP32-C3 and ESP32-S3 targets.
+PapyriX supports ESP32-C3 and ESP32-S3 targets.
 The reader and UI share content providers and rendering code.
 Board profiles select hardware backends and display controllers.
 

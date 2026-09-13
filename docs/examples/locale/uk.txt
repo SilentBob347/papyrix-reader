@@ -1,4 +1,4 @@
-# Українська - повна довідка для перекладів Papyrix
+# Українська - повна довідка для перекладів PapyriX
 # Скопіюйте цей файл у /.papyrix/locale.txt на SD-картку
 # і перекладіть значення (права частина від =)
 _language_name=Українська
@@ -209,7 +209,6 @@ CONFIRM_DELETE=Підтв. видал.
 # Misc
 ENTER_TEXT=Текст
 NO_COVER=Без обкл.
-PAPYRIX=Papyrix
 ADD=Додати
 NO_BOOKMARKS=Закладок немає
 BOOKS=Книги

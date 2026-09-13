@@ -59,7 +59,6 @@
 #include "core/FirmwareUpdater.h"
 #include "core/StateMachine.h"
 #include "diagnostics/X4ProCharacterization.h"
-#include "images/PapyrixLogo.h"
 #include "states/AppLauncherState.h"
 #include "states/CalibreSyncState.h"
 #include "states/ErrorState.h"
@@ -420,7 +419,7 @@ bool earlyInit() {
     verifyWakeupLongPress(wakeup.resetReason);
   }
 
-  LOG_INF(TAG, "Starting Papyrix version " PAPYRIX_VERSION);
+  LOG_INF(TAG, "Starting PapyriX version " PAPYRIX_VERSION);
   papyrix::crashdebug::logBootInfo(wakeup.resetReason);
 
   if (papyrix::board::HardwareIdentity::instance().board() == papyrix::board::BoardId::X4) {
@@ -464,9 +463,8 @@ void initUIMode() {
   const auto& preInitTransition = papyrix::getTransition();
   if (!preInitTransition.isValid()) {
     ui::BootView bootView;
-    bootView.setLogo(PapyrixLogo, 128, 128);
-    bootView.setVersion(PAPYRIX_VERSION);
     bootView.setStatus(tr(BOOTING));
+    bootView.setDarkMode(THEME.invertedMode);
     ui::render(renderer, THEME, bootView);
   }
 

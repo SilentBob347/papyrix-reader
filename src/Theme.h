@@ -6,7 +6,7 @@
 #include "config.h"
 
 /**
- * Theme configuration for Papyrix UI.
+ * Theme configuration for PapyriX UI.
  *
  * Controls colors, fonts, and layout for all activities.
  * Since e-ink is binary (black/white), colors are represented as booleans:

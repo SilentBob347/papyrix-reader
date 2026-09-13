@@ -1,6 +1,6 @@
 # Calibre Wireless Device Guide
 
-Calibre Wireless Device transfers books from Calibre to Papyrix through Wi-Fi.
+Calibre Wireless Device transfers books from Calibre to PapyriX through Wi-Fi.
 
 ## Overview
 
@@ -16,18 +16,18 @@ This is the fastest method to send books if you already use Calibre for ebook ma
 ## Prerequisites
 
 - **Calibre** installed on your computer ([download here](https://calibre-ebook.com/download))
-- Your Papyrix Reader device
+- Your PapyriX Reader device
 - The two devices connected to the **same WiFi network**
 
 ---
 
-## Step 1: Enable Wireless Device in Papyrix
+## Step 1: Enable Wireless Device in PapyriX
 
 1. From the Home screen, open **Apps** and select **Calibre Wireless**.
 2. Connect to your WiFi network when the device tells you.
 3. After the connection, the screen shows:
    - **IP Address and Port** (for example, `192.168.1.42:9090`)
-   - **Device Name** (for example, "Papyrix Reader")
+   - **Device Name** (for example, "PapyriX Reader")
    - Status: "Waiting for Calibre..."
 
 Keep the device on this screen while you connect from Calibre.
@@ -44,18 +44,18 @@ Keep the device on this screen while you connect from Calibre.
 
 ### Automatic Discovery
 
-Calibre scans for wireless devices on your network. Your Papyrix Reader must show in the device list in some seconds.
+Calibre scans for wireless devices on your network. Your PapyriX Reader must show in the device list in some seconds.
 
 If automatic discovery does not operate, you can enter the IP address:
 1. In Calibre, go to **Connect/Share > Start wireless device connection**.
 2. Click **Manual connect**.
-3. Enter the IP address shown on your Papyrix (for example, `192.168.1.42`).
+3. Enter the IP address shown on your PapyriX (for example, `192.168.1.42`).
 4. Enter the port number (default: `9090`).
 
 ### Connection Confirmation
 
 When connected:
-- Your Papyrix screen changes to "Connected to Calibre".
+- Your PapyriX screen changes to "Connected to Calibre".
 - Calibre shows your device in the left sidebar.
 
 ---
@@ -77,7 +77,7 @@ When connected:
 ### Progress Display
 
 During transfer:
-- Papyrix shows "Receiving book..." with the title.
+- PapyriX shows "Receiving book..." with the title.
 - A progress bar shows transfer status.
 - Transfer speed is from your WiFi connection.
 
@@ -90,7 +90,7 @@ Books are saved to the `/Books/` folder on your SD card.
 ### Viewing Books on Device
 
 After the connection, the Calibre left sidebar shows:
-- **Device** section with your Papyrix Reader
+- **Device** section with your PapyriX Reader
 - Click **Main memory** to see books on your device
 
 ### Deleting Books
@@ -100,7 +100,7 @@ From Calibre:
 2. Select the book or books to delete.
 3. Right-click and select **Remove books from device**.
 
-The book is deleted from the SD card of your Papyrix.
+The book is deleted from the SD card of your PapyriX.
 
 ---
 
@@ -112,13 +112,13 @@ Settings are in `/config/calibre.ini` on your SD card:
 
 ```ini
 [Settings]
-device_name = Papyrix Reader
+device_name = PapyriX Reader
 password =
 ```
 
 ### Available Settings
 
-- **device_name** - How your device shows in Calibre (default: `Papyrix Reader`)
+- **device_name** - How your device shows in Calibre (default: `PapyriX Reader`)
 - **password** - Optional password for authentication (default: empty = no password)
 
 ### Setting a Password
@@ -143,7 +143,7 @@ The two passwords must match for the connection to operate.
 
 ### Device Not Found in Calibre
 
-**Problem:** Calibre does not find your Papyrix Reader.
+**Problem:** Calibre does not find your PapyriX Reader.
 
 **Solutions:**
 1. Connect both devices to the **same WiFi network**.
@@ -185,7 +185,7 @@ The two passwords must match for the connection to operate.
 
 ### Protocol
 
-Papyrix uses the **Calibre Smart Device App** protocol:
+PapyriX uses the **Calibre Smart Device App** protocol:
 - **Discovery:** UDP broadcast on ports 54982, 48123, 39001, 44044, 59678
 - **Communication:** TCP connection on port 9090
 - **Authentication:** SHA1-based password hashing (optional)
@@ -210,7 +210,7 @@ Papyrix uses the **Calibre Smart Device App** protocol:
 When you are done:
 
 1. In Calibre, right-click your device and select **Eject this device**.
-2. On your Papyrix, press the **Back** button.
+2. On your PapyriX, press the **Back** button.
 3. The device restarts to get WiFi memory back.
 
 ---

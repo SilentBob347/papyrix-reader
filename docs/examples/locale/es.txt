@@ -1,4 +1,4 @@
-# Español - referencia completa para traducciones de Papyrix
+# Español - referencia completa para traducciones de PapyriX
 # Copia este archivo a /.papyrix/locale.txt en tu tarjeta SD
 # y traduce los valores (parte derecha del =)
 _language_name=Español
@@ -209,7 +209,6 @@ CONFIRM_DELETE=Confirmar eliminación
 # Misc
 ENTER_TEXT=Introducir texto
 NO_COVER=Sin portada
-PAPYRIX=Papyrix
 ADD=Añadir
 NO_BOOKMARKS=Aún no hay marcadores
 BOOKS=Libros

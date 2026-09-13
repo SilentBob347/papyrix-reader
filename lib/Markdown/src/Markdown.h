@@ -1,7 +1,7 @@
 /**
  * Markdown.h
  *
- * Markdown file handler for Papyrix Reader
+ * Markdown file handler for PapyriX Reader
  * Provides EPUB-like interface for Markdown file handling
  */
 

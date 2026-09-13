@@ -119,7 +119,7 @@ The stock firmware functions are `FUN_42015108` (planes) and `FUN_42013be0` (LUT
 6. CDI (`0x97` first, `0xD7` later)
 7. PON, DRF, wait BUSY
 
-This is the stock firmware sequence. The Papyrix driver keeps the window open until the refresh completes. The gray planes overwrite DTM1 and DTM2. The next B/W refresh seeds DTM1 white and uses GC. The FreeInk driver adds an optional pre-conditioning pass before the gray frame. The pass uses `XTF_PRE_BW_MID` with CCSET (`0xE0`) = `0x02` and TSSET (`0xE5`) = `0x5A` (stock function `FUN_42015944`). Papyrix does not implement this pass. `XTH4` is an alternative built-in 4-gray table set.
+This is the stock firmware sequence. The PapyriX driver keeps the window open until the refresh completes. The gray planes overwrite DTM1 and DTM2. The next B/W refresh seeds DTM1 white and uses GC. The FreeInk driver adds an optional pre-conditioning pass before the gray frame. The pass uses `XTF_PRE_BW_MID` with CCSET (`0xE0`) = `0x02` and TSSET (`0xE5`) = `0x5A` (stock function `FUN_42015944`). PapyriX does not implement this pass. `XTH4` is an alternative built-in 4-gray table set.
 
 ### Deep Sleep
 
@@ -146,7 +146,7 @@ The UC8279d waveforms differ from the UC8253 X3 banks. Do not copy the UC8253 X3
 
 - After PON, DRF, and POF the controller drives `BUSY_N` LOW, then HIGH when complete.
 - Wait for the LOW edge with a bounded timeout. Then wait for HIGH. If BUSY does not go LOW within the timeout, the driver treats the command as complete. A RAM write during the waveform corrupts the frame.
-- Papyrix uses 1 s for the assertion and 30 s for completion. On a timeout the driver marks DTM1 invalid and forces GC on the next refresh.
+- PapyriX uses 1 s for the assertion and 30 s for completion. On a timeout the driver marks DTM1 invalid and forces GC on the next refresh.
 
 ---
 

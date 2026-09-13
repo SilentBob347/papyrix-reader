@@ -99,7 +99,7 @@ calibre_err_t calibre_handle_init_info(calibre_conn_t* conn, const char* json) {
   char response[1024];
   int len = snprintf(response, sizeof(response),
                      "{"
-                     "\"appName\": \"Papyrix Reader\","
+                     "\"appName\": \"PapyriX Reader\","
                      "\"acceptedExtensions\": %s,"
                      "\"cacheUsesLpaths\": true,"
                      "\"canAcceptLibraryInfo\": true,"
@@ -111,7 +111,7 @@ calibre_err_t calibre_handle_init_info(calibre_conn_t* conn, const char* json) {
                      "\"canUseCachedMetadata\": true,"
                      "\"ccVersionNumber\": 128,"
                      "\"coverHeight\": 240,"
-                     "\"deviceKind\": \"Papyrix E-Ink Reader\","
+                     "\"deviceKind\": \"PapyriX E-Ink Reader\","
                      "\"deviceName\": \"%s\","
                      "\"extensionPathLengths\": {},"
                      "\"maxBookContentPacketLen\": %d,"
@@ -603,7 +603,7 @@ calibre_err_t calibre_handle_device_info(calibre_conn_t* conn, const char* json)
            "\"device_store_uuid\": \"%s\","
            "\"device_name\": \"%s\""
            "},"
-           "\"device_version\": \"Papyrix 1.0\","
+           "\"device_version\": \"PapyriX 1.0\","
            "\"version\": \"1.0\""
            "}",
            conn->config.device_store_uuid, conn->config.device_name);

@@ -48,7 +48,7 @@ Board-specific backends set the required rail and GPIO hold states.
 
 ## Storage
 
-Papyrix supports FAT32 and exFAT SD cards.
+PapyriX supports FAT32 and exFAT SD cards.
 Page caches use device-specific folders:
 
 ```text

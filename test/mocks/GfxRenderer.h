@@ -3,6 +3,7 @@
 #include <Display.h>
 #include <EpdFontFamily.h>
 #include <Utf8.h>
+#include <cstring>
 
 #include <map>
 #include <string>
@@ -174,8 +175,50 @@ class GfxRenderer {
   void drawArabicText(int, int, int, const char*, bool = true, EpdFontFamily::Style = EpdFontFamily::REGULAR) const {}
   void clearArea(int, int, int, int, uint8_t = 0xFF) const {}
   void warmCodepointsBatch(int, const uint32_t*, size_t, EpdFontFamily::Style = EpdFontFamily::REGULAR) const {}
-  void drawImage(const uint8_t*, int, int, int, int) const {}
-  void clearScreen(uint8_t = 0xFF) const {}
+  void drawImage(const uint8_t* data, int x, int y, int width, int height) const {
+    if (data == nullptr || width <= 0 || height <= 0 || x < 0 || x >= getScreenWidth() || y < 0 ||
+        y >= getScreenHeight()) {
+      return;
+    }
+
+    int panelX = x;
+    int panelY = y;
+    switch (orientation) {
+      case Portrait:
+        panelX = y;
+        panelY = papyrix::hal::Display::DISPLAY_HEIGHT - 1 - x;
+        break;
+      case LandscapeClockwise:
+        panelX = papyrix::hal::Display::DISPLAY_WIDTH - 1 - x;
+        panelY = papyrix::hal::Display::DISPLAY_HEIGHT - 1 - y;
+        break;
+      case PortraitInverted:
+        panelX = papyrix::hal::Display::DISPLAY_WIDTH - 1 - y;
+        panelY = x;
+        break;
+      case LandscapeCounterClockwise:
+        break;
+    }
+
+    const int imageWidthBytes = width / 8;
+    const int firstByte = panelX / 8;
+    const int availableBytes = papyrix::hal::Display::DISPLAY_WIDTH_BYTES - firstByte;
+    const int copyBytes = imageWidthBytes < availableBytes ? imageWidthBytes : availableBytes;
+    const int availableRows = papyrix::hal::Display::DISPLAY_HEIGHT - panelY;
+    const int copyRows = height < availableRows ? height : availableRows;
+    if (copyBytes <= 0 || copyRows <= 0) return;
+
+    for (int row = 0; row < copyRows; row++) {
+      memcpy(&frameBuffer_[(panelY + row) * papyrix::hal::Display::DISPLAY_WIDTH_BYTES + firstByte],
+             &data[row * imageWidthBytes], copyBytes);
+    }
+  }
+  void clearScreen(uint8_t color = 0xFF) const {
+    memset(frameBuffer_, color, papyrix::hal::Display::BUFFER_SIZE);
+  }
+  void invertScreen() const {
+    for (uint8_t& byte : frameBuffer_) byte = static_cast<uint8_t>(~byte);
+  }
   void drawPixel(int, int, bool = true) const {}
   void drawLine(int, int, int, int, bool = true) const {}
   void drawRect(int, int, int, int, bool = true) const {}

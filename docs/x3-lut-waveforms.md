@@ -42,7 +42,7 @@ The controller compares RAM 0x10 (old frame) with RAM 0x13 (new frame) for each 
 
 ---
 
-## LUT Sets in Papyrix
+## LUT Sets in PapyriX
 
 ### `lut_x3_*_full` — Quality Refresh
 

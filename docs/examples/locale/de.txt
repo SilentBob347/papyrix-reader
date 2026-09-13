@@ -1,4 +1,4 @@
-# Deutsch - vollständige Referenz für Papyrix-Übersetzungen
+# Deutsch - vollständige Referenz für PapyriX-Übersetzungen
 # Kopiere diese Datei nach /.papyrix/locale.txt auf deine SD-Karte
 # und übersetze die Werte (rechte Seite von =)
 _language_name=Deutsch
@@ -209,7 +209,6 @@ CONFIRM_DELETE=Löschen bestätigen
 # Misc
 ENTER_TEXT=Text eingeben
 NO_COVER=Kein Cover
-PAPYRIX=Papyrix
 ADD=Hinzuf.
 NO_BOOKMARKS=Noch keine Lesezeichen
 BOOKS=Bücher

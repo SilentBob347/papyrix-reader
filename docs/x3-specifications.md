@@ -69,7 +69,7 @@ All other results are inconclusive.
 
 The firmware stores a conclusive result in `epd_det`. It stores the cache format in `epd_ver`. It does not store an inconclusive result. It uses UC8253 for that start.
 
-Papyrix restarts when it changes between UI mode and Reader mode. A valid cache prevents a new probe after these restarts. The firmware runs a new probe when no valid cache exists. An inconclusive probe runs again at each start. The `epd_ovr` override does not change the automatic cache.
+PapyriX restarts when it changes between UI mode and Reader mode. A valid cache prevents a new probe after these restarts. The firmware runs a new probe when no valid cache exists. An inconclusive probe runs again at each start. The `epd_ovr` override does not change the automatic cache.
 
 ### Framebuffer
 

@@ -1,6 +1,6 @@
 # File Formats
 
-Papyrix stores EPUB, TXT, Markdown, FB2, and HTML page caches in binary files.
+PapyriX stores EPUB, TXT, Markdown, FB2, and HTML page caches in binary files.
 
 `<device-cache>` is `/.papyrix/cache/` on X4, `/.papyrix/cache/x3/` on X3,
 and `/.papyrix/cache/x4pro/` on X4 Pro.

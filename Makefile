@@ -1,4 +1,4 @@
-# Makefile for Papyrix Reader firmware
+# Makefile for PapyriX Reader firmware
 # Wraps PlatformIO commands for convenience
 
 .PHONY: all build build-release release package upload upload-release flash flash-release flash-xteink-c3 flash-x4pro \
@@ -91,13 +91,13 @@ ifdef NOTES
 	gh release create v$(VERSION) dist/papyrix-xteink-c3.bin dist/papyrix-x4pro.bin \
 		dist/manifest.json \
 		--repo bigbag/papyrix-reader \
-		--title "Papyrix v$(VERSION)" \
+		--title "PapyriX v$(VERSION)" \
 		--notes "$(NOTES)"
 else
 	gh release create v$(VERSION) dist/papyrix-xteink-c3.bin dist/papyrix-x4pro.bin \
 		dist/manifest.json \
 		--repo bigbag/papyrix-reader \
-		--title "Papyrix v$(VERSION)" \
+		--title "PapyriX v$(VERSION)" \
 		--generate-notes
 endif
 
@@ -175,7 +175,7 @@ endif
 ## Help:
 
 help: ## Show this help
-	@echo "Papyrix Reader - Build System"
+	@echo "PapyriX Reader - Build System"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""

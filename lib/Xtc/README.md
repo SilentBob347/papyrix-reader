@@ -1,6 +1,6 @@
 # XTC/XTCH Library
 
-This library reads XTC and XTCH books for Papyrix.
+This library reads XTC and XTCH books for PapyriX.
 
 ## Supported Formats
 

@@ -2,7 +2,7 @@
 /**
  * Convert image to C header byte array for firmware logo.
  *
- * Outputs a 128x128 monochrome bitmap as a C uint8_t array.
+ * Outputs a 384x384 monochrome bitmap as a C uint8_t array.
  *
  * Usage:
  *   node convert-logo.mjs <input_image> [output_header]
@@ -15,16 +15,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
-const LOGO_SIZE = 128;
+const LOGO_SIZE = 384;
 
 async function convertToLogo(inputPath, outputPath, invert, threshold, rotate) {
   // Load and process image
-  let image = sharp(inputPath);
-
-  // Apply rotation if specified
-  if (rotate !== 0) {
-    image = image.rotate(rotate);
-  }
+  const image = sharp(inputPath);
 
   // Get metadata for aspect ratio calculation
   const metadata = await image.metadata();
@@ -67,8 +62,19 @@ async function convertToLogo(inputPath, outputPath, invert, threshold, rotate) {
     for (let byteCol = 0; byteCol < LOGO_SIZE / 8; byteCol++) {
       let byteVal = 0;
       for (let bit = 0; bit < 8; bit++) {
-        const pixelIdx = row * LOGO_SIZE + byteCol * 8 + bit;
-        const gray = result[pixelIdx];
+        let sourceX = byteCol * 8 + bit;
+        let sourceY = row;
+        if (rotate === 90) {
+          sourceX = row;
+          sourceY = LOGO_SIZE - 1 - (byteCol * 8 + bit);
+        } else if (rotate === 180) {
+          sourceX = LOGO_SIZE - 1 - (byteCol * 8 + bit);
+          sourceY = LOGO_SIZE - 1 - row;
+        } else if (rotate === 270) {
+          sourceX = LOGO_SIZE - 1 - row;
+          sourceY = byteCol * 8 + bit;
+        }
+        const gray = result[sourceY * LOGO_SIZE + sourceX];
 
         // Threshold: white pixels become 1 (0xFF), black become 0
         let isWhite;
@@ -90,7 +96,8 @@ async function convertToLogo(inputPath, outputPath, invert, threshold, rotate) {
   let output = "#pragma once\n";
   output += "#include <cstdint>\n";
   output += "\n";
-  output += "static const uint8_t PapyrixLogo[] = {\n";
+  output += `inline constexpr int PapyrixLogoSize = ${LOGO_SIZE};\n`;
+  output += "inline constexpr uint8_t PapyrixLogo[] = {\n";
 
   // Write bytes, 19 per line to match existing style
   for (let i = 0; i < bytesData.length; i++) {
@@ -131,14 +138,14 @@ async function main() {
     options: {
       invert: { type: "boolean", default: false },
       threshold: { type: "string", default: "128" },
-      rotate: { type: "string", default: "0" },
+      rotate: { type: "string", default: "270" },
       help: { type: "boolean", short: "h", default: false },
     },
   });
 
   if (values.help || positionals.length === 0) {
     console.log(`
-Convert image to C header logo format (128x128 monochrome)
+Convert image to C header logo format (384x384 monochrome)
 
 Usage:
   node convert-logo.mjs <input> [output] [options]
@@ -150,7 +157,7 @@ Arguments:
 Options:
   --invert           Invert colors (black becomes white)
   --threshold <n>    Threshold for black/white (0-255, default: 128)
-  --rotate <deg>     Rotate image clockwise (0, 90, 180, 270)
+  --rotate <deg>     Rotate clockwise (0, 90, 180, 270; default: 270)
   -h, --help         Show this help message
 
 Examples:

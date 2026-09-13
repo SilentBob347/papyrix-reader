@@ -190,7 +190,6 @@ static constexpr KeyMapping KEY_MAP[] = {
     {"CONFIRM_DELETE", StrId::STR_CONFIRM_DELETE},
     {"ENTER_TEXT", StrId::STR_ENTER_TEXT},
     {"NO_COVER", StrId::STR_NO_COVER},
-    {"PAPYRIX", StrId::STR_PAPYRIX},
     {"ADD", StrId::STR_ADD},
     {"NO_BOOKMARKS", StrId::STR_NO_BOOKMARKS},
     {"BOOKS", StrId::STR_BOOKS},

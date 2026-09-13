@@ -1,4 +1,4 @@
-# Papyrix
+# PapyriX
 
 [![Changelog](https://img.shields.io/badge/changelog-CHANGELOG.md-blue)](CHANGELOG.md)
 [![User Guide](https://img.shields.io/badge/docs-User_Guide-green)](docs/user_guide.md)
@@ -14,8 +14,9 @@
 [![Webserver](https://img.shields.io/badge/docs-Webserver-green)](docs/webserver.md)
 [![Calibre](https://img.shields.io/badge/docs-Calibre_Wireless-green)](docs/calibre.md)
 
+<img alt="PapyriX" src="./images/logo-light.jpg" width="160">
 
-Papyrix is firmware for Xteink X3, X4, and X4 Pro e-paper readers.
+PapyriX is firmware for Xteink X3, X4, and X4 Pro e-paper readers.
 It uses one ESP32-C3 image for X3/X4 and one ESP32-S3 image for X4 Pro.
 
 > **Warning:** Some Xteink units (for example, units from AliExpress) lock USB flash.
@@ -181,7 +182,7 @@ nix-channel --update
 
 ### Checking out the code
 
-Papyrix uses PlatformIO to build and flash the firmware. Clone the repository:
+PapyriX uses PlatformIO to build and flash the firmware. Clone the repository:
 
 ```
 git clone --recursive https://github.com/pliashkou/papyrix
@@ -251,7 +252,7 @@ Build scripts are in the `scripts/` directory.
 
 #### Converting fonts
 
-Convert TTF/OTF fonts to the Papyrix `.epdfont` format with Python (you need [uv](https://docs.astral.sh/uv/)):
+Convert TTF/OTF fonts to the PapyriX `.epdfont` format with Python (you need [uv](https://docs.astral.sh/uv/)):
 
 ```bash
 # Basic conversion (outputs to current directory)
@@ -297,13 +298,13 @@ Copy the output BMP to the `/sleep/` directory or as `/sleep.bmp` on the SD card
 
 #### Converting logo
 
-Convert an image to a C header for the firmware logo (128x128 monochrome):
+Convert an image to a C header for the firmware logo (384x384 monochrome):
 
 ```bash
-cd scripts && node convert-logo.mjs logo.png ../src/images/PapyrixLogo.h
+cd scripts && node convert-logo.mjs ../images/logo-light.jpg ../src/images/PapyrixLogo.h
 ```
 
-Options: `--invert`, `--threshold <0-255>`, `--rotate <0|90|180|270>`
+Options: `--invert`, `--threshold <0-255>`, `--rotate <0|90|180|270>` (default: `270`)
 
 #### Calibre simulators (development/testing)
 
@@ -312,7 +313,7 @@ Two simulators let you test the Calibre Wireless Device feature with no real har
 ```bash
 cd scripts
 
-# Simulate a Papyrix device (for testing Calibre desktop connection)
+# Simulate a PapyriX device (for testing Calibre desktop connection)
 node device-simulator.mjs
 
 # Simulate Calibre desktop (for testing device firmware)
@@ -377,7 +378,7 @@ This makes a changelog grouped by version tags, with commit messages and author 
 
 ## Internals
 
-Papyrix is made for the ESP32-C3 limit of approximately 380KB RAM. See [docs/architecture.md](docs/architecture.md) for the architecture.
+PapyriX is made for the ESP32-C3 limit of approximately 380KB RAM. See [docs/architecture.md](docs/architecture.md) for the architecture.
 
 ### Data caching
 
@@ -480,7 +481,7 @@ Contributions are welcome.
 
 ---
 
-Papyrix is a fork of [CrossPoint Reader](https://github.com/daveallie/crosspoint-reader) by Dave Allie.
+PapyriX is a fork of [CrossPoint Reader](https://github.com/daveallie/crosspoint-reader) by Dave Allie.
 
 X4 hardware data comes from [bb_epaper](https://github.com/bitbank2/bb_epaper) by Larry Bank.
 

@@ -1,6 +1,6 @@
 # Image Rendering
 
-Papyrix converts supported EPUB images for the active display.
+PapyriX converts supported EPUB images for the active display.
 
 ## Pipeline
 

@@ -1,4 +1,4 @@
-# Nix development shell for Papyrix Reader
+# Nix development shell for PapyriX Reader
 #
 # Usage:
 #   nix-shell              # Enter development environment
@@ -34,7 +34,7 @@ pkgs.mkShell {
   ];
 
   shellHook = ''
-    echo "Papyrix Reader Development Environment"
+    echo "PapyriX Reader Development Environment"
     echo "  make build   - Build firmware"
     echo "  make check   - Run cppcheck"
     echo "  make format  - Format code"

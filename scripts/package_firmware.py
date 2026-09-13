@@ -114,7 +114,7 @@ def package(root: Path, output: Path, build: bool = True, check_features: bool =
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build and package deterministic Papyrix firmware artifacts")
+    parser = argparse.ArgumentParser(description="Build and package deterministic PapyriX firmware artifacts")
     parser.add_argument("--project-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--output", type=Path)
     parser.add_argument("--no-build", action="store_true")

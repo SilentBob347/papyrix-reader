@@ -29,6 +29,7 @@
 #include "../core/Core.h"
 #include "../hal/Power.h"
 #include "../images/PapyrixLogo.h"
+#include "../ui/views/BootSleepViews.h"
 
 extern InputManager inputManager;
 extern uint16_t rtcPowerButtonDurationMs;
@@ -62,12 +63,7 @@ void SleepState::enter(Core& core) {
     if (pageSnap) {
       memcpy(pageSnap, renderer_.getFrameBuffer(), bufSize);
 
-      // Same black→white + SLEEPING cue as the normal sleep path
-      renderer_.clearScreen(0x00);
-      renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
-      renderer_.clearScreen(0xFF);
-      renderer_.drawCenteredText(THEME.uiFontId, renderer_.getScreenHeight() / 2, tr(SLEEPING), true);
-      renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
+      renderSleepProgress();
 
       // Restore book page into the active framebuffer and lock it for deep sleep
       memcpy(renderer_.getFrameBuffer(), pageSnap, bufSize);
@@ -87,12 +83,7 @@ void SleepState::enter(Core& core) {
       LOG_INF(TAG, "SleepState::enter - rendering sleep screen");
     }
 
-    // Clear the old image with black and white frames to remove ghosting.
-    renderer_.clearScreen(0x00);
-    renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
-    renderer_.clearScreen(0xFF);
-    renderer_.drawCenteredText(THEME.uiFontId, renderer_.getScreenHeight() / 2, tr(SLEEPING), true);
-    renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
+    renderSleepProgress();
 
     switch (effectiveSleepScreen) {
       case Settings::SleepCustom:
@@ -134,23 +125,20 @@ void SleepState::exit(Core& core) { LOG_ERR(TAG, "SleepState::exit (unexpected)"
 
 StateTransition SleepState::update(Core& core) { return StateTransition::to(StateId::Error); }
 
+void SleepState::renderSleepProgress() const {
+  renderer_.clearScreen(0x00);
+  renderer_.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
+
+  ui::BootView progressView;
+  progressView.setStatus(tr(SLEEPING));
+  ui::render(renderer_, THEME, progressView);
+}
+
 void SleepState::renderDefaultSleepScreen(uint8_t sleepMode) const {
-  const auto pageWidth = renderer_.getScreenWidth();
-  const auto pageHeight = renderer_.getScreenHeight();
-
-  // Fixed colors (white bg, black text) — independent of active theme.
-  // invertScreen() below handles dark/light based on sleep setting only.
-  renderer_.clearScreen(0xFF);
-  renderer_.drawImage(PapyrixLogo, (pageWidth + 128) / 2, (pageHeight - 128) / 2, 128, 128);
-  renderer_.drawCenteredText(THEME.uiFontId, pageHeight / 2 + 70, tr(PAPYRIX), true, BOLD);
-  renderer_.drawCenteredText(THEME.smallFontId, pageHeight / 2 + 110, tr(SLEEPING), true);
-
-  // Make sleep screen dark unless light is selected
-  if (sleepMode != Settings::SleepLight) {
-    renderer_.invertScreen();
-  }
-
-  renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
+  ui::SleepView sleepView;
+  sleepView.setLogo(PapyrixLogo, PapyrixLogoSize, PapyrixLogoSize);
+  sleepView.setDarkMode(sleepMode != Settings::SleepLight);
+  ui::render(renderer_, THEME, sleepView);
 }
 
 void SleepState::renderCustomSleepScreen(const Core& core) const {

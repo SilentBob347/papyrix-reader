@@ -41,7 +41,7 @@ When you use the device the first time, default `light.theme` and `dark.theme` f
 Theme files use a simple INI format:
 
 ```ini
-# Papyrix Theme Configuration
+# PapyriX Theme Configuration
 # Edit values and restart device to apply
 
 [theme]
@@ -219,7 +219,7 @@ If a font directory does not exist, the device uses the builtin font for that si
 
 ## Custom Fonts
 
-Papyrix supports load of custom fonts from the SD card. You must convert fonts to the `.epdfont` binary format first.
+PapyriX supports load of custom fonts from the SD card. You must convert fonts to the `.epdfont` binary format first.
 
 ### Font File Location
 

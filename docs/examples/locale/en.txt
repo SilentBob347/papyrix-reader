@@ -1,4 +1,4 @@
-# English - complete reference for Papyrix translations
+# English - complete reference for PapyriX translations
 # Copy this file to /.papyrix/locale.txt on your SD card
 # and translate the values (right side of =)
 _language_name=English
@@ -209,7 +209,6 @@ CONFIRM_DELETE=Confirm Delete
 # Misc
 ENTER_TEXT=Enter Text
 NO_COVER=No Cover
-PAPYRIX=Papyrix
 ADD=Add
 NO_BOOKMARKS=No bookmarks yet
 BOOKS=Books

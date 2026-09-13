@@ -15,7 +15,7 @@ namespace papyrix {
 namespace {
 constexpr uint8_t WIFI_FILE_VERSION = 1;
 
-// Obfuscation key - "Papyrix" in ASCII (not cryptographic, just prevents casual reading)
+// Keep the legacy key to read saved Wi-Fi credentials.
 constexpr uint8_t OBFUSCATION_KEY[] = {0x50, 0x61, 0x70, 0x79, 0x72, 0x69, 0x78};
 constexpr size_t KEY_LENGTH = sizeof(OBFUSCATION_KEY);
 }  // namespace

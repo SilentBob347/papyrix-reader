@@ -212,7 +212,6 @@ static constexpr const char* DEFAULTS[static_cast<int>(StrId::STR__COUNT)] = {
     // Misc
     "Enter Text",             // ENTER_TEXT
     "No Cover",               // NO_COVER
-    "Papyrix",                // PAPYRIX
     "Add",                    // ADD
     "No bookmarks yet",       // NO_BOOKMARKS
     "Books",                  // BOOKS

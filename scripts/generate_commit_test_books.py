@@ -324,7 +324,7 @@ img { display: block; margin: 0.8em auto; max-width: 100%; }
     ]
 
     out = out_dir / "test_image_stability_08db788.epub"
-    make_epub(out, "Image Stability (08db788)", "Papyrix Test Suite", chapters, images)
+    make_epub(out, "Image Stability (08db788)", "PapyriX Test Suite", chapters, images)
     return out
 
 
@@ -599,7 +599,7 @@ li {
     ]
 
     out = out_dir / "test_css_margins_c092d94.epub"
-    make_epub(out, "CSS Margins Padding (c092d94 / #139)", "Papyrix Test Suite", chapters, images)
+    make_epub(out, "CSS Margins Padding (c092d94 / #139)", "PapyriX Test Suite", chapters, images)
     return out
 
 

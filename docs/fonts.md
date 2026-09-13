@@ -1,6 +1,6 @@
 # Fonts
 
-Papyrix Reader supports custom fonts for reading. Fonts are converted to a proprietary `.epdfont` format that is made for e-paper displays.
+PapyriX Reader supports custom fonts for reading. Fonts are converted to a proprietary `.epdfont` format that is made for e-paper displays.
 
 ## How Fonts Work
 
@@ -25,7 +25,7 @@ Custom `.epdfont` fonts support **regular** and **bold** styles:
 
 ### Fallback Behavior
 
-Papyrix makes sure that you can always read your books, even if a custom font fails:
+PapyriX makes sure that you can always read your books, even if a custom font fails:
 
 1. **Font load failure** → The built-in font is used
 2. **Individual glyph failure** → The character is skipped (no crash)
@@ -118,7 +118,7 @@ A sans-serif font with full Arabic script support, including contextual shaping 
 
 ### IBM Plex Sans Arabic
 
-This font supports Arabic presentation forms used by the Papyrix Arabic shaper.
+This font supports Arabic presentation forms used by the PapyriX Arabic shaper.
 
 - **Styles**: Regular, Bold
 - **Theme**: `light-ibm-plex-arabic.theme`
@@ -126,7 +126,7 @@ This font supports Arabic presentation forms used by the Papyrix Arabic shaper.
 
 ### CJK Fonts (Chinese/Japanese/Korean)
 
-For CJK texts, Papyrix uses external `.bin` format fonts. These fonts stream from the SD card because they are large. The `.bin` format uses direct codepoint indexing (1-bit bitmap, MSB first) for the full BMP range (U+0000-U+FFEF).
+For CJK texts, PapyriX uses external `.bin` format fonts. These fonts stream from the SD card because they are large. The `.bin` format uses direct codepoint indexing (1-bit bitmap, MSB first) for the full BMP range (U+0000-U+FFEF).
 
 > **Note:** CJK fonts are supported for book text (reading view) only. UI elements (home screen, status bar, book title overlay) use built-in bitmap fonts that do not include CJK glyphs.
 

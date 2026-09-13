@@ -1,7 +1,7 @@
-# Papyrix User Guide
+# PapyriX User Guide
 
 This guide describes controls, navigation, and reading features for supported
-Papyrix devices.
+PapyriX devices.
 
 ## 1. Hardware Overview
 
@@ -64,7 +64,7 @@ Empty:
 ![Home Screen: Empty](images/home-screen.jpg)
 
 
-The Home Screen shows the title "Papyrix" at the top with a **battery indicator** in the top-right corner.
+The Home Screen shows the title "PapyriX" at the top with a **battery indicator** in the top-right corner.
 
 #### Book Display
 The center of the screen shows the cover of the book that is open. The book title and author are below it.
@@ -115,7 +115,7 @@ The Files screen is a folder and file browser.
 
 > **Note:** These folders are hidden from the file browser:
 > - `System Volume Information`, `LOST.DIR`, `$RECYCLE.BIN` — OS system folders
-> - `config` — Papyrix configuration files
+> - `config` — PapyriX configuration files
 > - `XTCache` — XTC format cache
 > - `sleep` — Custom sleep screen images
 > - `.papyrix` — Internal cache (dot-prefix hidden by default)
@@ -342,7 +342,7 @@ See device data: firmware version, uptime, WiFi status, MAC address, free memory
 
 ### 3.6 Calibre Wireless
 
-Calibre Wireless lets you send books from **Calibre** (ebook management software) to your Papyrix Reader through WiFi. This is the fastest method to send books if you already use Calibre.
+Calibre Wireless lets you send books from **Calibre** (ebook management software) to your PapyriX Reader through WiFi. This is the fastest method to send books if you already use Calibre.
 
 #### Prerequisites
 
@@ -360,8 +360,8 @@ Calibre Wireless lets you send books from **Calibre** (ebook management software
 
 1. Click **Connect/Share** in the toolbar
 2. Select **Start wireless device connection**
-3. Calibre finds your Papyrix Reader
-4. Your device shows as "Papyrix Reader" (or your custom name)
+3. Calibre finds your PapyriX Reader
+4. Your device shows as "PapyriX Reader" (or your custom name)
 
 #### Sending Books
 
@@ -382,7 +382,7 @@ Change settings through `/config/calibre.ini` on your SD card:
 
 ```ini
 [Settings]
-device_name = Papyrix Reader
+device_name = PapyriX Reader
 password =
 ```
 

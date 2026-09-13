@@ -1,6 +1,6 @@
 # Localization
 
-Papyrix uses English by default.
+PapyriX uses English by default.
 To use another language, put a translation file on the SD card.
 The web interface also accepts translation uploads.
 

@@ -1,7 +1,7 @@
 /**
  * Fb2.cpp
  *
- * FictionBook 2.0 XML e-book handler implementation for Papyrix Reader
+ * FictionBook 2.0 XML e-book handler implementation for PapyriX Reader
  */
 
 #include "Fb2.h"

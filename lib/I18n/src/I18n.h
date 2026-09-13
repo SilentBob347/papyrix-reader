@@ -209,7 +209,6 @@ enum class StrId : uint8_t {
   // Misc
   STR_ENTER_TEXT,
   STR_NO_COVER,
-  STR_PAPYRIX,
   STR_ADD,
   STR_NO_BOOKMARKS,
   STR_BOOKS,
