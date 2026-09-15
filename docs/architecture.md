@@ -126,9 +126,11 @@ host test harness.
 the printout queue on the SD card.
 `lib/FsHelpers` keeps the bounded newest-64 printout queue sorted in natural
 order.
+`lib/Localsend` is the LocalSend receive core.
+The app saves received files to `/received`.
 
 See the [web server guide](webserver.md), the [Calibre guide](calibre.md),
-and the [printer guide](printer.md).
+the [printer guide](printer.md), and the [LocalSend guide](localsend.md).
 
 ## Desktop Parser Tool
 

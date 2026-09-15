@@ -14,6 +14,7 @@
 [![Webserver](https://img.shields.io/badge/docs-Webserver-green)](docs/webserver.md)
 [![Calibre](https://img.shields.io/badge/docs-Calibre_Wireless-green)](docs/calibre.md)
 [![Printer](https://img.shields.io/badge/docs-Printer-green)](docs/printer.md)
+[![LocalSend](https://img.shields.io/badge/docs-LocalSend-green)](docs/localsend.md)
 
 <img alt="PapyriX" src="./images/logo-light.jpg" width="160">
 
@@ -90,6 +91,7 @@ devices does not reuse incompatible rendered pages.
 ### Network & Connectivity
 - [x] WiFi file transfer (web server)
 - [x] Calibre Wireless Device. Send books from Calibre desktop
+- [x] LocalSend receiver. Send files and books from the LocalSend app to the device over WiFi.
 - [x] Driverless network printer (AirPrint-compatible). Print from macOS, Windows, Linux, iOS, and Android to the e-paper screen. Printouts save to `/printouts` on the SD card
 
 ### Maintenance

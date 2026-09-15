@@ -458,6 +458,9 @@ The settings menu keeps panel power on between updates.
 The CPU stays at full speed while the settings menu is open.
 Clock turns off panel power after each update of the clock face.
 Clock also turns off panel power after synchronization status messages, before it waits for WiFi or NTP.
+The image remains visible. This does not change the front-light brightness.
+
+### 3.9 Printer
 
 Open **Apps → Printer**. The device becomes a driverless network printer.
 
@@ -484,9 +487,23 @@ One page prints per job. The maximum job size is 8 MB.
 
 Press **Back** to stop the printer and shut the WiFi down.
 
-The image remains visible. This does not change the front-light brightness.
+### 3.10 LocalSend
 
-### 3.9 Printer
+Open **Apps → LocalSend**. The device becomes a LocalSend receiver.
+
+The WiFi picker behaves like the printer app. The waiting screen shows the
+network name and the IP address.
+
+Send files or books from the LocalSend app on your computer or phone:
+
+- Turn **Encryption** off in the LocalSend settings on the sender. The device
+  uses plain HTTP.
+- Select the device named **PapyriX** in the LocalSend app and send.
+
+Received files save to the `/received` directory on the SD card. If a file
+with the same name exists, the new file gets a number suffix.
+
+Press **Back** to stop the receiver and shut the WiFi down.
 
 ---
 

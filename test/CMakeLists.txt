@@ -1238,6 +1238,14 @@ foreach(TEST_SRC ${TEST_SOURCES})
       target_compile_options(${TEST_NAME} PRIVATE -ffunction-sections -fdata-sections)
       target_link_options(${TEST_NAME} PRIVATE -Wl,--gc-sections)
     endif()
+  elseif(TEST_NAME STREQUAL "LocalsendTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/Localsend/src/LocalsendHttp.cpp
+      ${PROJECT_ROOT}/lib/Localsend/src/LocalsendService.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE ${PROJECT_ROOT}/lib/Localsend/src)
   elseif(TEST_NAME STREQUAL "IppTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}

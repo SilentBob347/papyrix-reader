@@ -25,5 +25,6 @@ extern const uint8_t APP_COUNT;
 extern const int8_t APP_IMAGEVIEWER;
 extern const int8_t APP_CLOCK;
 extern const int8_t APP_PRINTER;
+extern const int8_t APP_LOCALSEND;
 
 }  // namespace papyrix

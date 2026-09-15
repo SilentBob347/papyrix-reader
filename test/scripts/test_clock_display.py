@@ -251,6 +251,12 @@ void onButton(Core&, Button) {}
 bool render(Core& core) { return renderApp(core); }
 void exit(Core&) {}
 }
+namespace localsend_app {
+void enter(Core&) {}
+bool update(Core&) { return false; }
+bool render(Core& core) { return renderApp(core); }
+void exit(Core&) {}
+}
 @REGISTRY@
 
 class AppLauncherState {

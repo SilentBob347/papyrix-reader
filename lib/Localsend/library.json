@@ -1,0 +1,11 @@
+{
+  "name": "Localsend",
+  "version": "1.0.0",
+  "description": "LocalSend protocol v2 receive core (discovery JSON, sessions, filename safety)",
+  "frameworks": ["arduino", "espidf"],
+  "platforms": ["espressif32"],
+  "build": {
+    "srcDir": "src",
+    "includeDir": "src"
+  }
+}

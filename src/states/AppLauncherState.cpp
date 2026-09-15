@@ -194,6 +194,10 @@ StateTransition AppLauncherState::update(Core& core) {
     return StateTransition::to(StateId::Network);
   }
 
+  if (core.pendingSync == SyncMode::LocalsendSetup) {
+    return StateTransition::to(StateId::Network);
+  }
+
   if (goNetwork_) {
     goNetwork_ = false;
     return StateTransition::to(StateId::Network);

@@ -57,6 +57,7 @@ enum class SyncMode : uint8_t {
   WifiSetup,
   NtpSync,
   PrinterSetup,
+  LocalsendSetup,
 };
 
 // Common buffer sizes
