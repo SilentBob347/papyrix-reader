@@ -76,7 +76,7 @@ struct FsFile {
   void close() {}
 };
 enum class Button { Up, Down, Left, Right, Back, Center };
-enum class SyncMode { None, NtpSync, FileTransfer, CalibreWireless, WifiSetup };
+enum class SyncMode { None, NtpSync, FileTransfer, CalibreWireless, WifiSetup, PrinterSetup };
 struct Result {
   size_t value = 0;
   bool okValue = true;

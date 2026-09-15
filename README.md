@@ -13,6 +13,7 @@
 [![SSD1677 Driver](https://img.shields.io/badge/docs-SSD1677_Driver-green)](docs/ssd1677-driver.md)
 [![Webserver](https://img.shields.io/badge/docs-Webserver-green)](docs/webserver.md)
 [![Calibre](https://img.shields.io/badge/docs-Calibre_Wireless-green)](docs/calibre.md)
+[![Printer](https://img.shields.io/badge/docs-Printer-green)](docs/printer.md)
 
 <img alt="PapyriX" src="./images/logo-light.jpg" width="160">
 
@@ -89,6 +90,7 @@ devices does not reuse incompatible rendered pages.
 ### Network & Connectivity
 - [x] WiFi file transfer (web server)
 - [x] Calibre Wireless Device. Send books from Calibre desktop
+- [x] Driverless network printer (AirPrint-compatible). Print from macOS, Windows, Linux, iOS, and Android to the e-paper screen. Printouts save to `/printouts` on the SD card
 
 ### Maintenance
 - [x] Cleanup menu (clear book cache, empty trash, clear storage, factory reset)
@@ -482,6 +484,11 @@ Contributions are welcome.
 ---
 
 PapyriX is a fork of [CrossPoint Reader](https://github.com/daveallie/crosspoint-reader) by Dave Allie.
+
+The IPP print server core ([lib/Ipp](lib/Ipp)) comes from the
+[crosspoint-reader fork](https://github.com/NishantJoshi00/crosspoint-reader) by
+[Nishant Joshi](https://nishantjosh.dev), commit
+[`df0d5e3`](https://github.com/NishantJoshi00/crosspoint-reader/commit/df0d5e367b08e206ab914dcff10a2d255d67bcdb).
 
 X4 hardware data comes from [bb_epaper](https://github.com/bitbank2/bb_epaper) by Larry Bank.
 

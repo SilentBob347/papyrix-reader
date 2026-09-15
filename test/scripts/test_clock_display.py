@@ -244,6 +244,13 @@ void exit(Core&) {}
 void renderMenu(Core& core) { paint(core); }
 void onMenuButton(Core&, Button) {}
 }
+namespace printer_app {
+void enter(Core&) {}
+bool update(Core&) { return false; }
+void onButton(Core&, Button) {}
+bool render(Core& core) { return renderApp(core); }
+void exit(Core&) {}
+}
 @REGISTRY@
 
 class AppLauncherState {

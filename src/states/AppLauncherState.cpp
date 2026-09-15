@@ -190,6 +190,10 @@ StateTransition AppLauncherState::update(Core& core) {
     return StateTransition::to(StateId::Network);
   }
 
+  if (core.pendingSync == SyncMode::PrinterSetup) {
+    return StateTransition::to(StateId::Network);
+  }
+
   if (goNetwork_) {
     goNetwork_ = false;
     return StateTransition::to(StateId::Network);

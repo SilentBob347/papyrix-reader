@@ -114,7 +114,21 @@ Calibre provides wireless book transfer.
 KOReaderSync provides reading-progress synchronization.
 RTC and NTP services maintain system time where available.
 
-See the [web server guide](webserver.md) and [Calibre guide](calibre.md).
+`lib/Ipp` is the IPP print server core.
+It parses the IPP wire protocol (RFC 8010/8011).
+It decodes Apple raster and PWG raster streams row by row.
+It scales each page onto the 1-bit panel framebuffer with box downsample and
+Floyd-Steinberg dither.
+The core has no Arduino types.
+`IppTransport` is the port point between the firmware WiFi client and the
+host test harness.
+`src/apps/PrinterApp.cpp` owns the WiFi session, the mDNS advertisement, and
+the printout queue on the SD card.
+`lib/FsHelpers` keeps the bounded newest-64 printout queue sorted in natural
+order.
+
+See the [web server guide](webserver.md), the [Calibre guide](calibre.md),
+and the [printer guide](printer.md).
 
 ## Desktop Parser Tool
 

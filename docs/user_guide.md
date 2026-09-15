@@ -74,7 +74,7 @@ The center of the screen shows the cover of the book that is open. The book titl
 Four buttons at the bottom of the screen:
 - **Read** — Continue reading the current book
 - **Books** — Open the Books screen (books that you opened before, with access to the file browser)
-- **Apps** — Launcher for file transfer (WiFi/Calibre sync) and other apps
+- **Apps** — Launcher for file transfer (WiFi/Calibre sync), the printer, and other apps
 - **Settings** — Device settings
 
 **Navigation:**
@@ -458,7 +458,35 @@ The settings menu keeps panel power on between updates.
 The CPU stays at full speed while the settings menu is open.
 Clock turns off panel power after each update of the clock face.
 Clock also turns off panel power after synchronization status messages, before it waits for WiFi or NTP.
+
+Open **Apps → Printer**. The device becomes a driverless network printer.
+
+If a WiFi network is saved, the app connects without asking.
+If no network is saved, or every saved network fails, the app opens the WiFi
+picker. The picker shows saved networks, a scan for new networks, and the
+hotspot option. The hotspot starts a WiFi access point named **PapyriX**.
+
+After the app connects, the waiting screen shows the network name, the IP
+address, and the printer URI. Print from a computer or phone on the same
+network:
+
+- **macOS**: Select **PapyriX** in the print dialog. You do not need a driver.
+- **Windows 10/11**: Add the printer in **Settings → Printers & scanners**.
+- **Linux**: The printer appears in CUPS. Add it manually with
+  `lpadmin -p PapyriX -E -v ipp://<device-ip>:631/ipp/print -m everywhere`.
+- **iPhone/iPad**: The printer appears in the print share sheet.
+- **Android**: Use a print service that supports IPP Everywhere, for example the Mopria Print Service.
+
+Each printed page saves to the `/printouts` directory on the SD card.
+Browse earlier printouts with **Left** and **Right** on the waiting screen.
+Printouts also appear in the **Image Viewer** app.
+One page prints per job. The maximum job size is 8 MB.
+
+Press **Back** to stop the printer and shut the WiFi down.
+
 The image remains visible. This does not change the front-light brightness.
+
+### 3.9 Printer
 
 ---
 

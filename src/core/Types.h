@@ -56,6 +56,7 @@ enum class SyncMode : uint8_t {
   CalibreWireless,
   WifiSetup,
   NtpSync,
+  PrinterSetup,
 };
 
 // Common buffer sizes

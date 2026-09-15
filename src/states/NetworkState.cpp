@@ -505,6 +505,16 @@ void NetworkState::handleConnecting(Core& core, Button button) {
           return;
         }
 
+        if (core.pendingSync == SyncMode::PrinterSetup) {
+          if (!WIFI_STORE.hasSavedCredential(selectedSSID_) && passwordJustEntered_) {
+            WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input);
+          }
+          memset(keyboardView_.input, 0, sizeof(keyboardView_.input));
+          keyboardView_.inputLen = 0;
+          goApp_ = true;
+          return;
+        }
+
         if (!WIFI_STORE.hasSavedCredential(selectedSSID_) && passwordJustEntered_) {
           confirmView_.setTitle(tr(SAVE_PASSWORD_Q));
           confirmView_.setMessage(tr(SAVE_PASSWORD_MSG));
@@ -545,6 +555,8 @@ void NetworkState::handleSavePrompt(Core& core, Button button) {
         goBack_ = true;
       } else if (core.pendingSync == SyncMode::NtpSync) {
         goApp_ = true;
+      } else if (core.pendingSync == SyncMode::PrinterSetup) {
+        goApp_ = true;
       } else {
         startWebServer(core);
       }
@@ -554,6 +566,8 @@ void NetworkState::handleSavePrompt(Core& core, Button button) {
       if (core.pendingSync == SyncMode::WifiSetup) {
         goBack_ = true;
       } else if (core.pendingSync == SyncMode::NtpSync) {
+        goApp_ = true;
+      } else if (core.pendingSync == SyncMode::PrinterSetup) {
         goApp_ = true;
       } else {
         startWebServer(core);
@@ -647,6 +661,8 @@ void NetworkState::tryAutoConnect(Core& core) {
         goCalibreSync_ = true;
       } else if (core.pendingSync == SyncMode::NtpSync) {
         goApp_ = true;
+      } else if (core.pendingSync == SyncMode::PrinterSetup) {
+        goApp_ = true;
       } else {
         startWebServer(core);
       }
@@ -684,8 +700,12 @@ void NetworkState::startHotspot(Core& core) {
     connectingView_.setConnected(ip);
     LOG_INF(TAG, "AP started, IP: %s", ip);
 
-    // Small delay then start web server
     delay(500);
+    if (core.pendingSync == SyncMode::PrinterSetup) {
+      // The printer app serves on the AP itself.
+      goApp_ = true;
+      return;
+    }
     startWebServer(core);
   } else {
     connectingView_.setFailed(tr(HOTSPOT_FAILED));

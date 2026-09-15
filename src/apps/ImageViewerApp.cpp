@@ -28,6 +28,7 @@ namespace papyrix {
 namespace imageviewer_app {
 
 static constexpr const char* IMAGES_DIR = "/images";
+static constexpr const char* PRINTOUTS_DIR = "/printouts";
 static constexpr const char* SETTINGS_PATH = "/.papyrix/apps/image-viewer.txt";
 static constexpr uint32_t SLIDESHOW_INTERVALS[] = {0, 30000, 60000, 300000};
 static constexpr const char* SLIDESHOW_LABELS[] = {"Off", "30s", "60s", "5min"};
@@ -85,36 +86,38 @@ static void saveSettings(Core& core) {
 static void scanImages() {
   state.files.clear();
 
-  FsFile dir = SdMan.open(IMAGES_DIR);
-  if (!dir || !dir.isDirectory()) {
-    LOG_INF(TAG, "No %s directory found", IMAGES_DIR);
-    if (dir) dir.close();
-    return;
-  }
-
-  char name[256];
-  FsFile entry;
-  while ((entry = dir.openNextFile())) {
-    if (entry.isDirectory()) {
-      entry.close();
+  // /printouts holds the printer output tray next to the user images.
+  for (const char* scanDir : {IMAGES_DIR, PRINTOUTS_DIR}) {
+    FsFile dir = SdMan.open(scanDir);
+    if (!dir || !dir.isDirectory()) {
+      if (dir) dir.close();
       continue;
     }
 
-    entry.getName(name, sizeof(name));
+    char name[256];
+    FsFile entry;
+    while ((entry = dir.openNextFile())) {
+      if (entry.isDirectory()) {
+        entry.close();
+        continue;
+      }
 
-    if (name[0] == '.') {
+      entry.getName(name, sizeof(name));
+
+      if (name[0] == '.') {
+        entry.close();
+        continue;
+      }
+
+      if (FsHelpers::isImageFile(name) && entry.fileSize() <= MAX_IMAGE_FILE_SIZE) {
+        std::string path = std::string(scanDir) + "/" + name;
+        state.files.push_back(path);
+      }
+
       entry.close();
-      continue;
     }
-
-    if (FsHelpers::isImageFile(name) && entry.fileSize() <= MAX_IMAGE_FILE_SIZE) {
-      std::string path = std::string(IMAGES_DIR) + "/" + name;
-      state.files.push_back(path);
-    }
-
-    entry.close();
+    dir.close();
   }
-  dir.close();
 
   std::sort(state.files.begin(), state.files.end());
 
@@ -207,7 +210,7 @@ static bool renderImage() {
 
   const int viewportH = screenH - BOTTOM_BAR_HEIGHT;
   auto rect = CoverHelpers::calculateCenteredRect(bitmap.getWidth(), bitmap.getHeight(), 0, 0, screenW, viewportH);
-  renderer.drawBitmap(bitmap, rect.x, rect.y, rect.width, rect.height);
+  renderer.drawBitmapOnWhite(bitmap, rect.x, rect.y, rect.width, rect.height);
 
   ui::ButtonBar buttons("Back", "Menu", "<", ">");
   ui::buttonBar(renderer, theme, buttons);
@@ -231,7 +234,9 @@ static bool renderImage() {
 
     bitmap.rewindToData();
     renderer.clearScreen(theme.backgroundColor);
-    renderer.drawBitmap(bitmap, rect.x, rect.y, rect.width, rect.height);
+    // Match the initial BW pass: the reconstruction becomes the controller's
+    // differential-refresh baseline, so both buffers must agree.
+    renderer.drawBitmapOnWhite(bitmap, rect.x, rect.y, rect.width, rect.height);
     ui::buttonBar(renderer, theme, buttons);
     renderer.cleanupGrayscaleWithFrameBuffer();
   }

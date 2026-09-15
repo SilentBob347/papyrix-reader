@@ -210,6 +210,14 @@ class GfxRenderer {
   void fillRect(int x, int y, int width, int height, bool state = true) const;
   void drawImage(const uint8_t bitmap[], int x, int y, int width, int height) const;
   void drawBitmap(const Bitmap& bitmap, int x, int y, int maxWidth, int maxHeight) const;
+  // Draws a bitmap over white ground covering the target rect. The B/W
+  // path paints only ink, so a dark theme would otherwise swallow the
+  // image background.
+  void drawBitmapOnWhite(const Bitmap& bitmap, int x, int y, int maxWidth, int maxHeight) const;
+  // Streams a 1-bpp, screen-fitting bitmap row by row onto white ground:
+  // a set file bit is palette white, a clear bit is black. Returns false
+  // when the bitmap needs the scaled or color path instead.
+  bool drawBitmapStreamed(const Bitmap& bitmap, int x, int y) const;
 
   // Text
   int getTextWidth(int fontId, const char* text, EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;

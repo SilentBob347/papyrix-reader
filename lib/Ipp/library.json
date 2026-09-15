@@ -1,0 +1,11 @@
+{
+  "name": "Ipp",
+  "version": "1.0.0",
+  "description": "IPP print server core (RFC 8010/8011, Apple URF + PWG raster streaming decode). IPP module by Nishant Joshi (crosspoint-reader fork); base project MIT, Dave Allie.",
+  "frameworks": ["arduino", "espidf"],
+  "platforms": ["espressif32"],
+  "build": {
+    "srcDir": "src",
+    "includeDir": "src"
+  }
+}

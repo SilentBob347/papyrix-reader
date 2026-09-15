@@ -452,6 +452,60 @@ void GfxRenderer::drawImage(const uint8_t bitmap[], const int x, const int y, co
   display_.drawImage(bitmap, rotatedX, rotatedY, width, height);
 }
 
+void GfxRenderer::drawBitmapOnWhite(const Bitmap& bitmap, const int x, const int y, const int maxWidth,
+                                    const int maxHeight) const {
+  // Fill only the area drawBitmap renders: the image scaled down to fit,
+  // never upscaled. Callers pass viewport-sized limits, so using those for
+  // the ground would whiten past the image. fillRect masks the edge bits;
+  // clearArea would whiten whole bytes beyond the rect.
+  float scale = 1.0f;
+  if (maxWidth > 0 && bitmap.getWidth() > maxWidth) {
+    scale = static_cast<float>(maxWidth) / static_cast<float>(bitmap.getWidth());
+  }
+  if (maxHeight > 0 && bitmap.getHeight() > maxHeight) {
+    scale = std::min(scale, static_cast<float>(maxHeight) / static_cast<float>(bitmap.getHeight()));
+  }
+  const int w = static_cast<int>(bitmap.getWidth() * scale);
+  const int h = static_cast<int>(bitmap.getHeight() * scale);
+  fillRect(x, y, w, h, false);
+  drawBitmap(bitmap, x, y, maxWidth, maxHeight);
+}
+
+bool GfxRenderer::drawBitmapStreamed(const Bitmap& bitmap, const int x, const int y) const {
+  if (bitmap.getBpp() != 1 || bitmap.getWidth() > getScreenWidth() || bitmap.getHeight() > getScreenHeight() ||
+      bitmap.getRowBytes() > 128) {
+    return false;
+  }
+  // A truncated file from a power loss must not paint a partial frame.
+  if (!bitmap.hasCompletePixelData()) return false;
+  // The palette picks the white bit: 1-bpp palettes can run either way.
+  const uint8_t whiteBit = bitmap.getPaletteLuminance(0) > bitmap.getPaletteLuminance(1) ? 0 : 1;
+  const uint8_t allWhite = whiteBit == 1 ? 0xFF : 0x00;
+  fillRect(x, y, bitmap.getWidth(), bitmap.getHeight(), false);
+  uint8_t rowBuf[128];
+  for (int ry = 0; ry < bitmap.getHeight(); ry++) {
+    if (bitmap.readRawRow(rowBuf, sizeof(rowBuf), ry) != BmpReaderError::Ok) {
+      fillRect(x, y, bitmap.getWidth(), bitmap.getHeight(), false);
+      return false;
+    }
+    // Whole white bytes are already ground; pages are mostly white.
+    for (int rx = 0; rx < bitmap.getWidth();) {
+      const uint8_t byte = rowBuf[rx >> 3];
+      if (byte == allWhite) {
+        rx = (rx & ~7) + 8;
+        continue;
+      }
+      const int bits = bitmap.getWidth() - rx < 8 ? bitmap.getWidth() - rx : 8;
+      for (int b = 0; b < bits; b++) {
+        const bool set = byte & (0x80 >> b);
+        if ((whiteBit == 1) != set) drawPixel(x + rx + b, y + ry, true);
+      }
+      rx += bits;
+    }
+  }
+  return true;
+}
+
 void GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, const int maxWidth,
                              const int maxHeight) const {
   float scale = 1.0f;

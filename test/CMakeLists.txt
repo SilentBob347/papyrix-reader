@@ -238,7 +238,8 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/lib/ArabicShaper/src/ArabicShaper.cpp
       ${TEST_HELPERS}
     )
-  elseif(TEST_NAME STREQUAL "FsHelpersNormaliseTest" OR TEST_NAME STREQUAL "NaturalSortTest")
+  elseif(TEST_NAME STREQUAL "FsHelpersNormaliseTest" OR TEST_NAME STREQUAL "NaturalSortTest" OR
+          TEST_NAME STREQUAL "BoundedNameQueueTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
       ${PROJECT_ROOT}/lib/FsHelpers/src/FsHelpers.cpp
@@ -785,6 +786,30 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/lib/GfxRenderer/src/BitmapHelpers.cpp
       ${TEST_HELPERS}
     )
+  elseif(TEST_NAME STREQUAL "BmpPolarityRoundTripTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/GfxRenderer/src/GfxRenderer.cpp
+      ${PROJECT_ROOT}/lib/GfxRenderer/src/Bitmap.cpp
+      ${PROJECT_ROOT}/lib/GfxRenderer/src/BitmapHelpers.cpp
+      ${PROJECT_ROOT}/lib/BoardSupport/src/TouchBackend.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} BEFORE PRIVATE
+      ${PROJECT_ROOT}/lib/GfxRenderer/src
+      ${PROJECT_ROOT}/lib/ExternalFont/src
+      ${PROJECT_ROOT}/lib/ThaiShaper/src
+    )
+    if(MSVC)
+      target_compile_options(${TEST_NAME} PRIVATE /Gy)
+      target_link_options(${TEST_NAME} PRIVATE /OPT:REF)
+    elseif(APPLE)
+      target_compile_options(${TEST_NAME} PRIVATE -ffunction-sections -fdata-sections)
+      target_link_options(${TEST_NAME} PRIVATE -Wl,-dead_strip)
+    else()
+      target_compile_options(${TEST_NAME} PRIVATE -ffunction-sections -fdata-sections)
+      target_link_options(${TEST_NAME} PRIVATE -Wl,--gc-sections)
+    endif()
   elseif(TEST_NAME STREQUAL "ParsedTextAbortTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
@@ -1213,6 +1238,18 @@ foreach(TEST_SRC ${TEST_SOURCES})
       target_compile_options(${TEST_NAME} PRIVATE -ffunction-sections -fdata-sections)
       target_link_options(${TEST_NAME} PRIVATE -Wl,--gc-sections)
     endif()
+  elseif(TEST_NAME STREQUAL "IppTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/Ipp/src/IppParser.cpp
+      ${PROJECT_ROOT}/lib/Ipp/src/IppWriter.cpp
+      ${PROJECT_ROOT}/lib/Ipp/src/IppPrintService.cpp
+      ${PROJECT_ROOT}/lib/Ipp/src/HttpIppConnection.cpp
+      ${PROJECT_ROOT}/lib/Ipp/src/RasterDecoder.cpp
+      ${PROJECT_ROOT}/lib/Ipp/src/PageScaler.cpp
+      ${TEST_HELPERS}
+    )
+    target_include_directories(${TEST_NAME} PRIVATE ${PROJECT_ROOT}/lib/Ipp/src)
   else()
     add_executable(${TEST_NAME} ${TEST_SRC} ${TEST_HELPERS})
   endif()
