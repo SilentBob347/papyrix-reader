@@ -55,3 +55,11 @@ last file.
 * File names are made safe for the SD card: the device takes the base name,
   removes unsafe characters, and truncates to 128 characters.
 * The device accepts a maximum of 16 files per session.
+
+## Logo
+
+LocalSend and its mark belong to the LocalSend project. This mark identifies
+protocol compatibility. PapyriX is not affiliated with or endorsed by LocalSend.
+
+Project: https://localsend.org
+Source: `images/localsend-logo.webp`. Converted asset: `src/images/LocalsendLogo.h`.

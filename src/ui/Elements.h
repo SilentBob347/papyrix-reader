@@ -54,6 +54,8 @@ int textWrapped(const GfxRenderer& r, const Theme& t, int y, const char* str, in
 
 // Image - Bitmap display at position
 void image(const GfxRenderer& r, int x, int y, const uint8_t* data, int w, int h);
+void localsendLogo(const GfxRenderer& r, const Theme& t, int cx, int cy);
+void printerLogo(const GfxRenderer& r, const Theme& t, int cx, int cy);
 
 // Dialog - Yes/No confirmation dialog
 void dialog(const GfxRenderer& r, const Theme& t, const char* title, const char* msg, int selected);

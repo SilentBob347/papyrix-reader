@@ -645,53 +645,50 @@ bool render(Core& core) {
   }
 
   renderer.clearScreen(THEME.backgroundColor);
+  const bool ink = THEME.primaryTextBlack;
   if (state.screen == Screen::Connecting) {
-    renderer.drawCenteredText(THEME.uiFontId, renderer.getScreenHeight() / 2, "Connecting...");
+    renderer.drawCenteredText(THEME.uiFontId, renderer.getScreenHeight() / 2, "Connecting...", ink);
     renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
     return true;
   }
   if (state.screen == Screen::Failed) {
     renderer.drawCenteredText(THEME.uiFontId, renderer.getScreenHeight() / 2,
-                              state.wifiLost ? "WiFi connection lost" : "Printer start failed");
+                              state.wifiLost ? "WiFi connection lost" : "Printer start failed", ink);
     ui::ButtonBar buttons("Back", "", "", "");
     ui::buttonBar(renderer, THEME, buttons);
     renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
     return true;
   }
 
-  // Waiting screen
-  renderer.drawCenteredText(THEME.uiFontId, 40, "Printer", true, EpdFontFamily::BOLD);
-  int y = 90;
-  if (state.apMode) {
-    renderer.drawText(THEME.uiFontId, 20, y, "Join this WiFi on your computer:");
-    y += 28;
-    char apLine[80];
-    snprintf(apLine, sizeof(apLine), "  %s  (%s)", AP_SSID, state.ip);
-    renderer.drawText(THEME.uiFontId, 20, y, apLine, true, EpdFontFamily::BOLD);
-    y += 34;
-  } else {
-    renderer.drawText(THEME.uiFontId, 20, y, state.ssid[0] ? state.ssid : "WiFi connected");
-    y += 28;
-    char ipLine[64];
-    snprintf(ipLine, sizeof(ipLine), "  %s", state.ip);
-    renderer.drawText(THEME.uiFontId, 20, y, ipLine);
-    y += 34;
-  }
-  renderer.drawText(THEME.uiFontId, 20, y, "Then print to:");
-  y += 28;
-  renderer.drawText(THEME.uiFontId, 20, y, state.printerUri, true, EpdFontFamily::BOLD);
-  y += 44;
-  char jobsLine[64];
-  if (state.jobsPrinted > 0) {
-    snprintf(jobsLine, sizeof(jobsLine), "%lu page(s) printed", static_cast<unsigned long>(state.jobsPrinted));
-    renderer.drawText(THEME.uiFontId, 20, y, jobsLine);
-    y += 28;
-  }
-  snprintf(jobsLine, sizeof(jobsLine), "%d printout(s) on SD card", static_cast<int>(state.queue.size()));
-  renderer.drawText(THEME.uiFontId, 20, y, jobsLine);
-  y += 44;
-  renderer.drawCenteredText(THEME.uiFontId, y, "Waiting for print...", false, EpdFontFamily::ITALIC);
+  ui::title(renderer, THEME, THEME.screenMarginTop, "Printer");
+  const int lineH = renderer.getLineHeight(THEME.uiFontId);
+  int y = THEME.screenMarginTop + renderer.getLineHeight(THEME.readerFontId) + 16;
+  char line[96];
+  snprintf(line, sizeof(line), "WiFi: %s", state.apMode ? AP_SSID : (state.ssid[0] ? state.ssid : "connected"));
+  ui::text(renderer, THEME, y, line);
+  y += lineH + 6;
+  snprintf(line, sizeof(line), "IP: %s", state.ip);
+  ui::text(renderer, THEME, y, line);
+  y += lineH + 6;
+  ui::text(renderer, THEME, y, "Protocol: IPP");
+  y += lineH + 6;
+  snprintf(line, sizeof(line), "URI: %s", state.printerUri);
+  y += ui::textWrapped(renderer, THEME, y, line, 2) * lineH + 16;
 
+  if (state.jobsPrinted > 0) {
+    snprintf(line, sizeof(line), "%lu page(s) printed", static_cast<unsigned long>(state.jobsPrinted));
+    ui::text(renderer, THEME, y, line);
+    y += lineH + 6;
+  }
+  snprintf(line, sizeof(line), "%d printout(s) on SD card", static_cast<int>(state.queue.size()));
+  ui::text(renderer, THEME, y, line);
+  y += lineH + 6;
+  renderer.drawText(THEME.uiFontId, THEME.screenMarginSide + THEME.itemPaddingX, y, "Waiting for print...", ink,
+                    EpdFontFamily::ITALIC);
+
+  const int factsBottom = THEME.screenMarginTop + renderer.getLineHeight(THEME.readerFontId) + 16 + 7 * (lineH + 6);
+  const int barTop = renderer.getScreenHeight() - 50;
+  ui::printerLogo(renderer, THEME, renderer.getScreenWidth() / 2, (factsBottom + barTop) / 2);
   ui::ButtonBar buttons("Exit", "", state.queue.empty() ? "" : "<", "");
   ui::buttonBar(renderer, THEME, buttons);
   renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH);

@@ -585,54 +585,53 @@ bool update(Core& core) {
 bool render(Core& core) {
   state.needsRender = false;
   renderer.clearScreen(THEME.backgroundColor);
+  const bool ink = THEME.primaryTextBlack;
   if (state.screen == Screen::Connecting) {
-    renderer.drawCenteredText(THEME.uiFontId, renderer.getScreenHeight() / 2, "Connecting...");
+    renderer.drawCenteredText(THEME.uiFontId, renderer.getScreenHeight() / 2, "Connecting...", ink);
     renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
     return true;
   }
   if (state.screen == Screen::Failed) {
     renderer.drawCenteredText(THEME.uiFontId, renderer.getScreenHeight() / 2,
-                              state.wifiLost ? "WiFi connection lost" : "LocalSend start failed");
+                              state.wifiLost ? "WiFi connection lost" : "LocalSend start failed", ink);
     ui::ButtonBar buttons("Back", "", "", "");
     ui::buttonBar(renderer, THEME, buttons);
     renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
     return true;
   }
 
-  renderer.drawCenteredText(THEME.uiFontId, 40, "LocalSend", true, EpdFontFamily::BOLD);
-  int y = 90;
-  if (state.apMode) {
-    renderer.drawText(THEME.uiFontId, 20, y, "Join this WiFi on the sender:");
-    y += 28;
-    char apLine[80];
-    snprintf(apLine, sizeof(apLine), "  %s  (%s)", "PapyriX", state.ip);
-    renderer.drawText(THEME.uiFontId, 20, y, apLine, true, EpdFontFamily::BOLD);
-    y += 34;
-  } else {
-    renderer.drawText(THEME.uiFontId, 20, y, state.ssid[0] ? state.ssid : "WiFi connected");
-    y += 28;
-    char ipLine[64];
-    snprintf(ipLine, sizeof(ipLine), "  %s", state.ip);
-    renderer.drawText(THEME.uiFontId, 20, y, ipLine);
-    y += 34;
-  }
-  renderer.drawText(THEME.uiFontId, 20, y, "Send from the LocalSend app to:");
-  y += 28;
-  renderer.drawText(THEME.uiFontId, 20, y, DEVICE_ALIAS, true, EpdFontFamily::BOLD);
-  y += 34;
-  renderer.drawText(THEME.uiFontId, 20, y, "Turn encryption off in LocalSend settings.", false, EpdFontFamily::ITALIC);
-  y += 40;
-  char countLine[64];
-  snprintf(countLine, sizeof(countLine), "%lu file(s) received to %s", static_cast<unsigned long>(state.filesReceived),
-           RECEIVE_DIR);
-  renderer.drawText(THEME.uiFontId, 20, y, countLine);
-  if (state.lastFileName[0]) {
-    y += 28;
-    renderer.drawText(THEME.uiFontId, 20, y, state.lastFileName);
-  }
-  y += 44;
-  renderer.drawCenteredText(THEME.uiFontId, y, "Waiting for files...", false, EpdFontFamily::ITALIC);
+  ui::title(renderer, THEME, THEME.screenMarginTop, "LocalSend");
+  const int lineH = renderer.getLineHeight(THEME.uiFontId);
+  int y = THEME.screenMarginTop + renderer.getLineHeight(THEME.readerFontId) + 16;
+  char line[96];
+  snprintf(line, sizeof(line), "WiFi: %s", state.apMode ? "PapyriX" : (state.ssid[0] ? state.ssid : "connected"));
+  ui::text(renderer, THEME, y, line);
+  y += lineH + 6;
+  snprintf(line, sizeof(line), "IP: %s", state.ip);
+  ui::text(renderer, THEME, y, line);
+  y += lineH + 6;
+  snprintf(line, sizeof(line), "Device: %s", DEVICE_ALIAS);
+  ui::text(renderer, THEME, y, line);
+  y += lineH + 6;
+  ui::text(renderer, THEME, y, "Protocol: LocalSend");
+  y += lineH + 16;
 
+  snprintf(line, sizeof(line), "%lu file(s) received to %s", static_cast<unsigned long>(state.filesReceived),
+           RECEIVE_DIR);
+  ui::text(renderer, THEME, y, line);
+  y += lineH + 6;
+  if (state.lastFileName[0]) {
+    y += ui::textWrapped(renderer, THEME, y, state.lastFileName, 2) * lineH + 6;
+  }
+  renderer.drawText(THEME.uiFontId, THEME.screenMarginSide + THEME.itemPaddingX, y, "Waiting for files...", ink,
+                    EpdFontFamily::ITALIC);
+  y += lineH + 6;
+  renderer.drawText(THEME.uiFontId, THEME.screenMarginSide + THEME.itemPaddingX, y,
+                    "Turn encryption off in LocalSend settings.", ink, EpdFontFamily::ITALIC);
+
+  const int factsBottom = THEME.screenMarginTop + renderer.getLineHeight(THEME.readerFontId) + 16 + 7 * (lineH + 6);
+  const int barTop = renderer.getScreenHeight() - 50;
+  ui::localsendLogo(renderer, THEME, renderer.getScreenWidth() / 2, (factsBottom + barTop) / 2);
   ui::ButtonBar buttons("Exit", "", "", "");
   ui::buttonBar(renderer, THEME, buttons);
   renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH);

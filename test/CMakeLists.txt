@@ -111,7 +111,7 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/lib/EInkDisplay/include
     )
     target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
-  elseif(TEST_NAME STREQUAL "ElementsBatteryTest")
+  elseif(TEST_NAME STREQUAL "ElementsBatteryTest" OR TEST_NAME STREQUAL "ElementsLogoTest")
     add_executable(${TEST_NAME} ${TEST_SRC}
       ${PROJECT_ROOT}/src/ui/Elements.cpp
       ${TEST_HELPERS})

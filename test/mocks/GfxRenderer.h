@@ -26,6 +26,14 @@ class GfxRenderer {
     EpdFontFamily::Style style;
   };
 
+  struct FillRectCall {
+    int x;
+    int y;
+    int w;
+    int h;
+    bool color;
+  };
+
  private:
   papyrix::hal::Display& einkDisplay;
   RenderMode renderMode;
@@ -37,6 +45,7 @@ class GfxRenderer {
   mutable std::vector<CenteredTextCall> centeredTextCalls_;
   std::vector<std::string> wrappedTextResult_;
   mutable std::string lastText_;
+  mutable std::vector<FillRectCall> fillRects_;
 
  public:
   static constexpr int BUTTON_HINT_WIDTH = 106;
@@ -222,7 +231,9 @@ class GfxRenderer {
   void drawPixel(int, int, bool = true) const {}
   void drawLine(int, int, int, int, bool = true) const {}
   void drawRect(int, int, int, int, bool = true) const {}
-  void fillRect(int, int, int, int, bool = true) const {}
+  void fillRect(int x, int y, int w, int h, bool color = true) const { fillRects_.push_back({x, y, w, h, color}); }
+  void clearFillRects() const { fillRects_.clear(); }
+  const std::vector<FillRectCall>& fillRects() const { return fillRects_; }
   void displayBuffer(papyrix::hal::Display::RefreshMode = papyrix::hal::Display::FAST_REFRESH, bool = false) const {}
   void copyGrayscaleLsbBuffers() const {}
   void copyGrayscaleMsbBuffers() const {}

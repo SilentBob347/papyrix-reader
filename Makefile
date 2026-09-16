@@ -3,7 +3,7 @@
 
 .PHONY: all build build-release release package upload upload-release flash flash-release flash-xteink-c3 flash-x4pro \
         clean format check monitor size erase build-fs upload-fs sleep-screen gh-release changelog help \
-        test test-build test-run test-clean fontconvert-bin reader-test
+        test test-build test-run test-tools test-clean fontconvert-bin reader-test
 
 # Prefer the project environment when it provides PlatformIO.
 ifneq ($(wildcard $(CURDIR)/.venv/bin/pio),)
@@ -137,15 +137,19 @@ endif
 
 ## Unit Tests:
 
-test: test-build test-run ## Build and run all unit tests
+test: test-build test-run ## Build and run C/C++ unit tests
 
 test-build: ## Build unit tests
 	@mkdir -p test/build
 	@cd test/build && cmake .. -DCMAKE_BUILD_TYPE=Debug && cmake --build . --parallel $(shell nproc | awk '{print ($$1 > 1 ? int($$1 / 2) : 1)}')
 
-test-run: ## Run unit tests (build first if needed)
+test-run: ## Run C/C++ unit tests (builds if needed)
 	@if [ ! -d test/build/bin ]; then $(MAKE) test-build; fi
 	@test/scripts/run_tests.sh
+
+test-tools: ## Host-tool tests (packaging, HTML, clock simulators)
+	@python3 test/scripts/LocaleExamplesTest.py
+	@python3 test/scripts/WebUiFilenameValidationTest.py
 	@python3 test/scripts/test_target_features.py
 	@python3 test/scripts/test_sdmmc_lifecycle.py
 	@python3 test/scripts/test_wakeup.py

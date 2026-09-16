@@ -2,12 +2,11 @@
 /**
  * Convert image to C header byte array for firmware logo.
  *
- * Outputs a 384x384 monochrome bitmap as a C uint8_t array.
- *
  * Usage:
  *   node convert-logo.mjs <input_image> [output_header]
  *   node convert-logo.mjs logo.png
  *   node convert-logo.mjs logo.png --invert --threshold 100
+ *   node convert-logo.mjs ../images/localsend-logo.png ../src/images/LocalsendLogo.h --size 192 --name LocalsendLogo --rotate 0
  */
 
 import sharp from "sharp";
@@ -15,75 +14,80 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
-const LOGO_SIZE = 384;
+const DEFAULT_SIZE = 384;
+const DEFAULT_NAME = "PapyrixLogo";
 
-async function convertToLogo(inputPath, outputPath, invert, threshold, rotate) {
-  // Load and process image
-  const image = sharp(inputPath);
+async function convertToLogo(inputPath, outputPath, options = {}) {
+  const size = options.size ?? DEFAULT_SIZE;
+  const name = options.name ?? DEFAULT_NAME;
+  const invert = options.invert ?? false;
+  const threshold = options.threshold ?? 128;
+  const rotate = options.rotate ?? 270;
 
-  // Get metadata for aspect ratio calculation
-  const metadata = await image.metadata();
-  const srcRatio = metadata.width / metadata.height;
-
-  let newWidth, newHeight;
-  if (srcRatio > 1) {
-    // Wider than tall
-    newWidth = LOGO_SIZE;
-    newHeight = Math.round(LOGO_SIZE / srcRatio);
-  } else {
-    // Taller than wide (or square)
-    newHeight = LOGO_SIZE;
-    newWidth = Math.round(LOGO_SIZE * srcRatio);
+  if (!Number.isInteger(size) || size < 8 || size % 8 !== 0) {
+    throw new Error("Size must be an integer multiple of 8, at least 8");
+  }
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new Error("Name must be a C identifier");
+  }
+  if (![0, 90, 180, 270].includes(rotate)) {
+    throw new Error("Rotate must be 0, 90, 180, or 270");
   }
 
-  // Resize maintaining aspect ratio
-  const resized = await image
+  const metadata = await sharp(inputPath).metadata();
+  const srcRatio = metadata.width / metadata.height;
+
+  let newWidth;
+  let newHeight;
+  if (srcRatio > 1) {
+    newWidth = size;
+    newHeight = Math.max(1, Math.round(size / srcRatio));
+  } else {
+    newHeight = size;
+    newWidth = Math.max(1, Math.round(size * srcRatio));
+  }
+
+  const { data: resized, info } = await sharp(inputPath)
+    .flatten({ background: { r: 255, g: 255, b: 255 } })
+    .removeAlpha()
     .resize(newWidth, newHeight, { fit: "fill" })
     .grayscale()
     .raw()
-    .toBuffer();
+    .toBuffer({ resolveWithObject: true });
 
-  // Create white background and center the image
-  const result = Buffer.alloc(LOGO_SIZE * LOGO_SIZE, 255);
-  const xOffset = Math.floor((LOGO_SIZE - newWidth) / 2);
-  const yOffset = Math.floor((LOGO_SIZE - newHeight) / 2);
+  if (info.channels !== 1) {
+    throw new Error(`expected 1 grayscale channel, got ${info.channels}`);
+  }
+
+  const result = Buffer.alloc(size * size, 255);
+  const xOffset = Math.floor((size - newWidth) / 2);
+  const yOffset = Math.floor((size - newHeight) / 2);
 
   for (let y = 0; y < newHeight; y++) {
     for (let x = 0; x < newWidth; x++) {
-      const srcIdx = y * newWidth + x;
-      const dstIdx = (y + yOffset) * LOGO_SIZE + (x + xOffset);
-      result[dstIdx] = resized[srcIdx];
+      result[(y + yOffset) * size + (x + xOffset)] = resized[y * newWidth + x];
     }
   }
 
-  // Convert to binary (1-bit) byte array
   const bytesData = [];
-  for (let row = 0; row < LOGO_SIZE; row++) {
-    for (let byteCol = 0; byteCol < LOGO_SIZE / 8; byteCol++) {
+  for (let row = 0; row < size; row++) {
+    for (let byteCol = 0; byteCol < size / 8; byteCol++) {
       let byteVal = 0;
       for (let bit = 0; bit < 8; bit++) {
         let sourceX = byteCol * 8 + bit;
         let sourceY = row;
         if (rotate === 90) {
           sourceX = row;
-          sourceY = LOGO_SIZE - 1 - (byteCol * 8 + bit);
+          sourceY = size - 1 - (byteCol * 8 + bit);
         } else if (rotate === 180) {
-          sourceX = LOGO_SIZE - 1 - (byteCol * 8 + bit);
-          sourceY = LOGO_SIZE - 1 - row;
+          sourceX = size - 1 - (byteCol * 8 + bit);
+          sourceY = size - 1 - row;
         } else if (rotate === 270) {
-          sourceX = LOGO_SIZE - 1 - row;
+          sourceX = size - 1 - row;
           sourceY = byteCol * 8 + bit;
         }
-        const gray = result[sourceY * LOGO_SIZE + sourceX];
-
-        // Threshold: white pixels become 1 (0xFF), black become 0
-        let isWhite;
-        if (invert) {
-          isWhite = gray < threshold;
-        } else {
-          isWhite = gray >= threshold;
-        }
-
+        const gray = result[sourceY * size + sourceX];
+        const isWhite = invert ? gray < threshold : gray >= threshold;
         if (isWhite) {
           byteVal |= 1 << (7 - bit);
         }
@@ -92,34 +96,29 @@ async function convertToLogo(inputPath, outputPath, invert, threshold, rotate) {
     }
   }
 
-  // Write C header file
   let output = "#pragma once\n";
   output += "#include <cstdint>\n";
   output += "\n";
-  output += `inline constexpr int PapyrixLogoSize = ${LOGO_SIZE};\n`;
-  output += "inline constexpr uint8_t PapyrixLogo[] = {\n";
+  output += `// node scripts/convert-logo.mjs <input> <output> --size ${size} --name ${name} --rotate ${rotate}\n`;
+  output += `inline constexpr int ${name}Size = ${size};\n`;
+  output += `inline constexpr uint8_t ${name}[] = {\n`;
 
-  // Write bytes, 19 per line to match existing style
   for (let i = 0; i < bytesData.length; i++) {
     if (i % 19 === 0) {
       output += "    ";
     }
     output += `0x${bytesData[i].toString(16).toUpperCase().padStart(2, "0")}`;
-    if (i < bytesData.length - 1) {
-      output += ", ";
+    const last = i === bytesData.length - 1;
+    const endRow = (i + 1) % 19 === 0;
+    if (!last) {
+      output += ",";
     }
-    if ((i + 1) % 19 === 0) {
-      output += "\n";
-    }
+    output += endRow || last ? "\n" : " ";
   }
 
-  if (bytesData.length % 19 !== 0) {
-    output += "\n";
-  }
 
   output += "};\n";
 
-  // Ensure output directory exists
   const dir = path.dirname(outputPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -127,9 +126,7 @@ async function convertToLogo(inputPath, outputPath, invert, threshold, rotate) {
 
   fs.writeFileSync(outputPath, output);
 
-  console.log(`Created: ${outputPath}`);
-  console.log(`  Size: ${LOGO_SIZE}x${LOGO_SIZE}`);
-  console.log(`  Bytes: ${bytesData.length}`);
+  return { size, name, bytes: bytesData.length };
 }
 
 async function main() {
@@ -139,13 +136,15 @@ async function main() {
       invert: { type: "boolean", default: false },
       threshold: { type: "string", default: "128" },
       rotate: { type: "string", default: "270" },
+      size: { type: "string", default: String(DEFAULT_SIZE) },
+      name: { type: "string", default: DEFAULT_NAME },
       help: { type: "boolean", short: "h", default: false },
     },
   });
 
   if (values.help || positionals.length === 0) {
     console.log(`
-Convert image to C header logo format (384x384 monochrome)
+Convert image to C header logo format (1-bit, white background)
 
 Usage:
   node convert-logo.mjs <input> [output] [options]
@@ -155,6 +154,8 @@ Arguments:
   output    Output header file (default: src/images/PapyrixLogo.h)
 
 Options:
+  --size <n>         Square size in pixels, multiple of 8 (default: 384)
+  --name <ident>     C identifier prefix (default: PapyrixLogo)
   --invert           Invert colors (black becomes white)
   --threshold <n>    Threshold for black/white (0-255, default: 128)
   --rotate <deg>     Rotate clockwise (0, 90, 180, 270; default: 270)
@@ -164,6 +165,7 @@ Examples:
   node convert-logo.mjs logo.png
   node convert-logo.mjs logo.png src/images/MyLogo.h
   node convert-logo.mjs logo.png --invert --threshold 100
+  node convert-logo.mjs ../images/localsend-logo.png ../src/images/LocalsendLogo.h --size 192 --name LocalsendLogo --rotate 0
 `);
     process.exit(0);
   }
@@ -172,19 +174,24 @@ Examples:
   const outputPath = positionals[1] || "../src/images/PapyrixLogo.h";
   const threshold = parseInt(values.threshold, 10);
   const rotate = parseInt(values.rotate, 10);
+  const size = parseInt(values.size, 10);
 
   if (!fs.existsSync(inputPath)) {
     console.error(`Error: Input file not found: ${inputPath}`);
     process.exit(1);
   }
 
-  if (![0, 90, 180, 270].includes(rotate)) {
-    console.error("Error: Rotate must be 0, 90, 180, or 270");
-    process.exit(1);
-  }
-
   try {
-    await convertToLogo(inputPath, outputPath, values.invert, threshold, rotate);
+    const result = await convertToLogo(inputPath, outputPath, {
+      invert: values.invert,
+      threshold,
+      rotate,
+      size,
+      name: values.name,
+    });
+    console.log(`Created: ${outputPath}`);
+    console.log(`  Size: ${result.size}x${result.size}`);
+    console.log(`  Bytes: ${result.bytes}`);
   } catch (error) {
     console.error(`Error: ${error.message}`);
     process.exit(1);
