@@ -762,6 +762,23 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${CMAKE_CURRENT_SOURCE_DIR}/unit/imageconverter/mocks
       ${PROJECT_ROOT}/lib/ImageConverter/src
     )
+  elseif(TEST_NAME STREQUAL "ImageFileViewTest")
+    add_executable(${TEST_NAME}
+      ${TEST_SRC}
+      ${PROJECT_ROOT}/src/ui/ImageFileView.cpp
+      ${PROJECT_ROOT}/lib/ImageConverter/src/ImageConverter.cpp
+      ${PROJECT_ROOT}/lib/GfxRenderer/src/Bitmap.cpp
+      ${PROJECT_ROOT}/lib/GfxRenderer/src/BitmapHelpers.cpp
+      ${PROJECT_ROOT}/lib/GfxRenderer/src/PackedCoverReducer.cpp
+      ${PROJECT_ROOT}/lib/FsHelpers/src/FsHelpers.cpp
+      ${TEST_HELPERS}
+    )
+    target_compile_options(${TEST_NAME} PRIVATE -ffunction-sections -fdata-sections)
+    target_link_options(${TEST_NAME} PRIVATE -Wl,--gc-sections)
+    target_include_directories(${TEST_NAME} BEFORE PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/unit/imageconverter/mocks
+      ${PROJECT_ROOT}/lib/ImageConverter/src
+    )
   elseif(TEST_NAME STREQUAL "PackedCoverReducerTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}

@@ -12,6 +12,7 @@
 #include "../IniParser.h"
 #include "../config.h"
 #include "../content/RecentBooksStore.h"
+#include "../ui/ImageFileView.h"
 #include "WebFileNameValidation.h"
 #include "html/AppPageHtml.generated.h"
 
@@ -435,6 +436,7 @@ void PapyrixWebServer::handleDelete() {
 
   bool success = false;
   if (itemType == "folder") {
+    ui::removeImageCachesInDir(itemPath.c_str());
     FsFile dir = SdMan.open(itemPath.c_str());
     if (dir && dir.isDirectory()) {
       FsFile entry = dir.openNextFile();
@@ -452,6 +454,9 @@ void PapyrixWebServer::handleDelete() {
   }
 
   if (success) {
+    if (itemType != "folder" && FsHelpers::isImageFile(itemPath.c_str())) {
+      ui::removeImageCache(itemPath.c_str());
+    }
     RecentBooksStore::instance().remove(itemPath.c_str());
     LOG_INF(TAG, "Deleted: %s", itemPath.c_str());
     server_->send(200, "text/plain", "Deleted");
@@ -548,6 +553,7 @@ void PapyrixWebServer::handleRename() {
   }
 
   if (SdMan.rename(itemPath.c_str(), newPath.c_str())) {
+    if (FsHelpers::isImageFile(itemPath.c_str())) ui::removeImageCache(itemPath.c_str());
     LOG_INF(TAG, "Renamed: %s -> %s", itemPath.c_str(), newPath.c_str());
     server_->send(200, "text/plain", "Renamed");
   } else {

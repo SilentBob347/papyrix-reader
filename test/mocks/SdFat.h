@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -18,6 +19,9 @@
 #define O_CREAT 0x40
 #define O_TRUNC 0x80
 
+
+// Timestamp flag (matches SdFat FsApiConstants.h)
+constexpr uint8_t T_WRITE = 4;
 struct MockDirectoryEntry {
   std::string name;
   bool isDirectory;
@@ -115,6 +119,22 @@ class FsFile : public Print {
     return true;
   }
 
+
+  // Mirrors SdFat FsFile::timestamp(). T_WRITE sets the modify date/time and
+  // reports it through the callback so the mock manager can persist it.
+  void setTimestampCallback(std::function<void(uint16_t, uint16_t)> cb) { timestampCallback_ = std::move(cb); }
+
+  bool timestamp(uint8_t flags, uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute,
+                 uint8_t second) {
+    if (!isOpen_) return false;
+    if ((flags & T_WRITE) != 0 && year >= 1980) {
+      const uint16_t date = static_cast<uint16_t>(((year - 1980) << 9) | (month << 5) | day);
+      const uint16_t time = static_cast<uint16_t>((hour << 11) | (minute << 5) | (second / 2));
+      setModifyDateTime(date, time);
+      if (timestampCallback_) timestampCallback_(date, time);
+    }
+    return true;
+  }
   std::string getBuffer() const { return buffer_; }
 
   operator bool() const { return isOpen_; }
@@ -285,4 +305,5 @@ class FsFile : public Print {
   uint16_t modifyDate_ = 0;
   uint16_t modifyTime_ = 0;
   bool hasModifyDateTime_ = false;
+  std::function<void(uint16_t, uint16_t)> timestampCallback_;
 };

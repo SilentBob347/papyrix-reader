@@ -268,6 +268,10 @@ static constexpr const char* DEFAULTS[static_cast<int>(StrId::STR__COUNT)] = {
     "Cannot delete the trash folder",  // CANNOT_DELETE_TRASH
     "Brightness",                      // BRIGHTNESS
     "Warmth",                          // WARMTH
+    "Converting...",                   // CONVERTING
+    "Conversion failed",               // CONVERSION_FAILED
+    "Failed to open image",            // IMAGE_OPEN_FAILED
+    "Invalid image file",              // IMAGE_INVALID
 };
 // clang-format on
 

@@ -146,6 +146,9 @@ class SDCardManager {
       if (timestamp != modifyDateTimes_.end()) {
         file.setModifyDateTime(timestamp->second.first, timestamp->second.second);
       }
+      file.setTimestampCallback([this, pathStr = std::string(path)](uint16_t d, uint16_t t) {
+        modifyDateTimes_[pathStr] = {d, t};
+      });
       if (writeLimitActive_) file.setWriteLimit(writeLimit_);
       file.setSyncResult(syncResult_);
       file.setSeekEndResult(seekEndResult_);

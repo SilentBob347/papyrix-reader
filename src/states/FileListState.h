@@ -26,6 +26,7 @@ class FileListState : public State {
     ConfirmRestore,
     ConfirmPermanentDelete,
     ConfirmDeleteDirectory,
+    ImageView,
   };
 
  public:
@@ -93,6 +94,9 @@ class FileListState : public State {
   void navigateDown(Core& core);
   void openSelected(Core& core);
   void goBack(Core& core);
+  void stepImage(Core& core, int delta);
+  void exitImageView(Core& core);
+  void renderImageView(Core& core);
 
   // Pagination helpers
   int getPageItems() const;

@@ -21,6 +21,7 @@
 #include "../core/Core.h"
 #include "../core/TrashPaths.h"
 #include "../ui/Elements.h"
+#include "../ui/ImageFileView.h"
 #include "MappedInputManager.h"
 #include "ThemeManager.h"
 
@@ -213,6 +214,8 @@ bool FileListState::isHidden(const char* name) {
 }
 
 bool FileListState::isSupportedFile(const char* name) {
+  if (FsHelpers::isImageFile(name)) return true;
+
   const char* ext = strrchr(name, '.');
   if (!ext) return false;
   ext++;  // Skip the dot
@@ -376,6 +379,9 @@ void FileListState::executeConfirmedAction(Core& core) {
       success = core.storage.rmdir(selectedPath_).ok();
       status = success ? tr(DELETED) : tr(DELETE_FAILED);
     }
+    if (success && !deletesDirectory && FsHelpers::isImageFile(entry.name)) {
+      ui::removeImageCache(selectedPath_);
+    }
 
     ui::centeredMessage(renderer_, THEME, THEME.uiFontId, status);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -417,6 +423,22 @@ StateTransition FileListState::update(Core& core) {
   Event e;
   while (core.events.pop(e)) {
     if (e.type == EventType::Tap) {
+      if (currentScreen_ == Screen::ImageView) {
+        const int action = ui::touch::semanticButtonBarIndex({e.touch.x, e.touch.y}, renderer_.getScreenWidth(),
+                                                             renderer_.getScreenHeight(),
+                                                             core.settings.frontButtonLayout == Settings::FrontLRBC);
+        if (action == 0) {
+          exitImageView(core);
+        } else if (action == 2) {
+          stepImage(core, -1);
+        } else if (action == 3) {
+          stepImage(core, 1);
+        } else if (action < 0) {
+          stepImage(core, e.touch.x < renderer_.getScreenWidth() / 2 ? -1 : 1);
+        }
+        continue;
+      }
+
       if (currentScreen_ != Screen::Browse) {
         const auto layout = ui::confirmDialogBounds(renderer_, THEME, confirmView_);
         const auto hit = confirmView_.hitTest({e.touch.x, e.touch.y}, layout,
@@ -460,7 +482,12 @@ StateTransition FileListState::update(Core& core) {
     }
     switch (e.type) {
       case EventType::ButtonRepeat:
-        if (currentScreen_ == Screen::Browse) {
+        if (currentScreen_ == Screen::ImageView) {
+          if (e.button == Button::Up || e.button == Button::Left)
+            stepImage(core, -1);
+          else if (e.button == Button::Down || e.button == Button::Right)
+            stepImage(core, 1);
+        } else if (currentScreen_ == Screen::Browse) {
           if (e.button == Button::Up)
             navigateUp(core);
           else if (e.button == Button::Down)
@@ -469,7 +496,23 @@ StateTransition FileListState::update(Core& core) {
         break;
 
       case EventType::ButtonPress:
-        if (currentScreen_ != Screen::Browse) {
+        if (currentScreen_ == Screen::ImageView) {
+          switch (e.button) {
+            case Button::Back:
+              exitImageView(core);
+              break;
+            case Button::Left:
+            case Button::Up:
+              stepImage(core, -1);
+              break;
+            case Button::Right:
+            case Button::Down:
+              stepImage(core, 1);
+              break;
+            default:
+              break;
+          }
+        } else if (currentScreen_ != Screen::Browse) {
           switch (e.button) {
             case Button::Up:
             case Button::Down:
@@ -543,6 +586,12 @@ void FileListState::render(Core& core) {
   }
 
   Theme& theme = THEME_MANAGER.mutableCurrent();
+
+  if (currentScreen_ == Screen::ImageView) {
+    renderImageView(core);
+    needsRender_ = false;
+    return;
+  }
 
   if (currentScreen_ != Screen::Browse) {
     ui::render(renderer_, theme, confirmView_);
@@ -656,6 +705,12 @@ void FileListState::openSelected(Core& core) {
       return;
     }
 
+    if (FsHelpers::isImageFile(entry.name)) {
+      currentScreen_ = Screen::ImageView;
+      needsRender_ = true;
+      return;
+    }
+
     // Save position for return
     strncpy(core.settings.fileListDir, currentDir_, sizeof(core.settings.fileListDir) - 1);
     core.settings.fileListDir[sizeof(core.settings.fileListDir) - 1] = '\0';
@@ -691,6 +746,61 @@ void FileListState::goBack(Core& core) {
   selectedIndex_ = 0;
   loadFiles(core);
   needsRender_ = true;
+}
+
+void FileListState::stepImage(Core&, int delta) {
+  const int count = static_cast<int>(entryCount());
+  if (count == 0) return;
+
+  for (int step = 1; step <= count; step++) {
+    const int index = ((static_cast<int>(selectedIndex_) + step * delta) % count + count) % count;
+    if (index == static_cast<int>(selectedIndex_)) return;  // Only one image in the list
+
+    FileEntryView entry{};
+    if (!entryAt(static_cast<size_t>(index), entry) || entry.isDir) continue;
+    if (!FsHelpers::isImageFile(entry.name)) continue;
+
+    selectedIndex_ = static_cast<size_t>(index);
+    needsRender_ = true;
+    return;
+  }
+}
+
+void FileListState::exitImageView(Core&) {
+  currentScreen_ = Screen::Browse;
+  firstRender_ = true;  // HALF_REFRESH clears image ghosting
+  needsRender_ = true;
+}
+
+void FileListState::renderImageView(Core&) {
+  const Theme& theme = THEME;
+  const int viewportH = renderer_.getScreenHeight() - ui::IMAGE_VIEW_BUTTON_BAR_HEIGHT;
+  const ui::ButtonBar buttons(tr(BACK), "", "<", ">");
+
+  FileEntryView entry{};
+  if (!entryAt(selectedIndex_, entry) || entry.isDir || !buildSelectedPath(selectedPath_, sizeof(selectedPath_))) {
+    renderer_.clearScreen(theme.backgroundColor);
+    ui::drawImageError(renderer_, theme, tr(IMAGE_OPEN_FAILED), buttons);
+    renderer_.displayBuffer();
+    return;
+  }
+
+  const std::string sourcePath = selectedPath_;
+  if (ui::needsBmpConversion(sourcePath)) {
+    ui::centeredMessage(renderer_, theme, theme.uiFontId, tr(CONVERTING));
+  }
+
+  const std::string bmpPath = ui::ensureRenderableBmp(sourcePath, renderer_.getScreenWidth(), viewportH, TAG);
+  if (bmpPath.empty()) {
+    renderer_.clearScreen(theme.backgroundColor);
+    ui::drawImageError(renderer_, theme, tr(CONVERSION_FAILED), buttons);
+    renderer_.displayBuffer();
+    return;
+  }
+
+  if (!ui::renderImageFile(renderer_, theme, bmpPath, viewportH, buttons)) {
+    renderer_.displayBuffer();
+  }
 }
 
 int FileListState::getPageItems() const {
