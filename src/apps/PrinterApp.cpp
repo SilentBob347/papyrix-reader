@@ -624,6 +624,13 @@ bool update(Core& core) {
 }
 
 void onButton(Core& core, Button btn) {
+  if (state.screen == Screen::Waiting && btn == Button::Right) {
+    // Open the printout directory in the file manager. Back stops the app.
+    SdMan.ensureDirectoryExists(QUEUE_DIR);
+    strncpy(core.pendingDirectory, QUEUE_DIR, sizeof(core.pendingDirectory) - 1);
+    core.events.push(Event::buttonPress(Button::Back));
+    return;
+  }
   const bool prev = btn == Button::Left || btn == Button::Up;
   const bool next = btn == Button::Right || btn == Button::Down;
   if (state.queue.empty() || (!prev && !next)) return;
@@ -680,7 +687,7 @@ bool render(Core& core) {
     ui::text(renderer, THEME, y, line);
     y += lineH + 6;
   }
-  snprintf(line, sizeof(line), "%d printout(s) on SD card", static_cast<int>(state.queue.size()));
+  snprintf(line, sizeof(line), "%d printout(s) in %s", static_cast<int>(state.queue.size()), QUEUE_DIR);
   ui::text(renderer, THEME, y, line);
   y += lineH + 6;
   renderer.drawText(THEME.uiFontId, THEME.screenMarginSide + THEME.itemPaddingX, y, "Waiting for print...", ink,
@@ -689,7 +696,7 @@ bool render(Core& core) {
   const int factsBottom = THEME.screenMarginTop + renderer.getLineHeight(THEME.readerFontId) + 16 + 7 * (lineH + 6);
   const int barTop = renderer.getScreenHeight() - 50;
   ui::printerLogo(renderer, THEME, renderer.getScreenWidth() / 2, (factsBottom + barTop) / 2);
-  ui::ButtonBar buttons("Exit", "", state.queue.empty() ? "" : "<", "");
+  ui::ButtonBar buttons("Exit", "", state.queue.empty() ? "" : "<", "Files");
   ui::buttonBar(renderer, THEME, buttons);
   renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
   return true;

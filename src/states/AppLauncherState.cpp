@@ -87,7 +87,8 @@ StateTransition AppLauncherState::update(Core& core) {
       } else if (hit.type == ui::AppMenuView::Hit::Type::Open) {
         activateMenuItem(core);
       } else if (hit.type == ui::AppMenuView::Hit::Type::Back) {
-        return StateTransition::to(StateId::Home);
+        // A pending directory request routes to the file manager after the loop
+        if (!core.pendingDirectory[0]) return StateTransition::to(StateId::Home);
       }
       continue;
     }
@@ -120,7 +121,8 @@ StateTransition AppLauncherState::update(Core& core) {
             activateMenuItem(core);
             break;
           case Button::Back:
-            return StateTransition::to(StateId::Home);
+            if (!core.pendingDirectory[0]) return StateTransition::to(StateId::Home);
+            break;
           default:
             break;
         }
@@ -179,6 +181,10 @@ StateTransition AppLauncherState::update(Core& core) {
     if (needsRender_) {
       core.cpu.unthrottle();
     }
+  }
+
+  if (core.pendingDirectory[0]) {
+    return StateTransition::to(StateId::FileList);
   }
 
   if (core.pendingSync == SyncMode::WifiSetup) {

@@ -159,7 +159,7 @@ static constexpr const char* DEFAULTS[static_cast<int>(StrId::STR__COUNT)] = {
     "No book open",           // NO_BOOK_OPEN
     "Press \"Books\" to explore",           // PRESS_FILE_TO_EXPLORE
     "Press \"Files\" to explore",           // PRESS_FILES_TO_EXPLORE
-    "No books found",         // NO_BOOKS_FOUND
+    "No files found",         // NO_FILES_FOUND
     "End of book",            // END_OF_BOOK
     "Failed to load page",    // FAILED_TO_LOAD_PAGE
     "Cannot delete active book",           // CANNOT_DELETE_ACTIVE

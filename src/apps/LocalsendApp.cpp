@@ -582,6 +582,13 @@ bool update(Core& core) {
   return state.needsRender;
 }
 
+void onButton(Core& core, Button btn) {
+  if (state.screen != Screen::Receiving || btn != Button::Right) return;
+  // Open the receive directory in the file manager. Back stops the app.
+  strncpy(core.pendingDirectory, RECEIVE_DIR, sizeof(core.pendingDirectory) - 1);
+  core.events.push(Event::buttonPress(Button::Back));
+}
+
 bool render(Core& core) {
   state.needsRender = false;
   renderer.clearScreen(THEME.backgroundColor);
@@ -632,7 +639,7 @@ bool render(Core& core) {
   const int factsBottom = THEME.screenMarginTop + renderer.getLineHeight(THEME.readerFontId) + 16 + 7 * (lineH + 6);
   const int barTop = renderer.getScreenHeight() - 50;
   ui::localsendLogo(renderer, THEME, renderer.getScreenWidth() / 2, (factsBottom + barTop) / 2);
-  ui::ButtonBar buttons("Exit", "", "", "");
+  ui::ButtonBar buttons("Exit", "", "", "Files");
   ui::buttonBar(renderer, THEME, buttons);
   renderer.displayBuffer(papyrix::hal::Display::FAST_REFRESH);
   return true;

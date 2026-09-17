@@ -54,11 +54,17 @@ void FileListState::setDirectory(const char* dir) {
 }
 
 void FileListState::enter(Core& core) {
+  // An app can request a start directory (for example, /printouts from Printer)
+  const bool requestedDir = core.pendingDirectory[0] != '\0';
+  if (requestedDir) {
+    setDirectory(core.pendingDirectory);
+    core.pendingDirectory[0] = '\0';
+  }
   LOG_INF(TAG, "Entering, dir: %s", currentDir_);
 
   // Preserve position when returning from Reader via boot transition
   const auto& transition = getTransition();
-  bool preservePosition = transition.isValid() && transition.returnTo == ReturnTo::FILE_MANAGER;
+  const bool preservePosition = !requestedDir && transition.isValid() && transition.returnTo == ReturnTo::FILE_MANAGER;
 
   if (preservePosition) {
     // Restore directory from settings
@@ -616,7 +622,7 @@ void FileListState::render(Core& core) {
 
   // Empty state
   if (count == 0) {
-    renderer_.drawText(theme.uiFontId, 20, 60, tr(NO_BOOKS_FOUND), theme.primaryTextBlack);
+    renderer_.drawText(theme.uiFontId, 20, 60, tr(NO_FILES_FOUND), theme.primaryTextBlack);
     const char* backLabel = isAtRoot() ? (core.settings.showRecents ? tr(BOOKS) : tr(HOME)) : tr(BACK);
     ui::buttonBar(renderer_, theme, backLabel, "", "", "");
     renderer_.displayBuffer();
