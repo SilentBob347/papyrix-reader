@@ -1,4 +1,4 @@
-// Tests for FsHelpers::normalisePath() and FsHelpers::isHiddenFsItem().
+// Tests for FsHelpers::normalisePath(), isHiddenFsItem(), and toParentDir().
 
 #include "test_utils.h"
 
@@ -71,6 +71,50 @@ int main() {
   runner.expectFalse(FsHelpers::isHiddenFsItem("config.txt"),
                      "partial match: config.txt");
   runner.expectFalse(FsHelpers::isHiddenFsItem(""), "empty string not hidden");
+
+  // --- toParentDir ---
+
+  {
+    char path[64] = "/3";
+    char child[64] = {};
+    runner.expectTrue(FsHelpers::toParentDir(path, child, sizeof(child)), "root child 3: splits");
+    runner.expectEqual(std::string("/"), std::string(path), "root child 3: parent is /");
+    runner.expectEqual(std::string("3"), std::string(child), "root child 3: child is 3");
+  }
+
+  {
+    char path[64] = "/a/b";
+    char child[64] = {};
+    runner.expectTrue(FsHelpers::toParentDir(path, child, sizeof(child)), "nested /a/b: splits");
+    runner.expectEqual(std::string("/a"), std::string(path), "nested /a/b: parent is /a");
+    runner.expectEqual(std::string("b"), std::string(child), "nested /a/b: child is b");
+  }
+
+  {
+    char path[64] = "/a/";
+    char child[64] = {};
+    runner.expectTrue(FsHelpers::toParentDir(path, child, sizeof(child)), "trailing slash /a/: splits");
+    runner.expectEqual(std::string("/"), std::string(path), "trailing slash /a/: parent is /");
+    runner.expectEqual(std::string("a"), std::string(child), "trailing slash /a/: child is a");
+  }
+
+  {
+    char path[64] = "/";
+    char child[64] = {};
+    runner.expectFalse(FsHelpers::toParentDir(path, child, sizeof(child)), "root has no parent");
+  }
+
+  {
+    char path[64] = "";
+    char child[64] = {};
+    runner.expectFalse(FsHelpers::toParentDir(path, child, sizeof(child)), "empty path has no parent");
+  }
+
+  {
+    char path[64] = "books";
+    char child[64] = {};
+    runner.expectFalse(FsHelpers::toParentDir(path, child, sizeof(child)), "relative path has no parent");
+  }
 
   return runner.allPassed() ? 0 : 1;
 }

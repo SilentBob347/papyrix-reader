@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <cstring>
 #include <string>
 
@@ -9,6 +10,29 @@ class FsHelpers {
   // bytes use deterministic byte order; this is not locale-aware collation.
   // Null pointers sort before non-null pointers.
   static int naturalCompare(const char* a, const char* b);
+
+  static inline bool toParentDir(char* path, char* child, size_t childSize) {
+    if (!path || path[0] != '/' || !child || childSize == 0) return false;
+    if (path[1] == '\0') return false;
+
+    size_t len = strlen(path);
+    while (len > 1 && path[len - 1] == '/') {
+      path[--len] = '\0';
+    }
+
+    char* lastSlash = strrchr(path, '/');
+    if (!lastSlash || lastSlash[1] == '\0') return false;
+
+    strncpy(child, lastSlash + 1, childSize - 1);
+    child[childSize - 1] = '\0';
+
+    if (lastSlash == path) {
+      path[1] = '\0';
+    } else {
+      *lastSlash = '\0';
+    }
+    return true;
+  }
 
   // Check if a filename should be hidden from file browsers
   // Note: Does NOT check for "." prefix - caller should check that separately

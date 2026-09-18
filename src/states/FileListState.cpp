@@ -734,23 +734,20 @@ void FileListState::openSelected(Core& core) {
 }
 
 void FileListState::goBack(Core& core) {
-  // Navigate to parent directory or return to Recent if at root
   if (strcmp(currentDir_, "/") == 0) {
-    // At root - go back to Recent
     goRecent_ = true;
     return;
   }
 
-  // Find last slash and truncate
-  char* lastSlash = strrchr(currentDir_, '/');
-  if (lastSlash && lastSlash != currentDir_) {
-    *lastSlash = '\0';
-  } else {
+  char child[FileIndex::MAX_NAME + 1] = {};
+  if (!FsHelpers::toParentDir(currentDir_, child, sizeof(child))) {
     strcpy(currentDir_, "/");
   }
 
-  selectedIndex_ = 0;
   loadFiles(core);
+  const size_t count = entryCount();
+  const size_t restored = child[0] ? findEntryByName(child) : count;
+  selectedIndex_ = restored < count ? restored : 0;
   needsRender_ = true;
 }
 
