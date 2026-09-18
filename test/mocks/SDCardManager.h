@@ -71,6 +71,9 @@ class SDCardManager {
     mallocFailCount_ = 0;
     readLimit_ = 0;
     readLimitActive_ = false;
+    failBufferReadAfter_ = 0;
+    failBufferReadAfterActive_ = false;
+    gMockBufferReadCalls = 0;
     writeLimit_ = 0;
     writeLimitActive_ = false;
     syncResult_ = true;
@@ -119,6 +122,10 @@ class SDCardManager {
 
   void setSyncResult(bool result) { syncResult_ = result; }
   void setSeekEndResult(bool result) { seekEndResult_ = result; }
+  void setFailBufferReadAfter(size_t successfulCalls) {
+    failBufferReadAfter_ = successfulCalls;
+    failBufferReadAfterActive_ = true;
+  }
   void setRenameResult(bool result) { renameResult_ = result; }
 
   FsFile open(const char* path, int mode = O_RDONLY) {
@@ -174,6 +181,7 @@ class SDCardManager {
         file.setModifyDateTime(timestamp->second.first, timestamp->second.second);
       }
       if (readLimitActive_) file.setReadLimit(readLimit_);
+      if (failBufferReadAfterActive_) file.setFailBufferReadAfter(failBufferReadAfter_);
     }
     return file;
   }
@@ -314,6 +322,8 @@ class SDCardManager {
   bool syncResult_ = true;
   bool seekEndResult_ = true;
   bool renameResult_ = true;
+  size_t failBufferReadAfter_ = 0;
+  bool failBufferReadAfterActive_ = false;
 };
 
 #define SdMan SDCardManager::getInstance()

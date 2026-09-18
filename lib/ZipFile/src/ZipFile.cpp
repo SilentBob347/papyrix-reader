@@ -73,13 +73,12 @@ int zipReadCallback(uzlib_uncomp* uncomp) {
   if (ctx->fileRemaining == 0) return -1;
 
   const size_t toRead = ctx->fileRemaining < ctx->readBufSize ? ctx->fileRemaining : ctx->readBufSize;
-  const size_t bytesRead = ctx->file->read(ctx->readBuf, toRead);
-  ctx->fileRemaining -= bytesRead;
-
-  if (bytesRead == 0) return -1;
+  const int result = ctx->file->read(ctx->readBuf, toRead);
+  if (result <= 0) return -1;
+  ctx->fileRemaining -= static_cast<size_t>(result);
 
   uncomp->source = ctx->readBuf + 1;
-  uncomp->source_limit = ctx->readBuf + bytesRead;
+  uncomp->source_limit = ctx->readBuf + result;
   return ctx->readBuf[0];
 }
 }  // namespace
@@ -587,13 +586,14 @@ StreamReadResult ZipFile::readFileToStreamDetailed(const char* filename, Print& 
         delay(1);
       }
 
-      const size_t dataRead = file.read(buffer, remaining < chunkSize ? remaining : chunkSize);
-      if (dataRead == 0) {
+      const int result = file.read(buffer, remaining < chunkSize ? remaining : chunkSize);
+      if (result <= 0) {
         LOG_ERR(TAG, "Could not read more bytes");
         if (!arenaBacked) free(buffer);
         if (!wasOpen) close();
         return StreamReadResult::ReadError;
       }
+      const size_t dataRead = static_cast<size_t>(result);
 
       if (out.write(buffer, dataRead) != dataRead) {
         LOG_ERR(TAG, "Failed to write all output bytes to stream");

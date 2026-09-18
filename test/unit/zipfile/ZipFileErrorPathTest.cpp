@@ -332,6 +332,32 @@ int main() {
     runner.expectEq<size_t>(0, arena.used(), "deflated size mismatch releases arena");
   }
 
+  {
+    SdMan.reset();
+    const std::string path = "/deflated-count.zip";
+    SdMan.setFileData(path, createDeflatedZip("chapter.xhtml"));
+    ZipFile zip(path);
+    MockPrint output;
+    uint8_t bytes[33024] = {};
+    BuildArena arena(bytes, sizeof(bytes));
+    const auto ok = zip.readFileToStreamDetailed("chapter.xhtml", output, 64, nullptr, nullptr, &arena);
+    runner.expectTrue(ok == StreamReadResult::Success, "deflated count extract succeeds");
+    const size_t calls = gMockBufferReadCalls;
+    runner.expectTrue(calls > 0, "deflated count extract reads data");
+
+    SdMan.reset();
+    SdMan.setFileData(path, createDeflatedZip("chapter.xhtml"));
+    SdMan.setFailBufferReadAfter(calls - 1);
+    ZipFile zipFail(path);
+    MockPrint failOut;
+    uint8_t failBytes[33024] = {};
+    BuildArena failArena(failBytes, sizeof(failBytes));
+    const auto failed =
+        zipFail.readFileToStreamDetailed("chapter.xhtml", failOut, 64, nullptr, nullptr, &failArena);
+    runner.expectTrue(failed == StreamReadResult::DecompressionError, "deflated extract rejects negative read");
+    runner.expectEq<size_t>(0, failArena.used(), "deflated negative read releases arena");
+  }
+
   // ========================================================================
   // getInflatedFileSize - Error Cases
   // ========================================================================

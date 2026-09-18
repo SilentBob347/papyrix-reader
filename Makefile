@@ -154,6 +154,7 @@ test-tools: ## Host-tool tests (packaging, HTML, clock simulators)
 	@python3 test/scripts/test_sdmmc_lifecycle.py
 	@python3 test/scripts/test_wakeup.py
 	@python3 test/scripts/test_sleep_cancellation.py
+	@python3 test/scripts/test_sleep_abort.py
 	@python3 test/scripts/test_clock_app.py
 	@python3 test/scripts/test_clock_faces.py
 	@python3 test/scripts/test_clock_display.py

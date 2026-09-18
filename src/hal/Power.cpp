@@ -8,6 +8,7 @@
 #include <TargetConfig.h>
 #include <driver/gpio.h>
 #include <esp_sleep.h>
+#include <esp_system.h>
 
 namespace papyrix::hal {
 
@@ -26,9 +27,9 @@ namespace papyrix::hal {
   }
   board::prepareDeepSleepPins(profile, externalPower);
   gpio_deep_sleep_hold_en();
-  esp_deep_sleep_start();
-  while (true) {
-  }
+  esp_deep_sleep_try_to_start();
+  // Returns only if sleep entry is rejected. Reboot instead of spinning.
+  esp_restart();
 }
 
 }  // namespace papyrix::hal

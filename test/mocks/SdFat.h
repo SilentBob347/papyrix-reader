@@ -20,6 +20,8 @@
 #define O_TRUNC 0x80
 
 
+inline size_t gMockBufferReadCalls = 0;
+
 // Timestamp flag (matches SdFat FsApiConstants.h)
 constexpr uint8_t T_WRITE = 4;
 struct MockDirectoryEntry {
@@ -48,6 +50,7 @@ class FsFile : public Print {
     writeLimitActive_ = false;
     syncResult_ = true;
     seekEndResult_ = true;
+    failBufferReadAfterActive_ = false;
     hasModifyDateTime_ = false;
   }
 
@@ -68,6 +71,7 @@ class FsFile : public Print {
     syncResult_ = true;
     seekEndResult_ = true;
     hasModifyDateTime_ = false;
+    failBufferReadAfterActive_ = false;
   }
 
   void setDirectory(const std::vector<MockDirectoryEntry>& entries) {
@@ -111,6 +115,11 @@ class FsFile : public Print {
     modifyTime_ = time;
     hasModifyDateTime_ = true;
   }
+  void setFailBufferReadAfter(size_t successfulCalls) {
+    failBufferReadAfter_ = successfulCalls;
+    failBufferReadAfterActive_ = true;
+  }
+
 
   bool getModifyDateTime(uint16_t* date, uint16_t* time) const {
     if (!hasModifyDateTime_ || !date || !time) return false;
@@ -157,6 +166,7 @@ class FsFile : public Print {
     isOpen_ = false;
     isDirectory_ = false;
     pos_ = 0;
+    failBufferReadAfterActive_ = false;
     readLimit_ = 0;
     readLimitActive_ = false;
     totalRead_ = 0;
@@ -221,6 +231,8 @@ class FsFile : public Print {
 
   int read(uint8_t* buf, size_t len) {
     if (!isOpen_) return -1;
+    ++gMockBufferReadCalls;
+    if (failBufferReadAfterActive_ && gMockBufferReadCalls > failBufferReadAfter_) return -1;
     if (readLimitActive_) {
       size_t remaining = readLimit_ - totalRead_;
       if (remaining == 0) return 0;
@@ -294,6 +306,8 @@ class FsFile : public Print {
   size_t pos_ = 0;
   bool isOpen_ = false;
   bool isDirectory_ = false;
+  size_t failBufferReadAfter_ = 0;
+  bool failBufferReadAfterActive_ = false;
   size_t readLimit_ = 0;
   bool readLimitActive_ = false;
   size_t totalRead_ = 0;
