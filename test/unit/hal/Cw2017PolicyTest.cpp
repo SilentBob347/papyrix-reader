@@ -9,6 +9,8 @@ extern unsigned long testManualMillisValue;
 
 int main() {
   TestUtils::TestRunner runner("CW2017 policy");
+  const BatteryMonitor::Cw2017Config proConfig{39, 38, 100000, 0x63,
+                                             papyrix::battery::kCw2017BatteryProfile.data()};
   runner.expectTrue(papyrix::battery::cw2017VersionIsRunning(0x0D), "version 0x0D is running");
   runner.expectTrue(papyrix::battery::cw2017VersionIsRunning(0x0F), "version 0x0F is running");
   runner.expectFalse(papyrix::battery::cw2017VersionIsRunning(0xA0), "startup version is not ready");
@@ -26,7 +28,7 @@ int main() {
   Wire.setRegister(0x63, 0x03, 0x33);
   testManualMillisEnabled = true;
   testManualMillisValue = 100;
-  BatteryMonitor gauge(BatteryMonitor::Cw2017Config{39, 38, 100000});
+  BatteryMonitor gauge(proConfig);
   auto status = gauge.readStatus();
   runner.expectTrue(status.percentageKnown && status.millivoltsKnown, "initial gauge sample is available");
   runner.expectEq(uint16_t{75}, status.percentage, "gauge reports its measured charge");
@@ -63,7 +65,7 @@ int main() {
   Wire.setTransientReadFault(0x63, 0x10, 1);
   testManualMillisEnabled = true;
   testManualMillisValue = 100;
-  BatteryMonitor recovering(BatteryMonitor::Cw2017Config{39, 38});
+  BatteryMonitor recovering(proConfig);
   const auto nacked = recovering.readStatus();
   runner.expectFalse(nacked.percentageKnown, "failed profile verification reports unknown charge");
   runner.expectFalse(nacked.millivoltsKnown, "failed profile verification reports unknown voltage");
@@ -95,7 +97,7 @@ int main() {
   Wire.setRegister(0x63, 0x03, 0x33);
   Wire.setRegister(0x63, 0x04, 75);
   testManualMillisValue = 100;
-  BatteryMonitor repairing(BatteryMonitor::Cw2017Config{39, 38});
+  BatteryMonitor repairing(proConfig);
   const auto repaired = repairing.readStatus();
   runner.expectTrue(repaired.percentageKnown, "confirmed mismatch completes initialization");
   runner.expectEq(uint16_t{75}, repaired.percentage, "repaired gauge reports its measured charge");
@@ -103,6 +105,28 @@ int main() {
   runner.expectEq(size_t{3}, Wire.registerWriteCount(0x63, 0x08), "confirmed mismatch restarts the gauge mode");
   runner.expectEq(size_t{1}, Wire.registerWriteCount(0x63, 0x0B), "confirmed mismatch rewrites the update flag");
   runner.expectEq(size_t{1}, Wire.registerWriteCount(0x63, 0x10), "confirmed mismatch rewrites the profile byte");
+
+  for (bool ready : {true, false}) {
+    Wire.reset();
+    Wire.setPresent(0x63, true);
+    Wire.setRegister(0x63, 0x00, ready ? 0x0D : 0xA0);
+    Wire.setRegister(0x63, 0x0B, ready ? 0x80 : 0);
+    Wire.setRegister(0x63, 0x10, 0x12);
+    Wire.setRegister(0x63, 0x04, 61);
+    testManualMillisValue = 100;
+    BatteryMonitor classic(BatteryMonitor::Cw2017Config{39, 38});
+    const auto preserved = classic.readStatus();
+    runner.expectTrue(preserved.percentageKnown == ready, "Classic reports only a running factory gauge");
+    if (ready) runner.expectEq(uint16_t{61}, preserved.percentage, "Classic reads factory-calibrated SOC");
+    bool untouched = true;
+    for (uint16_t reg = 0; reg < 0x60; ++reg) untouched &= Wire.registerWriteCount(0x63, reg) == 0;
+    runner.expectTrue(untouched, "Classic never writes gauge calibration");
+    runner.expectEq(uint8_t{0x12}, Wire.getRegister(0x63, 0x10), "Classic preserves a different factory table");
+  }
+  Wire.reset();
+  testManualMillisValue = 100;
+  BatteryMonitor absent(BatteryMonitor::Cw2017Config{39, 38});
+  runner.expectFalse(absent.readStatus().percentageKnown, "Classic I2C failure reports unknown charge");
   testManualMillisEnabled = false;
   return runner.allPassed() ? 0 : 1;
 }

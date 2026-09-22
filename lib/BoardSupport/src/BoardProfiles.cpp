@@ -1,4 +1,7 @@
 #include "BoardProfiles.h"
+#if PAPYRIX_TARGET_X4PRO
+#include <Cw2017Policy.h>
+#endif
 
 namespace papyrix::board {
 
@@ -61,9 +64,30 @@ constexpr BoardProfile kX4ProProfile = {
     {TouchController::Gt911, 39, 38, 10, 4, 0x5D, 2, false, true, false, true, true, 0, 799, 0, 479, 100000, 0x14,
      true},
     {StorageTransport::Sdmmc1Bit, kPinUnused, kPinUnused, 41, 42, 40, 5, false},
-    {BatteryBackend::Cw2017, kPinUnused, 39, 38, 0x63, 21, true, 100000},
+    {BatteryBackend::Cw2017, kPinUnused, 39, 38, 0x63, 21, true, 100000,
+     papyrix::battery::kCw2017BatteryProfile.data()},
     {RtcType::Bm8563, 39, 38, 100000, 0x51},
     {8, 9, 10000, 10, true},
+    {kPinUnused, true, true},
+    {1, true},
+};
+#endif
+
+#if PAPYRIX_TARGET_X4CLASSIC
+constexpr BoardProfile kX4ClassicProfile = {
+    BoardId::X4Classic,
+    McuFamily::Esp32S3,
+    "xteink_x4_classic",
+    "/.papyrix/cache/x4c",
+    "x4c",
+    {800, 480, 12, 11, 13, 14, 10, 18, kPinUnused, 10000000, false},
+    {InputStyle::DigitalButtons, kPinUnused, kPinUnused, 9, 8, 5, 2, 7, 0, 3, false},
+    {TouchController::None, kPinUnused, kPinUnused, kPinUnused, kPinUnused, 0, kPinUnused, false, false, false, false,
+     false},
+    {StorageTransport::Sdmmc1Bit, kPinUnused, kPinUnused, 41, 42, 40, 6, false},
+    {BatteryBackend::Cw2017, kPinUnused, 39, 38, 0x63, 21, true, 400000},
+    {RtcType::Bm8563, 39, 38, 400000, 0x51},
+    {kPinUnused, kPinUnused, 0, 0, false},
     {kPinUnused, true, true},
     {1, true},
 };
@@ -82,6 +106,10 @@ const BoardProfile* findProfile(BoardId id) {
 #if PAPYRIX_TARGET_X4PRO
     case BoardId::X4Pro:
       return &kX4ProProfile;
+#endif
+#if PAPYRIX_TARGET_X4CLASSIC
+    case BoardId::X4Classic:
+      return &kX4ClassicProfile;
 #endif
   }
   return nullptr;

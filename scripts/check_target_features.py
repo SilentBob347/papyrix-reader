@@ -22,6 +22,8 @@ GROUPS = {
     "swipe gesture symbols": re.compile(r"[Ss]wipe"),
     "Bluetooth symbols": re.compile(r"Bluetooth"),
     "X4ProVariant placeholder": re.compile(r"X4ProVariant"),
+    "frontlight symbols": re.compile(r"FrontLightBackend::"),
+    "Pro touch board symbols": re.compile(r"::x4pro::"),
 }
 
 FORBIDDEN_GROUP_NAMES = {
@@ -40,6 +42,16 @@ FORBIDDEN_GROUP_NAMES = {
         "swipe gesture symbols",
         "Bluetooth symbols",
         "X4ProVariant placeholder",
+    ),
+    "x4c": (
+        "PaperMono board symbols",
+        "GT911 touch symbols",
+        "FT6336 touch symbols",
+        "swipe gesture symbols",
+        "Bluetooth symbols",
+        "X4ProVariant placeholder",
+        "frontlight symbols",
+        "Pro touch board symbols",
     ),
 }
 

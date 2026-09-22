@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run failed auto-sleep through the firmware state machine."""
+"""Run idle auto-sleep and cancellation through the firmware state machine."""
 
 import os
 from pathlib import Path
@@ -10,11 +10,13 @@ ROOT = Path(__file__).resolve().parents[2]
 
 HARNESS = r'''
 #include <core/StateMachine.h>
+#include <hal/Cpu.h>
 #include <cassert>
 #include <cstdio>
 #include <Logging.h>
 namespace papyrix {
 struct Core {
+  hal::Cpu cpu;
   struct Input {
     unsigned idle = 60000;
     unsigned idleTimeMs() const { return idle; }
@@ -29,6 +31,7 @@ class SleepState : public State {
   unsigned entries = 0;
   void enter(Core& core) override {
     ++entries;
+    assert(!core.cpu.isThrottled());
     @FAILURE@
   }
   StateTransition update(Core& core) override;
@@ -43,6 +46,18 @@ class ErrorState : public State {
   StateId id() const override { return StateId::Error; }
 };
 }
+class ReaderState : public papyrix::State {
+ public:
+  unsigned exits = 0;
+  void exit(papyrix::Core& core) override {
+    assert(!core.cpu.isThrottled());
+    ++exits;
+  }
+  papyrix::StateTransition update(papyrix::Core&) override {
+    return papyrix::StateTransition::stay(papyrix::StateId::Reader);
+  }
+  papyrix::StateId id() const override { return papyrix::StateId::Reader; }
+};
 papyrix::StateMachine stateMachine;
 void poll() {
   const unsigned autoSleepTimeout = 1000;
@@ -52,11 +67,17 @@ void poll() {
 int main() {
   papyrix::SleepState sleep;
   papyrix::ErrorState error;
+  ReaderState reader;
+  stateMachine.registerState(&reader);
   stateMachine.registerState(&sleep);
   stateMachine.registerState(&error);
+  stateMachine.init(papyrix::core, papyrix::StateId::Reader);
+  papyrix::core.cpu.throttle();
   for (int i = 0; i < 4; ++i) poll();
   assert(sleep.entries == 1 && error.entries == 1);
+  assert(reader.exits == 1);
   papyrix::core.input.idle = 1000;
+  papyrix::core.cpu.throttle();
   poll();
   poll();
   assert(sleep.entries == 2 && error.entries == 2);
@@ -78,16 +99,19 @@ def main():
     with tempfile.TemporaryDirectory(prefix="papyrix-sleep-cancel-") as directory:
         path = Path(directory)
         (path / "sleep.cpp").write_text(harness)
-        (path / "Arduino.h").write_text("#pragma once\n")
+        (path / "Arduino.h").write_text(
+            "#pragma once\ninline bool setCpuFrequencyMhz(unsigned) { return true; }\n")
         (path / "Logging.h").write_text(
             "#pragma once\n#define LOG_INF(...)\n#define LOG_ERR(...)\n#define LOG_DBG(...)\n")
         subprocess.run([
-            os.environ.get("CXX", "c++"), "-std=c++17", f"-I{path}", f"-I{ROOT / 'src'}",
+            os.environ.get("CXX", "c++"), "-std=c++17", "-DPAPYRIX_TARGET_X4CLASSIC=1", "-DF_CPU=240000000",
+            f"-I{path}", f"-I{ROOT / 'src'}",
             str(path / "sleep.cpp"), str(ROOT / "src/core/StateMachine.cpp"),
+            str(ROOT / "src/hal/Cpu.cpp"),
             "-o", str(path / "sleep"),
         ], check=True)
         subprocess.run([str(path / "sleep")], check=True)
-    print("PASS: cancelled auto-sleep reaches Error and waits before retry")
+    print("PASS: idle auto-sleep restores CPU before reader exit; cancelled sleep reaches Error before retry")
 
 
 if __name__ == "__main__":

@@ -235,6 +235,7 @@ class GfxRenderer {
   void clearFillRects() const { fillRects_.clear(); }
   const std::vector<FillRectCall>& fillRects() const { return fillRects_; }
   void displayBuffer(papyrix::hal::Display::RefreshMode = papyrix::hal::Display::FAST_REFRESH, bool = false) const {}
+  bool supportsGrayscale() const { return true; }
   void copyGrayscaleLsbBuffers() const {}
   void copyGrayscaleMsbBuffers() const {}
   void displayGrayBuffer(bool = false) const {}

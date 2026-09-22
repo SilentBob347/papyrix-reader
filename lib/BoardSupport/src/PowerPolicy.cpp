@@ -5,19 +5,31 @@
 #include <driver/gpio.h>
 
 #include "TargetConfig.h"
-#include "X4ProBoard.h"
 
 namespace papyrix::board {
 
 void releaseDeepSleepHolds() { gpio_deep_sleep_hold_dis(); }
 
 void prepareDeepSleepPins(const BoardProfile& profile, bool externalPower) {
-#if PAPYRIX_TARGET_X4PRO
-  if (profile.id == BoardId::X4Pro) {
-    x4pro::prepareDeepSleep(profile);
+  if (profile.family == McuFamily::Esp32S3) {
+    const auto holdOutput = [](int8_t pin, bool high) {
+      if (pin == kPinUnused) return;
+      gpio_hold_dis(static_cast<gpio_num_t>(pin));
+      pinMode(pin, OUTPUT);
+      digitalWrite(pin, high ? HIGH : LOW);
+      gpio_hold_en(static_cast<gpio_num_t>(pin));
+    };
+    holdOutput(profile.touch.rst, false);
+    holdOutput(profile.touch.powerPin, !profile.touch.powerActiveHigh);
+    for (const int8_t pin : {profile.storage.sdmmcClk, profile.storage.sdmmcCmd, profile.storage.sdmmcDat0}) {
+      gpio_hold_dis(static_cast<gpio_num_t>(pin));
+      pinMode(pin, INPUT);
+    }
+    holdOutput(profile.storage.powerPin, !profile.storage.powerActiveHigh);
+    holdOutput(profile.display.rst, true);
+    holdOutput(profile.power.latchPin, profile.power.latchActiveHigh);
     return;
   }
-#endif
   if (profile.storage.transport == StorageTransport::Spi && profile.storage.powerPin != kPinUnused) {
     papyrix::sd::disableSdPower(profile.storage.powerPin);
     gpio_hold_en(static_cast<gpio_num_t>(profile.storage.powerPin));

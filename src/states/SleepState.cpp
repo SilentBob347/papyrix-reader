@@ -278,7 +278,7 @@ void SleepState::renderBitmapSleepScreen(const Bitmap& bitmap) const {
   renderer_.drawBitmap(bitmap, rect.x, rect.y, rect.width, rect.height);
   renderer_.displayBuffer(papyrix::hal::Display::HALF_REFRESH);
 
-  if (bitmap.hasGreyscale()) {
+  if (renderer_.supportsGrayscale() && bitmap.hasGreyscale()) {
     bitmap.rewindToData();
     renderer_.clearScreen(0x00);
     renderer_.setRenderMode(GfxRenderer::GRAYSCALE_LSB);

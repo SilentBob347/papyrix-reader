@@ -15,7 +15,7 @@ using papyrix::board::RtcType;
 using papyrix::board::StorageTransport;
 using papyrix::board::TouchController;
 
-constexpr BoardId kAllBoards[] = {BoardId::X3, BoardId::X4, BoardId::X4Pro};
+constexpr BoardId kAllBoards[] = {BoardId::X3, BoardId::X4, BoardId::X4Pro, BoardId::X4Classic};
 
 const char* boardName(BoardId id) {
   switch (id) {
@@ -25,6 +25,8 @@ const char* boardName(BoardId id) {
       return "X4";
     case BoardId::X4Pro:
       return "X4 Pro";
+    case BoardId::X4Classic:
+      return "X4 Classic";
   }
   return "?";
 }
@@ -311,6 +313,27 @@ void expectArtifactShape(TestUtils::TestRunner& runner) {
                         p.input.back == kPinUnused && p.input.confirm == kPinUnused && p.input.left == kPinUnused &&
                         p.input.right == kPinUnused && !p.input.activeHigh,
                     "X4 Pro input is digital on up=GPIO0, down=GPIO7, power=GPIO3");
+#elif PAPYRIX_TARGET_X4CLASSIC
+  runner.expectTrue(papyrix::board::targetSupports(BoardId::X4Classic), "Classic profile is linked");
+  runner.expectFalse(papyrix::board::targetSupports(BoardId::X4Pro), "Classic cannot select Pro output pins");
+  runner.expectFalse(papyrix::board::targetSupports(BoardId::X3), "Classic cannot select C3 X3 pins");
+  runner.expectFalse(papyrix::board::targetSupports(BoardId::X4), "Classic cannot select C3 X4 pins");
+  const auto& p = papyrix::board::bootProfile();
+  runner.expectTrue(p.id == BoardId::X4Classic, "Classic boots with its fixed profile");
+  runner.expectFalse(papyrix::board::hasTouch(p), "Classic has no touch output ownership");
+  runner.expectFalse(papyrix::board::hasFrontLight(p), "Classic button pins cannot drive frontlight PWM");
+  const int8_t buttons[] = {p.input.back, p.input.confirm, p.input.left, p.input.right,
+                           p.input.up, p.input.down, p.input.power};
+  for (size_t i = 0; i < sizeof(buttons); ++i) {
+    runner.expectTrue(buttons[i] != kPinUnused, "Every Classic action has a button");
+    for (size_t j = i + 1; j < sizeof(buttons); ++j) {
+      runner.expectTrue(buttons[i] != buttons[j], "Classic actions have distinct physical inputs");
+    }
+    for (int8_t output : {p.display.sclk, p.display.mosi, p.display.cs, p.display.dc,
+                          p.display.rst, p.storage.powerPin, p.power.latchPin}) {
+      runner.expectTrue(buttons[i] != output, "Classic button does not share an output pin");
+    }
+  }
 #endif
 }
 

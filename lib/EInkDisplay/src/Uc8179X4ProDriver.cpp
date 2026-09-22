@@ -1,6 +1,6 @@
 #include "Uc8179X4ProDriver.h"
 
-#if defined(TEST_BUILD) || (defined(PAPYRIX_TARGET_X4PRO) && PAPYRIX_TARGET_X4PRO)
+#if defined(TEST_BUILD) || PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
 
 // This driver selectively ports the UC8179 X4 Pro path from FreeInk SDK
 // revision 6fabbec80c4d0d7cb6654046caef367a3c750c36. The license is in

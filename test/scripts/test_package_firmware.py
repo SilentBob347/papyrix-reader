@@ -24,6 +24,7 @@ with tempfile.TemporaryDirectory() as directory:
     payloads = {
         "release_xteink_c3": b"c3-image",
         "release_x4pro": b"x4pro-image",
+        "release_x4c": b"classic-image",
     }
     for environment, payload in payloads.items():
         build = root / ".pio/build" / environment
@@ -43,10 +44,21 @@ with tempfile.TemporaryDirectory() as directory:
     assert [entry["filename"] for entry in manifest["artifacts"]] == [
         "papyrix-xteink-c3.bin",
         "papyrix-x4pro.bin",
+        "papyrix-x4c.bin",
     ]
     for entry in manifest["artifacts"]:
         payload = payloads[entry["environment"]]
         assert entry["sha256"] == sha256(payload).hexdigest()
         assert (output / entry["filename"]).read_bytes() == payload
+    classic = manifest["artifacts"][2]
+    assert classic["boards"] == ["X4Classic"]
+    assert classic["panels"] == ["SSD1677", "UC8179_X4PRO", "UC8279_X4PRO"]
+    (root / ".pio/build/release_x4c/firmware.bin").unlink()
+    try:
+        module.package(root, output, build=False, check_features=False)
+    except (FileNotFoundError, RuntimeError):
+        pass
+    else:
+        raise AssertionError("missing Classic input must fail packaging")
 
 print("package firmware tests passed")

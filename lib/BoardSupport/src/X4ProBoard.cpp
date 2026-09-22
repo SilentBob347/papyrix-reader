@@ -22,16 +22,6 @@ void setInput(int8_t pin) {
   pinMode(pin, INPUT);
 }
 
-void holdOutput(int8_t pin, bool high) {
-  if (pin == kPinUnused) return;
-  setOutput(pin, high);
-  gpio_hold_en(static_cast<gpio_num_t>(pin));
-}
-
-void configureButton(int8_t pin, bool activeHigh) {
-  if (pin != kPinUnused) pinMode(pin, activeHigh ? INPUT : INPUT_PULLUP);
-}
-
 }  // namespace
 
 void enableTouch(const TouchConfig& touch) {
@@ -54,15 +44,6 @@ void enableTouch(const TouchConfig& touch) {
   delay(50);
 }
 
-void earlyInit(const BoardProfile& profile) {
-  setOutput(profile.power.latchPin, profile.power.latchActiveHigh);
-  setOutput(profile.storage.powerPin, !profile.storage.powerActiveHigh);
-  configureButton(profile.input.up, profile.input.activeHigh);
-  configureButton(profile.input.down, profile.input.activeHigh);
-  configureButton(profile.input.power, profile.input.activeHigh);
-  enableTouch(profile.touch);
-}
-
 void prepareCharacterization(const BoardProfile& profile) {
   setInput(profile.display.sclk);
   setInput(profile.display.mosi);
@@ -73,17 +54,6 @@ void prepareCharacterization(const BoardProfile& profile) {
   setOutput(profile.storage.powerPin, !profile.storage.powerActiveHigh);
   setOutput(profile.frontLight.gpio, !profile.frontLight.activeHigh);
   setOutput(profile.frontLight.warmGpio, !profile.frontLight.activeHigh);
-}
-
-void prepareDeepSleep(const BoardProfile& profile) {
-  holdOutput(profile.touch.rst, false);
-  holdOutput(profile.touch.powerPin, !profile.touch.powerActiveHigh);
-  setInput(profile.storage.sdmmcClk);
-  setInput(profile.storage.sdmmcCmd);
-  setInput(profile.storage.sdmmcDat0);
-  holdOutput(profile.storage.powerPin, !profile.storage.powerActiveHigh);
-  holdOutput(profile.display.rst, true);
-  holdOutput(profile.power.latchPin, profile.power.latchActiveHigh);
 }
 
 #endif

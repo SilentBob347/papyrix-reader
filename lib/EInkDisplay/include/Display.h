@@ -17,7 +17,7 @@ class Display {
  public:
   Display();
   ~Display() = default;
-  enum class InitResult : uint8_t { Ok, OutOfMemory = 2 };
+  enum class InitResult : uint8_t { Ok, OutOfMemory = 2, UnsupportedPanel };
   // Refresh modes (guarded to avoid redefinition in test builds)
   enum RefreshMode {
     FULL_REFRESH,  // Full refresh with complete waveform
@@ -29,6 +29,7 @@ class Display {
 
   InitResult begin();
   InitResult recover();
+  bool supportsGrayscale() const;
 
   // Legacy compile-time dimensions kept for compatibility with code that
   // still references them. Runtime callers should use the getDisplay*()

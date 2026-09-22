@@ -50,7 +50,7 @@ bool renderCoverFromBmp(GfxRenderer& renderer, const std::string& bmpPath, int m
   }
 
   // Grayscale rendering (if bitmap supports it and buffer can be stored)
-  if (bitmap.hasGreyscale() && renderer.storeBwBuffer()) {
+  if (renderer.supportsGrayscale() && bitmap.hasGreyscale() && renderer.storeBwBuffer()) {
     bitmap.rewindToData();
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);

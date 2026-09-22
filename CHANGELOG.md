@@ -1,5 +1,3 @@
-
-
 ## v1.29.0 (2026-09-08)
 
 *  Add support for X3 UC8279. Issue #160 [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]

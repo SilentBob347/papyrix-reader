@@ -19,8 +19,7 @@ int main() {
                     "X3 SPI storage controls its active-high rail");
 
 #else
-  const auto* x4pro = papyrix::board::findProfile(papyrix::board::BoardId::X4Pro);
-  runner.expectTrue(x4pro != nullptr, "S3 artifact contains the X4 Pro profile");
+  const auto* x4pro = &papyrix::board::bootProfile();
   const auto x4proPlan = makeStorageMountPlan(x4pro->storage);
   runner.expectTrue(x4proPlan.transport == StorageTransport::Sdmmc1Bit, "X4 Pro selects 1-bit SDMMC");
   runner.expectTrue(x4proPlan.controlsPowerPin, "X4 Pro controls its SD rail");

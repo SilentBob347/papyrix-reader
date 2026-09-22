@@ -29,12 +29,22 @@ int main() {
   Display display;
   testSetManualMillis(100);
   testSetDigitalReadHook(readBusy);
+#if PAPYRIX_TARGET_X4CLASSIC
+  runner.expectTrue(display.begin() == Display::InitResult::UnsupportedPanel,
+                    "unresolved Classic panel cannot initialize");
+  runner.expectTrue(display.getFrameBuffer() == nullptr && SPI.transferCount == 0,
+                    "unresolved panel allocates no framebuffer and sends no commands");
+#endif
   for (const auto panel : {DisplayController::UC8179_X4PRO, DisplayController::UC8279_X4PRO}) {
     identity.setPanel(panel, papyrix::board::PanelSelectionSource::Probe, 0x68);
     SPI.reset();
     runner.expectTrue(display.begin() == Display::InitResult::Ok, "facade initializes the selected X4 Pro panel");
-    runner.expectTrue(sent(panel == DisplayController::UC8179_X4PRO ? 0x06 : 0x30),
-                      "facade emits the selected controller's distinct initialization command");
+    if (panel == DisplayController::UC8279_X4PRO) {
+      runner.expectTrue(sent(0x30) == !PAPYRIX_TARGET_X4CLASSIC,
+                        "Classic retains factory PLL while Pro programs its PLL");
+    } else {
+      runner.expectTrue(sent(0x06), "UC8179 retains its booster configuration");
+    }
     reads = 0;
     display.displayBuffer(Display::FULL_REFRESH, false);
     SPI.reset();

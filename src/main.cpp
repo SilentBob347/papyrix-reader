@@ -254,6 +254,8 @@ void initializeDisplayWithRecovery() {
     papyrix::board::restoreRecoveryStorage(profile);
     if (!SdMan.begin()) LOG_ERR(TAG, "SD card did not recover");
     policy.recordSuccess();
+    if (!papyrix::board::HardwareIdentity::instance().panelResolved())
+      papyrix::board::selectPanel(papyrix::board::HardwareIdentity::instance());
     result = display.recover();
   }
   policy.recordSuccess();
@@ -652,6 +654,7 @@ void loop() {
     papyrix::core.input.resetIdleTimer();
   }
   if (autoSleepTimeout > 0 && papyrix::core.input.idleTimeMs() >= autoSleepTimeout) {
+    papyrix::core.cpu.unthrottle();
     LOG_INF(TAG, "Auto-sleep after %lu ms idle", autoSleepTimeout);
     stateMachine.init(papyrix::core, papyrix::StateId::Sleep);
     return;

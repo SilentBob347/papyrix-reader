@@ -45,13 +45,17 @@ bool BatteryMonitor::ensureCw2017Profile_() const {
   if (!read8(_cw2017, kMode, &mode) || !read8(_cw2017, kVersion, &version) || !read8(_cw2017, kSocAlert, &alert)) {
     return false;
   }
+  if (_cw2017.profile == nullptr) {
+    _cw2017Initialized = mode == 0 && (alert & kUpdateFlag) != 0 && papyrix::battery::cw2017VersionIsRunning(version);
+    return _cw2017Initialized;
+  }
 
   bool profileMatches = (alert & kUpdateFlag) != 0;
   if (profileMatches) {
     for (uint8_t i = 0; i < papyrix::battery::kCw2017BatteryProfile.size(); ++i) {
       uint8_t stored = 0;
       if (!read8(_cw2017, static_cast<uint8_t>(kBatInfo + i), &stored)) return false;
-      if (stored != papyrix::battery::kCw2017BatteryProfile[i]) {
+      if (stored != _cw2017.profile[i]) {
         profileMatches = false;
         break;
       }
@@ -59,8 +63,7 @@ bool BatteryMonitor::ensureCw2017Profile_() const {
   }
   if (!profileMatches) {
     for (uint8_t i = 0; i < papyrix::battery::kCw2017BatteryProfile.size(); ++i) {
-      if (!write8(_cw2017, static_cast<uint8_t>(kBatInfo + i), papyrix::battery::kCw2017BatteryProfile[i]))
-        return false;
+      if (!write8(_cw2017, static_cast<uint8_t>(kBatInfo + i), _cw2017.profile[i])) return false;
     }
     if (!write8(_cw2017, kSocAlert, kUpdateFlag)) return false;
   }

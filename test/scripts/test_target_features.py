@@ -32,6 +32,12 @@ GOOD_X4PRO = """\
 0805c100 T papyrix::Sdmmc1Bit::mount()
 """
 
+GOOD_X4C = """\
+0805a1b0 T papyrix::eink::Uc8279X4ProDriver::display()
+0805c001 T papyrix::eink::Uc8179X4ProDriver::display()
+0805c100 D kX4ClassicProfile
+"""
+
 
 BAD_DEFAULT = {
     "X4 Pro board symbols": "1000aaaa T papyrix::board::x4pro::enableTouch(papyrix::board::TouchConfig const&)",
@@ -48,6 +54,12 @@ BAD_X4PRO = {
     "swipe gesture symbols": "1000eeee T Input::handleSwipeGesture()",
     "Bluetooth symbols": "1000ffff T BluetoothSerial::begin()",
     "X4ProVariant placeholder": "1000abcd D kPanelNameX4ProVariant",
+}
+BAD_X4C = {
+    **BAD_X4PRO,
+    "GT911 touch symbols": "1000cccc T Gt911Touch::init()",
+    "frontlight symbols": "1000abcd T papyrix::board::FrontLightBackend::write()",
+    "Pro touch board symbols": "1000aaaa T papyrix::board::x4pro::enableTouch()",
 }
 
 
@@ -121,11 +133,14 @@ def main():
 
         listing = write_listing(tmp, "good_x4pro.txt", GOOD_X4PRO)
         failed |= not expect_pass("good x4pro listing passes", listing, "x4pro")
+        listing = write_listing(tmp, "good_x4c.txt", GOOD_X4C)
+        failed |= not expect_pass("Classic permits shared S3 panel drivers", listing, "x4c")
 
 
         for target, bad in (
             ("default", BAD_DEFAULT),
             ("x4pro", BAD_X4PRO),
+            ("x4c", BAD_X4C),
         ):
             for index, (group, line) in enumerate(bad.items()):
                 listing = write_listing(tmp, f"bad_{target}_{index}.txt", line + "\n")

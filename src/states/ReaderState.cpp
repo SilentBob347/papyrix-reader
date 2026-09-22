@@ -1578,7 +1578,8 @@ void ReaderState::renderCachedPage(Core& core) {
   renderPageContents(core, *page, vp.marginTop, vp.marginRight, vp.marginBottom, vp.marginLeft);
   renderStatusBar(core, vp.marginRight, vp.marginBottom, vp.marginLeft);
 
-  const bool aaEnabled = core.settings.textAntiAliasing && renderer_.fontSupportsGrayscale(fontId);
+  const bool aaEnabled =
+      core.settings.textAntiAliasing && renderer_.supportsGrayscale() && renderer_.fontSupportsGrayscale(fontId);
   const bool imagePageWithAA = aaEnabled && page->hasImages();
 
   if (imagePageWithAA) {

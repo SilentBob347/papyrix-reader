@@ -8,7 +8,7 @@
 #include "Ssd1677Driver.h"
 #include "Uc8279SpiBus.h"
 #include "Uc8279X3Driver.h"
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
 #include "Uc8179X4ProDriver.h"
 #include "Uc8279X4ProDriver.h"
 #endif
@@ -285,7 +285,7 @@ void Display::setBackgroundHint(bool darkBackground) {
 }
 
 void Display::requestResync(uint8_t settlePasses) {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO) {
     papyrix::eink::uc8179X4ProDriver().requestResync();
     return;
@@ -320,8 +320,19 @@ Display::Display()
       drawGrayscale(false) {
 }
 
+bool Display::supportsGrayscale() const {
+  const auto& identity = papyrix::board::HardwareIdentity::instance();
+  if (!identity.panelResolved()) return false;
+#if PAPYRIX_TARGET_X4CLASSIC
+  if (displayController_ == papyrix::eink::DisplayController::UC8279_X4PRO)
+    return papyrix::eink::uc8279X4ProDriver().supportsGrayscale();
+#endif
+  return true;
+}
+
 Display::InitResult Display::begin() {
   const auto& identity = papyrix::board::HardwareIdentity::instance();
+  if (!identity.panelResolved()) return InitResult::UnsupportedPanel;
   const auto& config = identity.profile().display;
   _sclk = config.sclk;
   _mosi = config.mosi;
@@ -343,10 +354,14 @@ Display::InitResult Display::begin() {
   ssd1677RefreshSucceeded_ = false;
 #if !PAPYRIX_TARGET_XTEINK_C3
   if (!frameBuffer0) {
+    if (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) < MAX_BUFFER_SIZE)
+      return InitResult::OutOfMemory;
     frameBuffer0 = static_cast<uint8_t*>(heap_caps_malloc(MAX_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
   }
 #ifndef EINK_DISPLAY_SINGLE_BUFFER_MODE
   if (!frameBuffer1) {
+    if (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) < MAX_BUFFER_SIZE)
+      return InitResult::OutOfMemory;
     frameBuffer1 = static_cast<uint8_t*>(heap_caps_malloc(MAX_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
   }
 #endif
@@ -383,7 +398,8 @@ Display::InitResult Display::begin() {
   LOG_INF(TAG, "Initializing e-ink display driver...");
 
   SPI.begin(_sclk, -1, _mosi, _cs);
-  const uint32_t spiHz = displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO ||
+  const uint32_t spiHz = identity.board() == papyrix::board::BoardId::X4Classic ||
+                                 displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO ||
                                  displayController_ == papyrix::eink::DisplayController::UC8279_X4PRO
                              ? config.spiHz
                          : displayController_ == papyrix::eink::DisplayController::UC8279_X3
@@ -395,7 +411,7 @@ Display::InitResult Display::begin() {
   pinMode(_cs, OUTPUT);
   pinMode(_dc, OUTPUT);
   if (_rst != papyrix::board::kPinUnused) {
-    if (_x3Mode) gpio_hold_dis(static_cast<gpio_num_t>(_rst));
+    if (_x3Mode || PAPYRIX_TARGET_X4CLASSIC) gpio_hold_dis(static_cast<gpio_num_t>(_rst));
     pinMode(_rst, OUTPUT);
   }
   pinMode(_busy, INPUT);
@@ -403,7 +419,7 @@ Display::InitResult Display::begin() {
   digitalWrite(_dc, HIGH);
   LOG_INF(TAG, "GPIO pins configured");
 
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO) {
     papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
     if (!papyrix::eink::uc8179X4ProDriver().begin(bus)) {
@@ -415,7 +431,8 @@ Display::InitResult Display::begin() {
   }
   if (displayController_ == papyrix::eink::DisplayController::UC8279_X4PRO) {
     papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
-    if (!papyrix::eink::uc8279X4ProDriver().begin(bus, papyrix::board::HardwareIdentity::instance().panelVariant())) {
+    if (!papyrix::eink::uc8279X4ProDriver().begin(bus, identity.panelVariant(),
+                                                  identity.board() != papyrix::board::BoardId::X4Classic)) {
       LOG_ERR(TAG, "Cannot allocate UC8279 X4 Pro grayscale state");
       return InitResult::OutOfMemory;
     }
@@ -786,7 +803,7 @@ void IRAM_ATTR Display::writeRamBufferInverted(uint8_t ramBuffer, const uint8_t*
 }
 
 void Display::displayBufferDriveAll(bool turnOffScreen) {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO) {
     papyrix::eink::uc8179X4ProDriver().requestResync();
     displayBuffer(FAST_REFRESH, turnOffScreen);
@@ -842,7 +859,7 @@ void Display::swapBuffers() {
 #endif
 
 void Display::grayscaleRevert() {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO ||
       displayController_ == papyrix::eink::DisplayController::UC8279_X4PRO) {
     inGrayscaleMode = false;
@@ -867,7 +884,7 @@ void Display::grayscaleRevert() {
 }
 
 void Display::copyGrayscaleLsbBuffers(const uint8_t* lsbBuffer) {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO) {
     papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
     papyrix::eink::uc8179X4ProDriver().copyGrayscaleLsb(bus, lsbBuffer);
@@ -908,7 +925,7 @@ void Display::copyGrayscaleLsbBuffers(const uint8_t* lsbBuffer) {
 }
 
 void Display::copyGrayscaleMsbBuffers(const uint8_t* msbBuffer) {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO) {
     papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
     papyrix::eink::uc8179X4ProDriver().copyGrayscaleMsb(bus, msbBuffer);
@@ -949,7 +966,7 @@ void Display::copyGrayscaleMsbBuffers(const uint8_t* msbBuffer) {
 }
 
 void Display::copyGrayscaleBuffers(const uint8_t* lsbBuffer, const uint8_t* msbBuffer) {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO ||
       displayController_ == papyrix::eink::DisplayController::UC8279_X4PRO) {
     copyGrayscaleLsbBuffers(lsbBuffer);
@@ -975,7 +992,7 @@ void Display::copyGrayscaleBuffers(const uint8_t* lsbBuffer, const uint8_t* msbB
  * grayscale display.
  */
 void Display::cleanupGrayscaleBuffers(const uint8_t* bwBuffer) {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO) {
     papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
     papyrix::eink::uc8179X4ProDriver().cleanupGrayscale(bus, bwBuffer);
@@ -1039,7 +1056,7 @@ void Display::cleanupGrayscaleBuffers(const uint8_t* bwBuffer) {
 #endif
 
 void Display::displayBuffer(RefreshMode mode, const bool turnOffScreen) {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO) {
     const auto ucMode = mode == FULL_REFRESH   ? papyrix::eink::Uc8179RefreshMode::Full
                         : mode == HALF_REFRESH ? papyrix::eink::Uc8179RefreshMode::Half
@@ -1344,7 +1361,7 @@ void Display::displayWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h, cons
     LOG_ERR(TAG, "Frame buffer not allocated!");
     return;
   }
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO ||
       displayController_ == papyrix::eink::DisplayController::UC8279_X4PRO) {
     displayBuffer(FAST_REFRESH, turnOffScreen);
@@ -1415,7 +1432,7 @@ void Display::displayWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h, cons
 }
 
 void Display::displayGrayBuffer(const bool turnOffScreen) {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO) {
     drawGrayscale = false;
     papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
@@ -1517,7 +1534,7 @@ void Display::displayGrayBuffer(const bool turnOffScreen) {
 }
 
 void Display::refreshDisplay(const RefreshMode mode, const bool turnOffScreen) {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO ||
       displayController_ == papyrix::eink::DisplayController::UC8279_X4PRO) {
     displayBuffer(mode, turnOffScreen);
@@ -1627,7 +1644,7 @@ void Display::setCustomLUT(const bool enabled, const unsigned char* lutData) {
 
 bool Display::deepSleep() {
   LOG_INF(TAG, "Preparing display for deep sleep...");
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
   if (displayController_ == papyrix::eink::DisplayController::UC8179_X4PRO) {
     papyrix::eink::Uc8279SpiBus bus(_cs, _dc, _rst, _busy, spiSettings);
     if (!papyrix::eink::uc8179X4ProDriver().deepSleep(bus)) return false;

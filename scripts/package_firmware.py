@@ -28,6 +28,15 @@ ARTIFACTS = (
         "panels": ["UC8279_X4PRO", "UC8179_X4PRO"],
         "hardware_status": "partial",
     },
+    {
+        "environment": "release_x4c",
+        "checker_target": "x4c",
+        "filename": "papyrix-x4c.bin",
+        "mcu": "ESP32-S3",
+        "boards": ["X4Classic"],
+        "panels": ["SSD1677", "UC8179_X4PRO", "UC8279_X4PRO"],
+        "hardware_status": "partial",
+    },
 )
 
 

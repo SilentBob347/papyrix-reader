@@ -23,11 +23,13 @@ INCLUDES = [
     "lib/EInkDisplay/include",
     "test/mocks",
     "lib/BoardSupport/include",
+    "lib/BatteryMonitor/include",
     "src",
 ]
 TARGETS = {
     "PAPYRIX_TARGET_XTEINK_C3": ("ssd1677", "uc8253", "uc8279-x3"),
     "PAPYRIX_TARGET_X4PRO": ("uc8179-pro", "uc8279-pro"),
+    "PAPYRIX_TARGET_X4CLASSIC": ("ssd1677", "uc8179-pro", "uc8279-pro"),
 }
 
 HARNESS = r'''
@@ -254,6 +256,7 @@ void exit(Core&) {}
 namespace localsend_app {
 void enter(Core&) {}
 bool update(Core&) { return false; }
+void onButton(Core&, Button) {}
 bool render(Core& core) { return renderApp(core); }
 void exit(Core&) {}
 }
@@ -353,6 +356,11 @@ int main(int argc, char** argv) {
     selection.board = name == "ssd1677" ? BoardId::X4 : BoardId::X3;
     panel = name == "ssd1677" ? DisplayController::SSD1677
           : name == "uc8253" ? DisplayController::UC8253 : DisplayController::UC8279_X3;
+#elif PAPYRIX_TARGET_X4CLASSIC
+    check(name == "ssd1677" || name == "uc8179-pro" || name == "uc8279-pro", "unsupported Classic controller");
+    selection.board = BoardId::X4Classic;
+    panel = name == "ssd1677" ? DisplayController::SSD1677
+          : name == "uc8179-pro" ? DisplayController::UC8179_X4PRO : DisplayController::UC8279_X4PRO;
 #else
     check(name == "uc8179-pro" || name == "uc8279-pro", "unsupported Pro controller");
     selection.board = BoardId::X4Pro;
@@ -372,7 +380,7 @@ int main(int argc, char** argv) {
     Display display;
     check(display.begin() == Display::InitResult::Ok, "real facade initializes the selected panel");
     std::unique_ptr<uint8_t, decltype(&std::free)> buffer(nullptr, std::free);
-#if PAPYRIX_TARGET_X4PRO
+#if !PAPYRIX_TARGET_XTEINK_C3
     buffer.reset(display.getFrameBuffer());
 #endif
     GfxRenderer renderer{display};

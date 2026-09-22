@@ -1043,6 +1043,8 @@ size_t GfxRenderer::getBufferSize() const { return display_.getBufferSize(); }
 
 void GfxRenderer::grayscaleRevert() const { display_.grayscaleRevert(); }
 
+bool GfxRenderer::supportsGrayscale() const { return display_.supportsGrayscale(); }
+
 void GfxRenderer::copyGrayscaleLsbBuffers() const { display_.copyGrayscaleLsbBuffers(frameBuffer); }
 
 void GfxRenderer::copyGrayscaleMsbBuffers() const { display_.copyGrayscaleMsbBuffers(frameBuffer); }

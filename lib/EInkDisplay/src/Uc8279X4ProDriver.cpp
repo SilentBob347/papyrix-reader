@@ -1,6 +1,6 @@
 #include "Uc8279X4ProDriver.h"
 
-#if defined(TEST_BUILD) || (defined(PAPYRIX_TARGET_X4PRO) && PAPYRIX_TARGET_X4PRO)
+#if defined(TEST_BUILD) || PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
 
 // This driver selectively ports the UC8279 X4 Pro path from FreeInk SDK
 // revision 6fabbec80c4d0d7cb6654046caef367a3c750c36. The license is in
@@ -100,13 +100,18 @@ void Uc8279X4ProDriver::initController(Uc8279Bus& bus) {
   bus.commandData(CMD_RESOLUTION, resolution, sizeof(resolution));
   bus.commandData(CMD_GATE_SOURCE_START, gateSource, sizeof(gateSource));
   bus.commandData(CMD_POWER_OFF_SEQUENCE, powerOffSequence, sizeof(powerOffSequence));
-  bus.commandData(CMD_PLL, pll, sizeof(pll));
+  if (programPll_) bus.commandData(CMD_PLL, pll, sizeof(pll));
   bus.commandData(CMD_GATE_SCAN, gateScan, sizeof(gateScan));
 }
 
-bool Uc8279X4ProDriver::begin(Uc8279Bus& bus, uint8_t lutVersion) {
-  if (!allocateGrayBase()) return false;
+bool Uc8279X4ProDriver::begin(Uc8279Bus& bus, uint8_t lutVersion, bool programPll) {
   lutVersion_ = lutVersion;
+  programPll_ = programPll;
+  if (supportsGrayscale()) {
+    if (!allocateGrayBase()) return false;
+  } else {
+    releaseGrayBase();
+  }
   bus.reset(50);
   initController(bus);
   grayBaseValid_ = false;
@@ -240,9 +245,9 @@ bool Uc8279X4ProDriver::transitionGrayscaleBase(Uc8279Bus& bus, const uint8_t* f
 }
 
 bool Uc8279X4ProDriver::display(Uc8279Bus& bus, const uint8_t* frame, Uc8279X4RefreshMode mode, bool turnOff) {
-  if (frame == nullptr || grayBase_ == nullptr) return false;
-  memcpy(grayBase_, frame, BUFFER_SIZE);
-  grayBaseValid_ = true;
+  if (frame == nullptr) return false;
+  if (grayBase_ != nullptr) memcpy(grayBase_, frame, BUFFER_SIZE);
+  grayBaseValid_ = grayBase_ != nullptr;
   absoluteGrayPlanes_ = false;
   lsbValid_ = false;
   msbValid_ = false;
@@ -339,6 +344,7 @@ bool Uc8279X4ProDriver::copyGrayscaleMsb(Uc8279Bus& bus, const uint8_t* plane) {
 }
 
 bool Uc8279X4ProDriver::displayGray(Uc8279Bus& bus, bool turnOff) {
+  if (!supportsGrayscale()) return false;
   if (!lsbValid_ || !msbValid_ || !grayBaseValid_) return false;
   if (!bus.waitReady("8279x4_gray_ready")) {
     invalidate();
@@ -347,7 +353,7 @@ bool Uc8279X4ProDriver::displayGray(Uc8279Bus& bus, bool turnOff) {
 
   const uint8_t panel[] = {0x37, 0x4D};
   bus.commandData(CMD_PANEL_SETTING, panel, sizeof(panel));
-  const auto& grayLuts = lutVersion_ == 0x02 ? GRAY_LUTS_02 : GRAY_LUTS_68;
+  const auto& grayLuts = (lutVersion_ == 0x02 || (!programPll_ && lutVersion_ == 0x03)) ? GRAY_LUTS_02 : GRAY_LUTS_68;
   for (const auto& lut : grayLuts) bus.commandData(lut[0], lut + 1, GRAY_LUT_SIZE);
   bus.command(CMD_VCOM_DATA_INTERVAL);
   bus.data(0x97);

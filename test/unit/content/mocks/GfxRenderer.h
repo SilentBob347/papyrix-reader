@@ -37,6 +37,7 @@ class GfxRenderer {
   void clearWidthCache() const {}
   void warmCodepointsBatch(int, const uint32_t*, size_t, EpdFontFamily::Style = EpdFontFamily::REGULAR) const {}
   bool fontSupportsGrayscale(int) const { return false; }
+  bool supportsGrayscale() const { return false; }
 
   // Display path (no-ops)
   void clearScreen(const uint8_t = 0xFF) const {}

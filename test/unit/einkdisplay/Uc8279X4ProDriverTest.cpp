@@ -105,7 +105,7 @@ int main() {
   Uc8279X4ProDriver driver;
   RecordingBus bus;
 
-  runner.expectTrue(driver.begin(bus, 0x68), "begin initializes the source-backed UC8279 path");
+  runner.expectTrue(driver.begin(bus, 0x68, true), "begin initializes the source-backed UC8279 path");
   runner.expectEq(50, static_cast<int>(bus.resetSettleMs), "uses the source-backed reset settle");
   runner.expectTrue(bus.hasCommandData(0x00, {0x37, 0x4D}), "writes the UC8279 panel setting");
   runner.expectTrue(bus.hasCommandData(0x61, {0x03, 0x20, 0x02, 0x58}), "addresses the 800 by 600 OTP geometry");
@@ -265,9 +265,38 @@ int main() {
   runner.expectTrue(bus.hasCommandData(0x07, {0xA5}), "controller deep sleep uses the UC key");
   runner.expectTrue(eventIndex(bus, "C:07") > eventIndex(bus, "C:02"), "deep sleep follows analog power-off");
 
+  for (bool programPll : {false, true}) {
+    Uc8279X4ProDriver variant03;
+    RecordingBus variantBus;
+    const bool rendered = variant03.begin(variantBus, 0x03, programPll) &&
+                          variant03.display(variantBus, frame.data(), Uc8279X4RefreshMode::Full, false) &&
+                          variant03.copyGrayscaleLsb(variantBus, frame.data()) &&
+                          variant03.copyGrayscaleMsb(variantBus, frame.data()) &&
+                          variant03.displayGray(variantBus, false);
+    const auto tables = recordsFor(variantBus, 0x20);
+    runner.expectTrue(rendered && tables.size() == 1 && tables[0]->data.size() == 49 &&
+                          tables[0]->data[2] == (programPll ? 0x03 : 0x02),
+                      programPll ? "Pro variant 03 keeps its existing waveform"
+                                 : "Classic variant 03 uses the QY waveform");
+  }
+
   Uc8279X4ProDriver failedDriver;
   RecordingBus failedBus;
-  runner.expectTrue(failedDriver.begin(failedBus, 0x68), "failure-path driver initializes");
+  runner.expectTrue(failedDriver.begin(failedBus, 0x68, true), "failure-path driver initializes");
+  for (uint8_t variant : {uint8_t{0}, uint8_t{0x67}}) {
+    Uc8279X4ProDriver monochrome;
+    RecordingBus monoBus;
+    runner.expectTrue(monochrome.begin(monoBus, variant, false), "Classic OTP-only panel initializes");
+    monoBus.clear();
+    runner.expectTrue(monochrome.display(monoBus, frame.data(), Uc8279X4RefreshMode::Full, false),
+                      "Classic OTP-only panel renders monochrome");
+    monoBus.clear();
+    runner.expectFalse(monochrome.copyGrayscaleLsb(monoBus, frame.data()),
+                       "Classic unknown waveform cannot write grayscale planes");
+    runner.expectFalse(monochrome.displayGray(monoBus, false), "Classic unknown waveform cannot activate gray");
+    runner.expectFalse(monoBus.hasCommandData(0x00, {0x37, 0x4D}),
+                       "Classic unknown waveform cannot select external LUTs");
+  }
   failedBus.clear();
   failedBus.failedWait = "8279x4_PON";
   runner.expectFalse(failedDriver.display(failedBus, frame.data(), Uc8279X4RefreshMode::Full, false),

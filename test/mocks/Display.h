@@ -41,6 +41,8 @@ class Display {
   void clearScreen(uint8_t color = 0xFF) { memset(frameBuffer_, color, bufferSize_); }
   void setBackgroundHint(bool darkBackground) { darkBackground_ = darkBackground; }
   bool backgroundHint() const { return darkBackground_; }
+  bool supportsGrayscale() const { return supportsGrayscale_; }
+  void setSupportsGrayscale(bool supported) { supportsGrayscale_ = supported; }
   void displayBuffer(RefreshMode, bool) {}
   void displayBufferDriveAll(bool = false) {}
   void displayWindow(int, int, int, int, bool) {}
@@ -76,6 +78,7 @@ class Display {
   int displayGrayCount_ = 0;
   int cleanupCount_ = 0;
   bool darkBackground_ = false;
+  bool supportsGrayscale_ = true;
 };
 
 }  // namespace papyrix::hal

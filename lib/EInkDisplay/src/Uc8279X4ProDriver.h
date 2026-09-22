@@ -25,7 +25,10 @@ class Uc8279X4ProDriver {
   Uc8279X4ProDriver(const Uc8279X4ProDriver&) = delete;
   Uc8279X4ProDriver& operator=(const Uc8279X4ProDriver&) = delete;
 
-  bool begin(Uc8279Bus& bus, uint8_t lutVersion);
+  bool begin(Uc8279Bus& bus, uint8_t lutVersion, bool programPll);
+  bool supportsGrayscale() const {
+    return programPll_ || lutVersion_ == 0x02 || lutVersion_ == 0x03 || lutVersion_ == 0x68 || lutVersion_ == 0x69;
+  }
   bool display(Uc8279Bus& bus, const uint8_t* frame, Uc8279X4RefreshMode mode, bool turnOff);
   void requestResync();
   bool copyGrayscaleLsb(Uc8279Bus& bus, const uint8_t* plane);
@@ -48,6 +51,7 @@ class Uc8279X4ProDriver {
 
   uint8_t* grayBase_ = nullptr;
   uint8_t lutVersion_ = 0x68;
+  bool programPll_ = true;
   bool grayBaseValid_ = false;
   bool absoluteGrayPlanes_ = false;
   bool screenOn_ = false;

@@ -49,7 +49,7 @@ bool renderImageFile(GfxRenderer& renderer, const Theme& theme, const std::strin
   buttonBar(renderer, theme, buttons);
   renderer.displayBuffer();
 
-  if (bitmap.hasGreyscale()) {
+  if (renderer.supportsGrayscale() && bitmap.hasGreyscale()) {
     bitmap.rewindToData();
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);

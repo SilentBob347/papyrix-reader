@@ -2,6 +2,9 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
+#include <TargetConfig.h>
+#endif
 
 inline float min(const float a, const float b) { return a < b ? a : b; }
 inline float max(const float a, const float b) { return a > b ? a : b; }
@@ -84,7 +87,7 @@ uint16_t BatteryMonitor::readBq27220Mv_() const {
 }
 
 uint16_t BatteryMonitor::readPercentage() const {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_CAP_BATTERY_CW2017
   uint16_t percentage = 0;
   return readCw2017Soc_(&percentage) ? percentage : 0;
 #else
@@ -94,7 +97,7 @@ uint16_t BatteryMonitor::readPercentage() const {
 }
 
 uint16_t BatteryMonitor::readMillivolts() const {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_CAP_BATTERY_CW2017
   uint16_t millivolts = 0;
   return readCw2017Mv_(&millivolts) ? millivolts : 0;
 #else
@@ -104,7 +107,7 @@ uint16_t BatteryMonitor::readMillivolts() const {
 }
 
 uint16_t BatteryMonitor::readRawMillivolts() const {
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_CAP_BATTERY_CW2017
   return readMillivolts();
 #else
   if (_mode == Mode::Bq27220) return readBq27220Mv_();
@@ -145,7 +148,7 @@ bool BatteryMonitor::readBq27220Current_(int16_t* outMa) const {
 
 BatteryMonitor::Status BatteryMonitor::readStatus() const {
   Status status;
-#if !PAPYRIX_TARGET_X4PRO
+#if !PAPYRIX_CAP_BATTERY_CW2017
   if (_mode == Mode::Adc) {
     status.supported = true;
     status.millivolts = readMillivolts();
@@ -156,7 +159,7 @@ BatteryMonitor::Status BatteryMonitor::readStatus() const {
   }
 #endif
   status.supported = true;
-#if PAPYRIX_TARGET_X4PRO
+#if PAPYRIX_CAP_BATTERY_CW2017
   status.percentageKnown = readCw2017Soc_(&status.percentage);
   status.millivoltsKnown = readCw2017Mv_(&status.millivolts);
 #else

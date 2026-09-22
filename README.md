@@ -18,8 +18,8 @@
 
 <img alt="PapyriX" src="./images/logo-light.jpg" width="160">
 
-PapyriX is firmware for Xteink X3, X4, and X4 Pro e-paper readers.
-It uses one ESP32-C3 image for X3/X4 and one ESP32-S3 image for X4 Pro.
+PapyriX is firmware for Xteink X3, X4, X4 Pro, and X4 v2 Classic e-paper readers.
+X3/X4 use one ESP32-C3 image. Pro and Classic use separate ESP32-S3 images.
 
 > **Warning:** Some Xteink units (for example, units from AliExpress) lock USB flash.
 > If USB flash is locked, you cannot update or recover through USB.
@@ -38,6 +38,7 @@ It is a community project.
 | Xteink X4 | `papyrix-xteink-c3.bin` | 800×480 SSD1677 |
 | Xteink X3 | `papyrix-xteink-c3.bin` | 792×528 UC8253 or UC8279 |
 | Xteink X4 Pro | `papyrix-x4pro.bin` | 800×480 UC8279 or UC8179 |
+| Xteink X4 v2 Classic | `papyrix-x4c.bin` | 800×480 SSD1677, UC8179, or UC8279; partial hardware validation |
 
 See the [device support matrix](docs/device-support-matrix.md) for build targets and hardware services.
 Using the wrong binary can drive incorrect pins and can damage hardware.
@@ -120,6 +121,11 @@ Download the binary that matches the device:
 
 - X3 or X4: `papyrix-xteink-c3.bin`
 - X4 Pro: `papyrix-x4pro.bin`
+- X4 v2 Classic: `papyrix-x4c.bin` (partial hardware validation)
+
+Pro and Classic images are not interchangeable.
+For Classic, read the [qualification and installation limits](docs/x4-classic-hardware-validation.md) first.
+Do not erase the chip or install a full-flash image from another device.
 
 The usual installation method is
 **[papyrix-flasher](https://github.com/bigbag/papyrix-flasher)**:
@@ -154,7 +160,7 @@ See the [customization guide](docs/customization.md) for more data.
 * Python 3.12+ with [uv](https://docs.astral.sh/uv/) (for font conversion)
 * Node.js 18+ (for sleep screen scripts and logo scripts)
 * USB-C data cable
-* Xteink X3, X4, or X4 Pro with unlocked USB flashing
+* Xteink X3, X4, X4 Pro, or X4 v2 Classic with unlocked USB flashing
 
 Install Node.js dependencies (for sleep screen scripts and logo scripts):
 ```bash

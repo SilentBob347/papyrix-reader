@@ -92,6 +92,10 @@ XtcPageRenderer::RenderResult XtcPageRenderer::render2Bit(xtc::XtcParser& parser
     renderer_.clearScreen();
     return result;
   }
+  if (!renderer_.supportsGrayscale()) {
+    refreshCallback(RefreshRequest::Cadenced);
+    return RenderResult::Success;
+  }
   refreshCallback(RefreshRequest::GrayscaleBase);
 
   result = compose2BitPass(parser, pageNum, width, height, GrayscalePass::Lsb);

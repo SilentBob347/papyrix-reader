@@ -214,6 +214,20 @@ int main() {
     runner.expectTrue(!fullDisplay.grayscaleMsb().empty() && fullDisplay.grayscaleMsb()[0] == 0x66,
                       "native MSB uses p1 ^ p2");
     runner.expectTrue(fullGfx.getFrameBuffer()[0] == 0x81, "final base is reconstructed");
+    fullDisplay.setSupportsGrayscale(false);
+    const int grayCount = fullDisplay.displayGrayCount();
+    unsigned bwRefreshes = 0;
+    const auto bwResult = fullRenderer.render(parser, 0, [&](papyrix::XtcPageRenderer::RefreshRequest request) {
+      runner.expectTrue(request == papyrix::XtcPageRenderer::RefreshRequest::Cadenced,
+                        "unsupported grayscale uses monochrome refresh");
+      bool correct = true;
+      for (size_t i = 0; i < fullGfx.getBufferSize(); ++i) correct &= fullGfx.getFrameBuffer()[i] == 0x81;
+      runner.expectTrue(correct, "monochrome refresh contains the complete four-tone page");
+      ++bwRefreshes;
+    });
+    runner.expectTrue(bwResult == papyrix::XtcPageRenderer::RenderResult::Success && bwRefreshes == 1,
+                      "unsupported grayscale completes one monochrome update");
+    runner.expectEq(grayCount, fullDisplay.displayGrayCount(), "unsupported grayscale never activates gray LUTs");
   }
 
   {

@@ -25,6 +25,13 @@ void HardwareIdentity::setPanel(eink::DisplayController panel, PanelSelectionSou
   panel_ = panel;
   panelSource_ = source;
   panelVariant_ = variant;
+  panelResolved_ = true;
+}
+
+void HardwareIdentity::clearPanelSelection() {
+  panelResolved_ = false;
+  panelSource_ = PanelSelectionSource::Unresolved;
+  panelVariant_ = 0;
 }
 
 const char* panelSelectionSourceName(PanelSelectionSource source) {
@@ -41,6 +48,10 @@ const char* panelSelectionSourceName(PanelSelectionSource source) {
       return "probe";
     case PanelSelectionSource::Fallback:
       return "fallback";
+    case PanelSelectionSource::Factory:
+      return "factory";
+    case PanelSelectionSource::Unresolved:
+      return "unresolved";
   }
   return "unknown";
 }

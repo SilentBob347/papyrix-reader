@@ -1,7 +1,7 @@
 # Makefile for PapyriX Reader firmware
 # Wraps PlatformIO commands for convenience
 
-.PHONY: all build build-release release package upload upload-release flash flash-release flash-xteink-c3 flash-x4pro \
+.PHONY: all build build-release release package upload upload-release flash flash-release flash-xteink-c3 flash-x4pro flash-x4c \
         clean format check monitor size erase build-fs upload-fs sleep-screen gh-release changelog help \
         test test-build test-run test-tools test-clean fontconvert-bin reader-test
 
@@ -18,7 +18,7 @@ build: ## Build firmware (default environment)
 	pio run
 
 build-release: ## Build all release firmware environments
-	pio run -e release_xteink_c3 -e release_x4pro
+	pio run -e release_xteink_c3 -e release_x4pro -e release_x4c
 
 release: build-release ## Alias for build-release
 
@@ -35,6 +35,9 @@ flash-xteink-c3: ## Build and flash release firmware for X3/X4
 
 flash-x4pro: ## Build and flash release firmware for X4 Pro (hold Power)
 	pio run -e release_x4pro --target upload
+
+flash-x4c: ## Build and flash release firmware for X4 Classic
+	pio run -e release_x4c --target upload
 
 # Aliases
 upload-release: flash-xteink-c3 ## Alias for flash-xteink-c3 (X3/X4)
@@ -88,13 +91,13 @@ ifndef VERSION
 	$(error VERSION is required. Usage: make gh-release VERSION=0.1.1 [NOTES="..."])
 endif
 ifdef NOTES
-	gh release create v$(VERSION) dist/papyrix-xteink-c3.bin dist/papyrix-x4pro.bin \
+	gh release create v$(VERSION) dist/papyrix-xteink-c3.bin dist/papyrix-x4pro.bin dist/papyrix-x4c.bin \
 		dist/manifest.json \
 		--repo bigbag/papyrix-reader \
 		--title "PapyriX v$(VERSION)" \
 		--notes "$(NOTES)"
 else
-	gh release create v$(VERSION) dist/papyrix-xteink-c3.bin dist/papyrix-x4pro.bin \
+	gh release create v$(VERSION) dist/papyrix-xteink-c3.bin dist/papyrix-x4pro.bin dist/papyrix-x4c.bin \
 		dist/manifest.json \
 		--repo bigbag/papyrix-reader \
 		--title "PapyriX v$(VERSION)" \

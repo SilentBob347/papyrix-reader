@@ -62,6 +62,7 @@ class GfxRenderer {
       frameBuffer_[byteOffset] |= mask;
   }
 
+  bool supportsGrayscale() const { return display_.supportsGrayscale(); }
   void copyGrayscaleLsbBuffers() const { display_.copyGrayscaleLsbBuffers(frameBuffer_); }
   void copyGrayscaleMsbBuffers() const { display_.copyGrayscaleMsbBuffers(frameBuffer_); }
   void displayGrayBuffer(const bool turnOffScreen = false) const { display_.displayGrayBuffer(turnOffScreen); }

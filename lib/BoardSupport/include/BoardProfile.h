@@ -7,7 +7,7 @@ namespace papyrix::board {
 // Set a pin to this value when the MCU does not control it.
 inline constexpr int8_t kPinUnused = -1;
 
-enum class BoardId : uint8_t { X3, X4, X4Pro };
+enum class BoardId : uint8_t { X3, X4, X4Pro, X4Classic };
 enum class McuFamily : uint8_t { Esp32C3, Esp32S3 };
 enum class StorageTransport : uint8_t { Spi, Sdmmc1Bit };
 enum class TouchController : uint8_t { None, Gt911 };
@@ -86,6 +86,7 @@ struct BatteryConfig {
   int8_t chargeStatusPin;
   bool chargeStatusActiveHigh;
   uint32_t i2cHz = 100000;
+  const uint8_t* gaugeProfile = nullptr;
 };
 
 struct RtcConfig {

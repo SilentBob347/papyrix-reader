@@ -9,6 +9,10 @@
 #include <Preferences.h>
 #include <Wire.h>
 #include <X3DisplayProbe.h>
+#if PAPYRIX_TARGET_X4CLASSIC
+#include <X4ClassicDisplayProbe.h>
+#include <X4ClassicPanelPolicy.h>
+#endif
 
 #include <cstdio>
 
@@ -336,6 +340,29 @@ void selectPanel(HardwareIdentity& identity) {
   }
   LOG_INF("BOARD", "panel: %s (%s, LUT=%02X)", eink::displayControllerName(identity.panel()),
           panelSelectionSourceName(identity.panelSource()), identity.panelVariant());
+#elif PAPYRIX_TARGET_X4CLASSIC
+  identity.clearPanelSelection();
+  Preferences factory;
+  const bool opened = factory.begin("hw_calib", true);
+  const uint8_t screenType = opened ? factory.getUChar("screenType", 0) : 0;
+  if (opened) factory.end();
+  auto decision = resolveClassicPanel(opened, screenType, false, 0);
+  if (!decision.resolved || decision.controller == eink::DisplayController::UC8279_X4PRO) {
+    const auto& display = identity.profile().display;
+    const eink::X3DisplayProbePins pins{display.sclk, display.mosi, display.cs, display.dc, display.rst, display.busy};
+    const auto probe = eink::probeX4ClassicDisplayController(pins);
+    decision = resolveClassicPanel(opened, screenType, probe.valid, probe.id);
+  }
+  if (decision.resolved) {
+    identity.setPanel(
+        decision.controller,
+        decision.source == ClassicPanelSource::Factory ? PanelSelectionSource::Factory : PanelSelectionSource::Probe,
+        decision.variant);
+    LOG_INF("BOARD", "panel: %s (%s, LUT=%02X)", eink::displayControllerName(identity.panel()),
+            panelSelectionSourceName(identity.panelSource()), identity.panelVariant());
+  } else {
+    LOG_ERR("BOARD", "Classic panel unresolved; display remains disabled");
+  }
 #else
   identity.setPanel(fixedPanelFor(identity.board()), PanelSelectionSource::Fixed);
 #endif

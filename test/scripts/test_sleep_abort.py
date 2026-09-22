@@ -79,7 +79,8 @@ int main() {
 '''
 
 TARGETS = [("C3", ["-DPAPYRIX_TARGET_XTEINK_C3=1"]),
-           ("S3", ["-DPAPYRIX_TARGET_X4PRO=1", "-DPAPYRIX_TARGET_XTEINK_C3=0"])]
+           ("S3", ["-DPAPYRIX_TARGET_X4PRO=1", "-DPAPYRIX_TARGET_XTEINK_C3=0"]),
+           ("Classic", ["-DPAPYRIX_TARGET_X4CLASSIC=1", "-DPAPYRIX_TARGET_XTEINK_C3=0"])]
 
 
 def main():

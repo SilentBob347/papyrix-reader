@@ -49,6 +49,7 @@ include_directories(
   ${PROJECT_ROOT}/lib/InflateReader/src
   ${PROJECT_ROOT}/lib/uzlib/src
   ${PROJECT_ROOT}/lib/BoardSupport/include
+  ${PROJECT_ROOT}/lib/BatteryMonitor/include
 )
 
 # Common test helpers
@@ -66,14 +67,17 @@ foreach(TEST_SRC ${TEST_SOURCES})
   get_filename_component(TEST_NAME ${TEST_SRC} NAME_WE)
 
   if(TEST_NAME STREQUAL "DigitalInputTest")
-    add_executable(${TEST_NAME} ${TEST_SRC}
+    foreach(INPUT_TARGET X4PRO X4CLASSIC)
+      set(INPUT_TEST DigitalInput${INPUT_TARGET}Test)
+      add_executable(${INPUT_TEST} ${TEST_SRC}
       ${PROJECT_ROOT}/lib/InputManager/src/InputManager.cpp
       ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
       ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/mocks/platform_stubs.cpp)
-    target_include_directories(${TEST_NAME} PRIVATE ${PROJECT_ROOT}/lib/InputManager/include)
-    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
-    set_target_properties(${TEST_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/bin)
+      target_include_directories(${INPUT_TEST} PRIVATE ${PROJECT_ROOT}/lib/InputManager/include)
+      target_compile_definitions(${INPUT_TEST} PRIVATE PAPYRIX_TARGET_${INPUT_TARGET}=1)
+      set_target_properties(${INPUT_TEST} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    endforeach()
     continue()
   endif()
   # CMake builds BoardProfileTest once for each target.
@@ -85,9 +89,13 @@ foreach(TEST_SRC ${TEST_SOURCES})
     add_executable(BoardProfileX4ProTest ${TEST_SRC}
       ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/common/test_utils.cpp)
+    add_executable(BoardProfileX4ClassicTest ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/common/test_utils.cpp)
+    target_compile_definitions(BoardProfileX4ClassicTest PRIVATE PAPYRIX_TARGET_X4CLASSIC=1)
     target_compile_definitions(BoardProfileC3Test PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
     target_compile_definitions(BoardProfileX4ProTest PRIVATE PAPYRIX_TARGET_X4PRO=1)
-    foreach(BOARD_PROFILE_EXE BoardProfileC3Test BoardProfileX4ProTest)
+    foreach(BOARD_PROFILE_EXE BoardProfileC3Test BoardProfileX4ProTest BoardProfileX4ClassicTest)
       target_include_directories(${BOARD_PROFILE_EXE} PRIVATE
         ${PROJECT_ROOT}/lib/BoardSupport/include
       )
@@ -98,7 +106,14 @@ foreach(TEST_SRC ${TEST_SOURCES})
   endif()
 
   # Special handling for tests that need additional source files
-  if(TEST_NAME STREQUAL "BoardSelectorTest")
+  if(TEST_NAME STREQUAL "X4ClassicPanelPolicyTest")
+    add_executable(${TEST_NAME} ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/BoardSupport/src/X4ClassicPanelPolicy.cpp)
+  elseif(TEST_NAME STREQUAL "X4ClassicDisplayProbeTest")
+    add_executable(${TEST_NAME} ${TEST_SRC}
+      ${PROJECT_ROOT}/lib/EInkDisplay/src/X4ClassicDisplayProbe.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/mocks/platform_stubs.cpp)
+  elseif(TEST_NAME STREQUAL "BoardSelectorTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
       ${PROJECT_ROOT}/lib/BoardSupport/src/BoardSelector.cpp
@@ -136,7 +151,9 @@ foreach(TEST_SRC ${TEST_SOURCES})
     target_include_directories(${TEST_NAME} PRIVATE ${PROJECT_ROOT}/lib/InputManager/include)
     target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
   elseif(TEST_NAME STREQUAL "PanelDispatchTest")
-    add_executable(${TEST_NAME} ${TEST_SRC}
+    foreach(PANEL_TARGET X4PRO X4CLASSIC)
+      set(PANEL_TEST PanelDispatch${PANEL_TARGET}Test)
+      add_executable(${PANEL_TEST} ${TEST_SRC}
       ${PROJECT_ROOT}/lib/EInkDisplay/src/Display.cpp
       ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8279X3Driver.cpp
       ${PROJECT_ROOT}/lib/EInkDisplay/src/Uc8179X4ProDriver.cpp
@@ -145,8 +162,11 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
       ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
       ${TEST_HELPERS})
-    target_include_directories(${TEST_NAME} BEFORE PRIVATE ${PROJECT_ROOT}/lib/EInkDisplay/include)
-    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1 EINK_DISPLAY_SINGLE_BUFFER_MODE=1)
+      target_include_directories(${PANEL_TEST} BEFORE PRIVATE ${PROJECT_ROOT}/lib/EInkDisplay/include)
+      target_compile_definitions(${PANEL_TEST} PRIVATE PAPYRIX_TARGET_${PANEL_TARGET}=1 EINK_DISPLAY_SINGLE_BUFFER_MODE=1)
+      set_target_properties(${PANEL_TEST} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    endforeach()
+    continue()
   elseif(TEST_NAME STREQUAL "HardwareRecoveryTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
@@ -163,7 +183,7 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/src/hal/Recovery.cpp
       ${TEST_HELPERS}
     )
-  elseif(TEST_NAME STREQUAL "X4ProBoardTest")
+  elseif(TEST_NAME STREQUAL "X4ProBoardTest" OR TEST_NAME STREQUAL "X4ClassicBoardTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
       ${PROJECT_ROOT}/lib/BoardSupport/src/X4ProBoard.cpp
@@ -177,7 +197,11 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/lib/BoardSupport/include
       ${PROJECT_ROOT}/lib/SDCardManager/include
     )
-    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    if(TEST_NAME STREQUAL "X4ClassicBoardTest")
+      target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4CLASSIC=1)
+    else()
+      target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    endif()
   elseif(TEST_NAME STREQUAL "PowerPolicyTest")
     add_executable(${TEST_NAME}
       ${TEST_SRC}
@@ -1188,7 +1212,7 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/lib/BoardSupport/include
     )
   elseif(TEST_NAME STREQUAL "RtcBackendTest")
-    foreach(RTC_TEST ${TEST_NAME} RtcBm8563Test)
+    foreach(RTC_TEST ${TEST_NAME} RtcBm8563Test RtcClassicTest)
       add_executable(${RTC_TEST} ${TEST_SRC}
         ${PROJECT_ROOT}/lib/BoardSupport/src/RtcBackend.cpp
         ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
@@ -1198,20 +1222,23 @@ foreach(TEST_SRC ${TEST_SOURCES})
     endforeach()
     target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
     target_compile_definitions(RtcBm8563Test PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    target_compile_definitions(RtcClassicTest PRIVATE PAPYRIX_TARGET_X4CLASSIC=1)
     continue()
   elseif(TEST_NAME STREQUAL "Cw2017PolicyTest")
-    add_executable(${TEST_NAME}
+    foreach(GAUGE_TARGET X4PRO X4CLASSIC)
+      set(GAUGE_TEST Cw2017${GAUGE_TARGET}Test)
+      add_executable(${GAUGE_TEST}
       ${TEST_SRC}
       ${PROJECT_ROOT}/lib/BatteryMonitor/src/BatteryMonitor.cpp
       ${PROJECT_ROOT}/lib/BatteryMonitor/src/Cw2017Backend.cpp
       ${TEST_HELPERS}
     )
-    target_include_directories(${TEST_NAME} PRIVATE
-      ${PROJECT_ROOT}/lib/BatteryMonitor/include
-    )
-    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
+      target_compile_definitions(${GAUGE_TEST} PRIVATE PAPYRIX_TARGET_${GAUGE_TARGET}=1)
+      set_target_properties(${GAUGE_TEST} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    endforeach()
+    continue()
   elseif(TEST_NAME STREQUAL "StorageTransportTest")
-    foreach(STORAGE_TARGET C3 X4Pro)
+    foreach(STORAGE_TARGET C3 X4Pro X4Classic)
       add_executable(StorageTransport${STORAGE_TARGET}Test ${TEST_SRC}
         ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
         ${TEST_HELPERS})
@@ -1223,6 +1250,7 @@ foreach(TEST_SRC ${TEST_SOURCES})
     endforeach()
     target_compile_definitions(StorageTransportC3Test PRIVATE PAPYRIX_TARGET_XTEINK_C3=1)
     target_compile_definitions(StorageTransportX4ProTest PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    target_compile_definitions(StorageTransportX4ClassicTest PRIVATE PAPYRIX_TARGET_X4CLASSIC=1)
     continue()
   elseif(TEST_NAME STREQUAL "SDPowerControlTest")
     add_executable(${TEST_NAME}

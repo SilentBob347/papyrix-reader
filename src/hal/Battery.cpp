@@ -46,7 +46,8 @@ void Battery::init() {
   }
 #elif PAPYRIX_CAP_BATTERY_CW2017
   if (config.backend == board::BatteryBackend::Cw2017) {
-    monitor_.emplace(BatteryMonitor::Cw2017Config{config.sda, config.scl, config.i2cHz, config.i2cAddress});
+    monitor_.emplace(
+        BatteryMonitor::Cw2017Config{config.sda, config.scl, config.i2cHz, config.i2cAddress, config.gaugeProfile});
   }
 #else
   (void)config;

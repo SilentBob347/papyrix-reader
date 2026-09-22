@@ -35,8 +35,12 @@ Persistent state records the book and reading position.
 
 `lib/BoardSupport` owns board profiles and hardware selection.
 The C3 image selects X3 or X4.
-The S3 image uses the fixed X4 Pro profile.
+Each S3 image uses one fixed profile: X4 Pro or X4 Classic.
 Display probing selects the controller independently of board selection.
+Classic first reads the factory panel identity, then probes when needed.
+An unresolved Classic identity blocks display initialization but permits headless SD recovery.
+Rendering checks panel grayscale support before it writes grayscale planes.
+Classic preserves the factory battery calibration.
 
 Hardware backends provide battery, RTC, power, front-light, and touch services.
 Unsupported services remain unavailable to the UI.

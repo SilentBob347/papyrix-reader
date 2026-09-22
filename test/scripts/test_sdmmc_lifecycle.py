@@ -31,7 +31,7 @@ inline void gpio_hold_dis(int) {}
 inline void gpio_reset_pin(int pin) { driven[pin]=false; pulled[pin]=true; }
 inline void gpio_set_pull_mode(int pin,int mode) { assert(mode==GPIO_FLOATING); pulled[pin]=false; }
 inline void digitalWrite(int pin,int value) {
-  if(pin==5) {
+  if(pin==SD_POWER_PIN) {
     if(value==HIGH) {
       assert(!hostUp && !driven[40] && !driven[41] && !driven[42]);
       assert(!pulled[40] && !pulled[41] && !pulled[42]);
@@ -77,8 +77,9 @@ virtual bool syncDevice()=0;
 MAIN = r'''
 #include "SdmmcBlockDevice.h"
 #include "MockSd.h"
+#include <BoardProfiles.h>
 int main() {
-  const papyrix::board::StorageConfig config{papyrix::board::StorageTransport::Sdmmc1Bit,-1,-1,41,42,40,5,false};
+  const auto& config = papyrix::board::bootProfile().storage;
   papyrix::sd::SdmmcBlockDevice card;
   failures=2;
   assert(card.begin(config));
@@ -110,13 +111,16 @@ def main():
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text('#pragma once\n#include "MockSd.h"\n')
         includes = [str(path), "lib/BoardSupport/include", "lib/EInkDisplay/include",
-                    "lib/SDCardManager/include", "lib/SDCardManager/src"]
-        command = [os.environ.get("CXX", "c++"), "-std=c++17", "-DPAPYRIX_TARGET_X4PRO=1"]
-        command += ["-I" + include for include in includes]
-        command += ["lib/SDCardManager/src/SdmmcBlockDevice.cpp", str(path / "main.cpp"),
-                    "-o", str(path / "smoke")]
-        subprocess.run(command, cwd=ROOT, check=True)
-        subprocess.run([str(path / "smoke")], check=True)
+                    "lib/SDCardManager/include", "lib/SDCardManager/src", "lib/BatteryMonitor/include"]
+        for target, power_pin in (("X4PRO", 5), ("X4CLASSIC", 6)):
+            command = [os.environ.get("CXX", "c++"), "-std=c++17",
+                       f"-DPAPYRIX_TARGET_{target}=1", f"-DSD_POWER_PIN={power_pin}"]
+            command += ["-I" + include for include in includes]
+            command += ["lib/SDCardManager/src/SdmmcBlockDevice.cpp",
+                        "lib/BoardSupport/src/BoardProfiles.cpp", str(path / "main.cpp"),
+                        "-o", str(path / "smoke")]
+            subprocess.run(command, cwd=ROOT, check=True)
+            subprocess.run([str(path / "smoke")], check=True)
     print("PASS: SDMMC repeated begin, retry power order, cleanup, and allocation failure")
 
 
