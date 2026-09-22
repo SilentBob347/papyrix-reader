@@ -14,12 +14,24 @@ repository for individual pattern attributions.
 
 ## Supported Languages
 
-| Language | Code | Pattern Source   |
-|----------|------|------------------|
-| English  | en   | hyphen.english   |
-| French   | fr   | hyphen.french    |
-| German   | de   | hyphen.german    |
-| Spanish  | es   | hyphen.spanish   |
-| Italian  | it   | hyphen.italian   |
-| Ukrainian| uk   | hyphen.ukrainian |
-| Russian  | ru   | hyphen.russian   |
+- **English**
+  - Code: en
+  - Pattern source: hyphen.english
+- **French**
+  - Code: fr
+  - Pattern source: hyphen.french
+- **German**
+  - Code: de
+  - Pattern source: hyphen.german
+- **Spanish**
+  - Code: es
+  - Pattern source: hyphen.spanish
+- **Italian**
+  - Code: it
+  - Pattern source: hyphen.italian
+- **Ukrainian**
+  - Code: uk
+  - Pattern source: hyphen.ukrainian
+- **Russian**
+  - Code: ru
+  - Pattern source: hyphen.russian

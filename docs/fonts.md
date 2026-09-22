@@ -188,11 +188,15 @@ Options:
 
 #### Latin Handling Modes
 
-| Mode | Description | When to use |
-|------|-------------|-------------|
-| `cjk` | CJK font shows Latin + CJK | Font has good Latin glyphs |
-| `include` | Separate Latin font for U+0000-U+024F | You want different Latin/CJK fonts |
-| `system` | Builtin font handles Latin, `.bin` for CJK only | You want builtin Latin rendering |
+- **`cjk`**
+  - Description: CJK font shows Latin + CJK
+  - When to use: Font has good Latin glyphs
+- **`include`**
+  - Description: Separate Latin font for U+0000-U+024F
+  - When to use: You want different Latin/CJK fonts
+- **`system`**
+  - Description: Builtin font handles Latin, `.bin` for CJK only
+  - When to use: You want builtin Latin rendering
 
 ## Converting and Installing Fonts
 

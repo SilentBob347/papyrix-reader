@@ -4,10 +4,12 @@ This library reads XTC and XTCH books for PapyriX.
 
 ## Supported Formats
 
-| Format | Extension | Description                                  |
-|--------|-----------|----------------------------------------------|
-| XTC    | `.xtc`    | Container with XTG pages (1-bit monochrome)  |
-| XTCH   | `.xtch`   | Container with XTH pages (2-bit grayscale)   |
+- **XTC**
+  - Extension: `.xtc`
+  - Description: Container with XTG pages (1-bit monochrome)
+- **XTCH**
+  - Extension: `.xtch`
+  - Description: Container with XTH pages (2-bit grayscale)
 
 ## Format Overview
 

@@ -4,14 +4,21 @@
 
 The release builds use single-buffer mode.
 The C3 artifact reserves 52,272 bytes for the largest supported panel.
-The X4 Pro artifact allocates its 48,000-byte buffer in PSRAM.
+The X4 Pro and X4 v2 Classic artifacts allocate their 48,000-byte buffers in PSRAM.
 Initialization fails if that allocation fails.
 
-| Device | Native dimensions | Active frame bytes |
-| --- | --- | ---: |
-| X3 | 792 × 528 | 52,272 |
-| X4 | 800 × 480 | 48,000 |
-| X4 Pro | 800 × 480 | 48,000 |
+- **X3**
+  - Native dimensions: 792 × 528
+  - Active frame bytes: 52,272
+- **X4**
+  - Native dimensions: 800 × 480
+  - Active frame bytes: 48,000
+- **X4 Pro**
+  - Native dimensions: 800 × 480
+  - Active frame bytes: 48,000
+- **X4 v2 Classic**
+  - Native dimensions: 800 × 480
+  - Active frame bytes: 48,000
 
 `lib/EInkDisplay/include/Display.h` defines the buffer interface.
 `lib/EInkDisplay/src/Display.cpp` allocates and initializes the buffer.
@@ -23,10 +30,12 @@ Reader margins and orientation determine the text viewport.
 The status bar reduces the text height.
 It uses the same framebuffer as the page.
 
-| Device | Portrait viewport with status bar | Without status bar |
-| --- | --- | --- |
-| X3 | 512 × 757 | 512 × 780 |
-| X4 and X4 Pro | 464 × 765 | 464 × 788 |
+- **X3**
+  - Portrait viewport with status bar: 512 × 757
+  - Without status bar: 512 × 780
+- **X4, X4 Pro, and X4 v2 Classic**
+  - Portrait viewport with status bar: 464 × 765
+  - Without status bar: 464 × 788
 
 ## Fonts
 
@@ -47,6 +56,10 @@ The display driver sends each mask to the controller.
 The controller applies its grayscale waveform.
 The reader then renders black-and-white data again to restore the controller state.
 The status bar uses one-bit rendering.
+
+Classic uses monochrome rendering when the panel has no supported grayscale waveform.
+This applies to text and images without changing the stored antialiasing preference.
+See the [Classic panel policy](x4-classic-specifications.md#display-controller-selection) for supported variants.
 
 The display driver owns controller-specific RAM synchronization and refresh rules.
 Do not reuse SSD1677 commands on UC8253, UC8279, or UC8179.

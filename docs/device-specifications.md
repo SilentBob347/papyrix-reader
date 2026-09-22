@@ -2,19 +2,38 @@
 
 ## Devices
 
-| Device | MCU | Display | Storage | Touch |
-| --- | --- | --- | --- | --- |
-| [X3](x3-specifications.md) | ESP32-C3 | 792 × 528, UC8253 or UC8279d | SPI SD | None |
-| [X4](x4-specifications.md) | ESP32-C3 | 800 × 480, SSD1677 | SPI SD | None |
-| [X4 Pro](x4pro-specifications.md) | ESP32-S3, 8 MB octal PSRAM | 800 × 480, UC8279 or UC8179 | 1-bit SDMMC | GT911 |
+- **[X3](x3-specifications.md)**
+  - MCU: ESP32-C3
+  - Display: 792 × 528, UC8253 or UC8279d
+  - Storage: SPI SD
+  - Touch: None
+- **[X4 (original)](x4-specifications.md)**
+  - MCU: ESP32-C3
+  - Display: 800 × 480, SSD1677
+  - Storage: SPI SD
+  - Touch: None
+- **[X4 Pro](x4pro-specifications.md)**
+  - MCU: ESP32-S3, 8 MB octal PSRAM
+  - Display: 800 × 480, UC8279 or UC8179
+  - Storage: 1-bit SDMMC
+  - Touch: GT911
+- **[X4 v2 Classic](x4-classic-specifications.md)**
+  - MCU: ESP32-S3
+  - Display: 800 × 480, SSD1677, UC8179, or UC8279
+  - Storage: 1-bit SDMMC
+  - Touch: None
 
 See the [device support matrix](device-support-matrix.md) for build targets and hardware services.
+Classic uses a separate board profile from the original X4 and X4 Pro.
+Its PSRAM capacity is not confirmed.
+See the [Classic hardware validation](x4-classic-hardware-validation.md) for verified functions and limits.
 
 ## Firmware
 
 - `papyrix-xteink-c3.bin` selects X3 or X4 at startup.
 - `papyrix-x4pro.bin` uses the fixed X4 Pro board profile.
-- Both artifacts use 16 MB flash and application offset `0x10000`.
+- `papyrix-x4c.bin` uses the fixed X4 v2 Classic board profile.
+- All three artifacts use 16 MB flash and application offset `0x10000` in the standard partition table.
 
 Do not install an artifact for a different MCU or board.
 An incorrect image can drive the wrong GPIOs and damage hardware.
@@ -32,15 +51,19 @@ Zero detected devices in both passes select X4.
 The firmware saves either conclusive result in NVS.
 Other results select X4 for that boot without saving a detection result.
 
-Board and panel selections use the `papyrix_hw` NVS namespace.
+C3 board and panel selections use the `papyrix_hw` NVS namespace.
 The C3 keys are `dev_ovr`, `dev_det`, `epd_ovr`, `epd_det`, and `epd_ver`.
 Recovery diagnostics use `papyrix_diag`.
+Classic reads the factory panel identity from `hw_calib/screenType` without changing it.
+A missing or invalid identity starts a bounded display probe.
+An unknown response leaves the display disabled.
+Headless SD recovery remains available.
 
 ## Power
 
 The CPU policy uses 10 MHz at idle.
 Active work uses 160 MHz on ESP32-C3 and 240 MHz on ESP32-S3.
-GPIO3 receives the Power button input on all three devices.
+GPIO3 receives the Power button input on all supported devices.
 
 The firmware powers the SD rail before storage access.
 It completes the display power-off sequence before deep sleep.
@@ -55,6 +78,7 @@ Page caches use device-specific folders:
 /.papyrix/cache/          X4
 /.papyrix/cache/x3/       X3
 /.papyrix/cache/x4pro/    X4 Pro
+/.papyrix/cache/x4c/      X4 v2 Classic
 ```
 
 Moving an SD card between devices does not reuse incompatible page layouts.
@@ -63,13 +87,11 @@ See the [user guide](user_guide.md) for supported book formats.
 
 ## Hardware Libraries
 
-| Library | Function |
-| --- | --- |
-| `BoardSupport` | Board profiles, selection, power, touch, battery, and RTC backends |
-| `EInkDisplay` | Display controller access and frame buffers |
-| `InputManager` | Physical button input |
-| `BatteryMonitor` | Battery measurements |
-| `SDCardManager` | SD card access |
+- **`BoardSupport`:** Board profiles, selection, power, touch, battery, and RTC backends
+- **`EInkDisplay`:** Display controller access and frame buffers
+- **`InputManager`:** Physical button input
+- **`BatteryMonitor`:** Battery measurements
+- **`SDCardManager`:** SD card access
 
 ## References
 

@@ -33,12 +33,18 @@ It is a community project.
 
 ## Supported devices
 
-| Device | Release file | Panel |
-|---|---|---|
-| Xteink X4 | `papyrix-xteink-c3.bin` | 800×480 SSD1677 |
-| Xteink X3 | `papyrix-xteink-c3.bin` | 792×528 UC8253 or UC8279 |
-| Xteink X4 Pro | `papyrix-x4pro.bin` | 800×480 UC8279 or UC8179 |
-| Xteink X4 v2 Classic | `papyrix-x4c.bin` | 800×480 SSD1677, UC8179, or UC8279; partial hardware validation |
+- **Xteink X4 (original)**
+  - Release file: `papyrix-xteink-c3.bin`
+  - Panel: 800×480 SSD1677
+- **Xteink X3**
+  - Release file: `papyrix-xteink-c3.bin`
+  - Panel: 792×528 UC8253 or UC8279
+- **Xteink X4 Pro**
+  - Release file: `papyrix-x4pro.bin`
+  - Panel: 800×480 UC8279 or UC8179
+- **[Xteink X4 v2 Classic](docs/x4-classic-specifications.md)**
+  - Release file: `papyrix-x4c.bin`
+  - Panel: 800×480 SSD1677, UC8179, or UC8279; partial hardware validation
 
 See the [device support matrix](docs/device-support-matrix.md) for build targets and hardware services.
 Using the wrong binary can drive incorrect pins and can damage hardware.
@@ -204,10 +210,16 @@ git submodule update --init --recursive
 ### Building
 
 ```sh
-# Build development firmware
+# Build development firmware for X3/X4
 make build
 
-# Build both release environments
+# Build development firmware for X4 Pro
+pio run -e x4pro
+
+# Build development firmware for X4 v2 Classic
+pio run -e x4c
+
+# Build all three release environments
 make release
 
 # Build, verify, and package deterministic release files in dist/
@@ -222,6 +234,7 @@ Build and flash the release firmware for the device:
 ```sh
 make flash-xteink-c3  # X3 and X4
 make flash-x4pro      # X4 Pro
+make flash-x4c        # X4 v2 Classic
 ```
 
 On X4 Pro, hold Power throughout flashing.
@@ -234,16 +247,22 @@ PLATFORMIO_UPLOAD_PORT=/dev/ttyACM0 make flash-x4pro
 ```
 
 `make flash-release` and `make upload-release` select X3/X4 only.
-To install an existing release binary instead of building it, use:
+The following commands update only the application at `0x10000`.
+Use them only when the device partition table matches and this slot is selected for boot.
+Use esptool 5.4 or later.
 
 ```sh
 # ESP32-C3: X3/X4
-esptool.py --chip esp32c3 --port /dev/ttyACM0 --baud 460800 \
-  write_flash -z 0x10000 papyrix-xteink-c3.bin
+esptool --chip esp32c3 --port /dev/ttyACM0 --baud 460800 \
+  write-flash -z 0x10000 papyrix-xteink-c3.bin
 
 # ESP32-S3: X4 Pro
-esptool.py --chip esp32s3 --port /dev/ttyACM0 --baud 460800 \
-  write_flash -z 0x10000 papyrix-x4pro.bin
+esptool --chip esp32s3 --port /dev/ttyACM0 --baud 460800 \
+  write-flash -z 0x10000 papyrix-x4pro.bin
+
+# ESP32-S3: X4 v2 Classic
+esptool --chip esp32s3 --port /dev/ttyACM0 --baud 460800 \
+  write-flash -z 0x10000 papyrix-x4c.bin
 ```
 
 PlatformIO upload remains available for a connected development target:
@@ -251,6 +270,7 @@ PlatformIO upload remains available for a connected development target:
 ```sh
 pio run -e default --target upload
 pio run -e x4pro --target upload
+pio run -e x4c --target upload
 ```
 
 Replace `/dev/ttyACM0` with the device port. Use `COM3` on Windows or
@@ -392,8 +412,8 @@ PapyriX is made for the ESP32-C3 limit of approximately 380KB RAM. See [docs/arc
 
 ### Data caching
 
-The device caches book data on the SD card. X4 uses `/.papyrix/cache/`, X3 uses
-`/.papyrix/cache/x3/`, and X4 Pro uses `/.papyrix/cache/x4pro/`.
+The device caches book data on the SD card.
+Each model uses a [device-specific cache directory](docs/device-specifications.md#storage).
 Each device-specific directory contains the book folders shown below.
 
 

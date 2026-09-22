@@ -9,19 +9,17 @@ Pro and Classic require separate firmware images.
 
 ## Verified behavior
 
-| Area | Result |
-| --- | --- |
-| Display | The panel initializes at 10 MHz and displays menus and book pages. |
-| Buttons | The operator confirms correct side-button directions. Up uses GPIO7. Down uses GPIO0. |
-| Storage | SD and LittleFS mount. EPUB metadata and page caches load. |
-| Reader | The device opens a book, creates page caches, and returns to UI mode. |
-| RTC | The RTC supplies the initial system time. |
-| Sleep | The operator confirms the selected automatic sleep screen and Power wake. |
-| Installation | The installed bootloader, partition table, and application pass independent digest checks. |
+- **Display:** The panel initializes at 10 MHz and displays menus and book pages.
+- **Buttons:** The operator confirms correct side-button directions. Up uses GPIO7. Down uses GPIO0.
+- **Storage:** SD and LittleFS mount. EPUB metadata and page caches load.
+- **Reader:** The device opens a book, creates page caches, and returns to UI mode.
+- **RTC:** The RTC supplies the initial system time.
+- **Sleep:** The operator confirms the selected automatic sleep screen and Power wake.
+- **Installation:** The installed bootloader, partition table, and application pass independent digest checks.
 
 Automatic sleep restores the active CPU frequency before reader exit and sleep-screen rendering.
 The gauge uses factory calibration without programming BATINFO or resetting the calibration.
-See the [device support matrix](device-support-matrix.md) for pins, panel selection, and target limits.
+See the [Classic specifications](x4-classic-specifications.md) for pins, panel selection, and target limits.
 
 ## Shared button input
 
@@ -61,14 +59,24 @@ Back up factory NVS and preserve it at `0x9000`.
 
 The standard partition table uses these regions:
 
-| Region | Offset | Size |
-| --- | --- | --- |
-| NVS | `0x9000` | `0x5000` |
-| OTA metadata | `0xE000` | `0x2000` |
-| Application 0 | `0x10000` | `0x640000` |
-| Application 1 | `0x650000` | `0x640000` |
-| Internal filesystem | `0xC90000` | `0x360000` |
-| Core dump | `0xFF0000` | `0x10000` |
+- **NVS**
+  - Offset: `0x9000`
+  - Size: `0x5000`
+- **OTA metadata**
+  - Offset: `0xE000`
+  - Size: `0x2000`
+- **Application 0**
+  - Offset: `0x10000`
+  - Size: `0x640000`
+- **Application 1**
+  - Offset: `0x650000`
+  - Size: `0x640000`
+- **Internal filesystem**
+  - Offset: `0xC90000`
+  - Size: `0x360000`
+- **Core dump**
+  - Offset: `0xFF0000`
+  - Size: `0x10000`
 
 Factory partitions can differ from this layout.
 An application-only update does not change the partition table.

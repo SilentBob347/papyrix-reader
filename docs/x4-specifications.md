@@ -1,6 +1,8 @@
 # Xteink X4 Specifications
 
-These hardware specifications are for the Xteink X4 e-reader.
+These specifications describe the original ESP32-C3 Xteink X4.
+They do not apply to the ESP32-S3 X4 v2 Classic.
+See the [Classic specifications](x4-classic-specifications.md) for its connections and support limits.
 See [Device Specifications](device-specifications.md) for firmware selection and device services.
 The [Pin Summary](#pin-summary) below lists the X4 connections.
 

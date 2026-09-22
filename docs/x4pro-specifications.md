@@ -18,16 +18,14 @@ See the [device support matrix](device-support-matrix.md) for build targets and 
 
 ## Hardware
 
-| Function | Configuration |
-| --- | --- |
-| Display bus | SCLK GPIO12, MOSI GPIO11, CS GPIO13, DC GPIO18, reset GPIO14, BUSY GPIO6 |
-| Storage | 1-bit SDMMC; CLK GPIO41, CMD GPIO42, DAT0 GPIO40; active-low GPIO5 rail |
-| Touch | GT911 at `0x5D`; SDA GPIO39, SCL GPIO38, IRQ GPIO10, reset GPIO4, active-low GPIO2 rail; 100 kHz |
-| Battery | CW2017 on GPIO39/GPIO38; charge status GPIO21 |
-| RTC | BM8563 at `0x51` |
-| Front light | GPIO8 cool and GPIO9 warm PWM |
-| Buttons | Up GPIO0, Down GPIO7, Power GPIO3 |
-| Power latch | GPIO1, active high |
+- **Display bus:** SCLK GPIO12, MOSI GPIO11, CS GPIO13, DC GPIO18, reset GPIO14, BUSY GPIO6
+- **Storage:** 1-bit SDMMC; CLK GPIO41, CMD GPIO42, DAT0 GPIO40; active-low GPIO5 rail
+- **Touch:** GT911 at `0x5D`; SDA GPIO39, SCL GPIO38, IRQ GPIO10, reset GPIO4, active-low GPIO2 rail; 100 kHz
+- **Battery:** CW2017 on GPIO39/GPIO38; charge status GPIO21
+- **RTC:** BM8563 at `0x51`
+- **Front light:** GPIO8 cool and GPIO9 warm PWM
+- **Buttons:** Up GPIO0, Down GPIO7, Power GPIO3
+- **Power latch:** GPIO1, active high
 
 The touch transform swaps X and Y and reverses Y.
 It maps the portrait sensor to the 800 × 480 panel frame.

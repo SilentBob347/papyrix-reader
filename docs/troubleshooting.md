@@ -1,10 +1,16 @@
 # Troubleshooting
 
-Use `papyrix-xteink-c3.bin` for X3/X4 and `papyrix-x4pro.bin` for X4 Pro.
-All application images use flash
-offset `0x10000`. A wrong-target image can drive incorrect GPIOs. Erase flash
-and install the correct artifact if the device does not enter its expected
-startup path.
+Use the firmware file for the device:
+
+- X3 or original X4: `papyrix-xteink-c3.bin`
+- X4 Pro: `papyrix-x4pro.bin`
+- X4 v2 Classic: `papyrix-x4c.bin`
+
+Pro and Classic images are not interchangeable.
+A wrong-target image can drive incorrect GPIOs and damage hardware.
+Use the [firmware recovery procedure](#firmware-recovery) to install the correct image.
+Do not erase the chip or factory NVS.
+Classic uses factory NVS data for panel selection.
 
 ---
 
@@ -25,6 +31,16 @@ display controller: UC8279_X3 (probe, cached)
 The probe runs only when no valid cache or override exists. Clear the `epd_det` key in the `papyrix_hw` NVS namespace to run the probe again.
 
 If an X3 screen stays blank or shows an incorrect image, attach the serial log to the issue report. Report the results for full refresh, fast refresh, grayscale, sleep, and wake.
+
+## X4 v2 Classic Display Selection
+
+Classic first reads the factory panel identity.
+If that value is missing or invalid, it probes the display.
+An unknown response leaves the display disabled instead of selecting an unverified controller.
+Headless SD recovery remains available.
+A panel without a supported grayscale waveform uses monochrome rendering.
+See the [Classic support matrix](device-support-matrix.md#x4-classic) and
+[hardware validation](x4-classic-hardware-validation.md) for current limits.
 
 ## Firmware Recovery
 

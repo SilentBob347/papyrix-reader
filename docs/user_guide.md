@@ -9,13 +9,18 @@ Use the firmware file for the device:
 
 - X3/X4: `papyrix-xteink-c3.bin`
 - X4 Pro: `papyrix-x4pro.bin`
+- X4 v2 Classic: `papyrix-x4c.bin`
 
-X3 and X4 use physical buttons. X4 Pro also has tap-only touch input.
+X3, the original X4, and X4 v2 Classic use physical buttons.
+Only X4 Pro has touch input and a front light.
+Pro and Classic firmware images are not interchangeable.
+See the [Classic hardware validation](x4-classic-hardware-validation.md) for its current support limits.
 
 ### Button and Touch Layout
 
 X3/X4 bottom buttons are Back, Confirm, Left, and Right. The side controls are
 Power, Up, and Down.
+X4 v2 Classic has the same seven button actions.
 X4 Pro has three physical buttons: Up (GPIO0), Down (GPIO7), and Power (GPIO3).
 It has no physical Back, Confirm, Left, or Right buttons.
 GT911 touch supplies the other controls.
@@ -162,7 +167,7 @@ how to connect and upload files.
 
 ### 3.5 Settings
 
-The Settings screen has six categories. X3, X4, and X4 Pro use the same order.
+The Settings screen has six categories in the same order on all supported devices.
 Reader, Screen, and Device are separate entries on the same level.
 Missing translations use the English fallback. Use the
 [locale examples](examples/locale/) for translated labels.
@@ -215,7 +220,8 @@ Text and reading settings, in menu order:
 - **Touch page turns** (X4 Pro only, default: ON)
   - Enable or disable taps in the previous-page and next-page zones.
   - Center menu taps and overlay controls stay active.
-  - X3 and X4 hide this setting. Physical buttons stay active.
+  - X3, X4, and X4 v2 Classic hide this setting.
+  - Physical buttons stay active.
 
 - **Full Book Process** (default: OFF)
   - When this is on, the device indexes all pages of the book before you start reading
@@ -241,7 +247,7 @@ Display settings, in menu order:
 
 - **Warmth** (X4 Pro only)
   - Adjust the cool/warm light mix from 0 to 100 percent in steps of 5.
-  - X3 and X4 hide both front-light settings.
+  - X3, X4, and X4 v2 Classic hide both front-light settings.
 
 - **Reading Orientation** (default: Portrait)
   - Options: Portrait, Landscape CW, Inverted, Landscape CCW
