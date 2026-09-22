@@ -1,5 +1,6 @@
 #include "BatteryMonitor.h"
 
+#include <AdcMutex.h>
 #include <Arduino.h>
 #include <Wire.h>
 #if PAPYRIX_TARGET_X4PRO || PAPYRIX_TARGET_X4CLASSIC
@@ -111,6 +112,7 @@ uint16_t BatteryMonitor::readRawMillivolts() const {
   return readMillivolts();
 #else
   if (_mode == Mode::Bq27220) return readBq27220Mv_();
+  std::lock_guard<std::mutex> adcLock(papyrix::board::adcMutex);
   return analogReadMilliVolts(_adcPin);
 #endif
 }

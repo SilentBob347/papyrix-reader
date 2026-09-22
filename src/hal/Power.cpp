@@ -10,9 +10,12 @@
 #include <esp_sleep.h>
 #include <esp_system.h>
 
+extern InputManager inputManager;
+
 namespace papyrix::hal {
 
 [[noreturn]] void enterDeepSleepWithHardwareShutdown(bool externalPower) {
+  inputManager.stopSampling();
   if (SdMan.ready()) SdMan.end();
   SPI.end();
   disableGpioPullsForSleep();

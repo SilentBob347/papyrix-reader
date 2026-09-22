@@ -1,5 +1,6 @@
 #include "InputManager.h"
 
+#include <AdcMutex.h>
 #include <HardwareIdentity.h>
 
 // Recorded ADC values from real devices
@@ -28,6 +29,38 @@ InputManager::InputManager()
       lastDebounceTime(0),
       buttonPressStart(0),
       buttonPressFinish(0) {}
+
+InputManager::~InputManager() { stopSampling(); }
+
+bool InputManager::startSampling() {
+  if (sampling_) return true;
+  sampling_ = samplingTask_.start(
+      "Buttons", 4096,
+      [this]() {
+        while (!samplingTask_.shouldStop()) {
+          sampleButtons();
+          constexpr TickType_t interval = pdMS_TO_TICKS(5);
+          vTaskDelay(interval == 0 ? 1 : interval);
+        }
+      },
+      2);
+  return sampling_;
+}
+
+void InputManager::stopSampling() {
+  if (!sampling_) return;
+  samplingTask_.stop(0);
+  sampling_ = false;
+  std::lock_guard<std::mutex> lock(samplingMutex_);
+  readIndex_ = writeIndex_ = pendingCount_ = 0;
+  lastState = sampledState_ = currentState;
+  lastDebounceTime = millis();
+}
+
+bool InputManager::isDebouncePending() const {
+  std::lock_guard<std::mutex> lock(samplingMutex_);
+  return pendingCount_ != 0 || lastState != currentState;
+}
 
 void InputManager::begin() {
   const auto& input = papyrix::board::HardwareIdentity::instance().profile().input;
@@ -67,6 +100,7 @@ uint8_t InputManager::getState() {
     return state;
   }
 
+  std::lock_guard<std::mutex> adcLock(papyrix::board::adcMutex);
   // Discard first sample to flush SAR ADC sample-and-hold charge from
   // the previous channel (battery monitor on GPIO0 shares ADC1).
   (void)analogRead(BUTTON_ADC_PIN_1);
@@ -94,39 +128,38 @@ uint8_t InputManager::getState() {
   return state;
 }
 
-void InputManager::update() {
-  const unsigned long currentTime = millis();
+void InputManager::sampleButtons() {
   const uint8_t state = getState();
-
-  // Always clear events first
-  pressedEvents = 0;
-  releasedEvents = 0;
-
-  // Debounce
+  const unsigned long now = millis();
+  std::lock_guard<std::mutex> lock(samplingMutex_);
   if (state != lastState) {
-    lastDebounceTime = currentTime;
+    lastDebounceTime = now;
     lastState = state;
   }
-
-  if ((currentTime - lastDebounceTime) > DEBOUNCE_DELAY) {
-    if (state != currentState) {
-      // Calculate pressed and released events
-      pressedEvents = state & ~currentState;
-      releasedEvents = currentState & ~state;
-
-      // If pressing buttons and wasn't before, start recording time
-      if (pressedEvents > 0 && currentState == 0) {
-        buttonPressStart = currentTime;
-      }
-
-      // If releasing a button and no other buttons being pressed, record finish time
-      if (releasedEvents > 0 && state == 0) {
-        buttonPressFinish = currentTime;
-      }
-
-      currentState = state;
-    }
+  if (now - lastDebounceTime <= DEBOUNCE_DELAY || state == sampledState_) return;
+  sampledState_ = state;
+  if (pendingCount_ == pending_.size()) {
+    readIndex_ = (readIndex_ + 1) % pending_.size();
+    --pendingCount_;
   }
+  pending_[writeIndex_] = {now, state};
+  writeIndex_ = (writeIndex_ + 1) % pending_.size();
+  ++pendingCount_;
+}
+
+void InputManager::update() {
+  if (!sampling_) sampleButtons();
+  std::lock_guard<std::mutex> lock(samplingMutex_);
+  pressedEvents = releasedEvents = 0;
+  if (pendingCount_ == 0) return;
+  const StateChange change = pending_[readIndex_];
+  readIndex_ = (readIndex_ + 1) % pending_.size();
+  --pendingCount_;
+  pressedEvents = change.state & ~currentState;
+  releasedEvents = currentState & ~change.state;
+  if (pressedEvents != 0 && currentState == 0) buttonPressStart = change.time;
+  if (releasedEvents != 0 && change.state == 0) buttonPressFinish = change.time;
+  currentState = change.state;
 }
 
 bool InputManager::isPressed(const uint8_t buttonIndex) const { return currentState & (1 << buttonIndex); }

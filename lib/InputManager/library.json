@@ -8,7 +8,9 @@
       "url": "https://github.com/CidVonHighwind"
     }
   ],
-  "dependencies": {},
+  "dependencies": {
+    "AsyncTask": "*"
+  },
   "platforms": "espressif32",
   "frameworks": [
     "arduino",

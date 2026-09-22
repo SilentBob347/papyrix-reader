@@ -23,6 +23,15 @@ Automatic sleep restores the active CPU frequency before reader exit and sleep-s
 The gauge uses factory calibration without programming BATINFO or resetting the calibration.
 See the [device support matrix](device-support-matrix.md) for pins, panel selection, and target limits.
 
+## Shared button input
+
+The operator confirms rapid Back navigation on X3, X4 v2 Classic, and X4 Pro.
+The check opens Settings, opens Reader settings, and presses Back twice during display refresh.
+Both presses take effect and return to Home.
+Each installed application passes an independent digest check against its release image.
+Host regressions cover blocked rendering, pending release debounce, queue overflow, and sampler restart.
+The [architecture](architecture.md#button-input) describes button sampling and event ownership.
+
 ## Automated checks
 
 `make test` covers board selection, panel selection, digital buttons, storage, and power policy.

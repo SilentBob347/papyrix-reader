@@ -47,6 +47,19 @@ Unsupported services remain unavailable to the UI.
 The build excludes hardware code for other targets.
 See the [device support matrix](device-support-matrix.md).
 
+### Button Input
+
+`InputManager` samples physical buttons in a `BackgroundTask` above the main-loop priority.
+The task uses a 5 ms interval and the existing 20 ms debounce.
+A fixed queue stores up to 32 state changes with their timestamps.
+On overflow, the queue discards the oldest change and retains the newest state.
+The main loop consumes one change per update and remains the sole producer of button events.
+Pending changes suppress hold events until input processing reaches the current state.
+ADC button reads share a mutex with battery reads.
+Startup checks sample directly before the task starts.
+Shutdown stops the task before GPIO configuration changes.
+Touch input remains on the main loop.
+
 ## Content
 
 `src/content/` provides format-specific content handles.

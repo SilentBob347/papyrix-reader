@@ -173,9 +173,15 @@ inline uint32_t analogReadMilliVolts(uint8_t pin) {
   return hook ? hook(pin) : 0;
 }
 inline unsigned testAnalogReadCount = 0;
-inline int analogRead(int) {
+using TestAnalogReadHook = int (*)(int);
+inline TestAnalogReadHook& testAnalogReadHook() {
+  static TestAnalogReadHook hook = nullptr;
+  return hook;
+}
+inline void testSetAnalogReadHook(TestAnalogReadHook hook) { testAnalogReadHook() = hook; }
+inline int analogRead(int pin) {
   ++testAnalogReadCount;
-  return 4095;
+  return testAnalogReadHook() ? testAnalogReadHook()(pin) : 4095;
 }
 inline constexpr int ADC_11db = 3;
 inline void analogSetAttenuation(int) {}

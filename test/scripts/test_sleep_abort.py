@@ -22,6 +22,7 @@ inline bool slept = false;
 inline bool sdReady = true;
 inline bool sdEnded = false, spiEnded = false, pullsOff = false;
 inline bool pinsPrepared = false, holdEnabled = false, wakeC3 = false, wakeS3 = false;
+inline bool samplingStopped = false;
 '''
 
 HEADERS = {
@@ -34,7 +35,12 @@ HEADERS = {
         '#pragma once\n#include "MockPower.h"\nstruct ArduinoSpi { void end() { spiEnded = true; } };\n'
         "inline ArduinoSpi SPI;\n",
     "InputManager.h":
-        '#pragma once\n#include "MockPower.h"\ninline void disableGpioPullsForSleep() { pullsOff = true; }\n',
+        '#pragma once\n#include "MockPower.h"\n'
+        'struct InputManager { void stopSampling() { samplingStopped = true; } };\n'
+        'inline InputManager inputManager;\n'
+        'inline void disableGpioPullsForSleep() {\n'
+        '  if (!samplingStopped) std::_Exit(1);\n'
+        '  pullsOff = true;\n}\n',
     "PowerPolicy.h":
         '#pragma once\n#include "MockPower.h"\n#include "BoardProfile.h"\n'
         "namespace papyrix::board {\n"

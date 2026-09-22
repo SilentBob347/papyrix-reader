@@ -18,6 +18,7 @@ int main() {
   EventQueue queue;
   hal::Input input;
   runner.expectTrue(input.init(queue).ok(), "touch input initializes");
+  inputManager.stopSampling();
   const auto poll = [&](uint8_t status) {
     Wire.setRegister(0x5D, 0x814E, status);
     testManualMillisValue += 50;
@@ -54,6 +55,7 @@ int main() {
   poll(0x80);
   runner.expectFalse(queue.pop(event), "refresh during a held contact cannot create a tap");
   input.shutdown();
+  cleanupMockTasks();
   testManualMillisEnabled = false;
   return runner.allPassed() ? 0 : 1;
 }

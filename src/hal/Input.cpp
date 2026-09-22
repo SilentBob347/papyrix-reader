@@ -16,6 +16,7 @@ Result<void> Input::init(EventQueue& eventQueue) {
   if (initialized_) {
     return Ok();
   }
+  if (!inputManager.startSampling()) return ErrVoid(Error::OutOfMemory);
 
   queue_ = &eventQueue;
   lastActivityMs_ = millis();
@@ -35,6 +36,7 @@ Result<void> Input::init(EventQueue& eventQueue) {
 }
 
 void Input::shutdown() {
+  inputManager.stopSampling();
   touchBackend_.shutdown();
   queue_ = nullptr;
   initialized_ = false;
@@ -110,7 +112,7 @@ void Input::checkButton(Button btn, uint8_t mask) {
   }
 
   // Button held - check for long press and repeat
-  if (isDown && wasDown) {
+  if (isDown && wasDown && !inputManager.isDebouncePending()) {
     uint32_t now = millis();
     uint32_t heldMs = now - pressStartMs_[idx];
 

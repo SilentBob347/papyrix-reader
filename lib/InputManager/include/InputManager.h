@@ -1,18 +1,27 @@
 #pragma once
 
 #include <Arduino.h>
+#include <BackgroundTask.h>
 #include <driver/gpio.h>
+
+#include <array>
+#include <mutex>
 
 class InputManager {
  public:
   InputManager();
+  ~InputManager();
   void begin();
   uint8_t getState();
+  bool startSampling();
+  void stopSampling();
 
   /**
    * Updates the button states. Should be called regularly in the main loop.
    */
   void update();
+
+  bool isDebouncePending() const;
 
   /**
    * Returns true if the button was being held at the time of the last #update() call.
@@ -85,6 +94,19 @@ class InputManager {
 
  private:
   int getButtonFromADC(int adcValue, const int ranges[], int numButtons);
+  void sampleButtons();
+
+  struct StateChange {
+    unsigned long time;
+    uint8_t state;
+  };
+  std::array<StateChange, 32> pending_{};
+  size_t readIndex_ = 0;
+  size_t writeIndex_ = 0;
+  size_t pendingCount_ = 0;
+  uint8_t sampledState_ = 0;
+  bool sampling_ = false;
+  mutable std::mutex samplingMutex_;
 
   uint8_t currentState;
   uint8_t lastState;
@@ -104,6 +126,7 @@ class InputManager {
   static constexpr unsigned long DEBOUNCE_DELAY = 20;
 
   static const char* BUTTON_NAMES[];
+  BackgroundTask samplingTask_;
 };
 
 // Disable internal pull-ups/pull-downs on all GPIOs to minimize leakage current during deep sleep.

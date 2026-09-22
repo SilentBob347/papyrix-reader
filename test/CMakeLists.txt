@@ -71,6 +71,7 @@ foreach(TEST_SRC ${TEST_SOURCES})
       set(INPUT_TEST DigitalInput${INPUT_TARGET}Test)
       add_executable(${INPUT_TEST} ${TEST_SRC}
       ${PROJECT_ROOT}/lib/InputManager/src/InputManager.cpp
+      ${PROJECT_ROOT}/lib/AsyncTask/src/BackgroundTask.cpp
       ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
       ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/mocks/platform_stubs.cpp)
@@ -138,18 +139,41 @@ foreach(TEST_SRC ${TEST_SOURCES})
       ${PROJECT_ROOT}/src/core/CrashDebug.cpp
       ${TEST_HELPERS})
     target_compile_definitions(${TEST_NAME} PRIVATE RTC_DATA_ATTR=)
-  elseif(TEST_NAME STREQUAL "HalTouchInputTest")
+  elseif(TEST_NAME STREQUAL "QueuedButtonInputTest")
+    foreach(INPUT_TARGET XTEINK_C3 X4CLASSIC)
+      set(INPUT_TEST QueuedButton${INPUT_TARGET}Test)
+      add_executable(${INPUT_TEST} ${TEST_SRC}
+        ${PROJECT_ROOT}/src/hal/Input.cpp
+        ${PROJECT_ROOT}/src/MappedInputManager.cpp
+        ${PROJECT_ROOT}/lib/InputManager/src/InputManager.cpp
+        ${PROJECT_ROOT}/lib/AsyncTask/src/BackgroundTask.cpp
+        ${PROJECT_ROOT}/lib/BoardSupport/src/TouchBackend.cpp
+        ${PROJECT_ROOT}/lib/BoardSupport/src/X4ProBoard.cpp
+        ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
+        ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
+        ${TEST_HELPERS})
+      target_include_directories(${INPUT_TEST} PRIVATE ${PROJECT_ROOT}/lib/InputManager/include)
+      target_compile_definitions(${INPUT_TEST} PRIVATE PAPYRIX_TARGET_${INPUT_TARGET}=1)
+      set_target_properties(${INPUT_TEST} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    endforeach()
+    continue()
+  elseif(TEST_NAME STREQUAL "HalTouchInputTest" OR TEST_NAME STREQUAL "HalButtonInputTest")
     add_executable(${TEST_NAME} ${TEST_SRC}
       ${PROJECT_ROOT}/src/hal/Input.cpp
       ${PROJECT_ROOT}/src/MappedInputManager.cpp
       ${PROJECT_ROOT}/lib/InputManager/src/InputManager.cpp
+      ${PROJECT_ROOT}/lib/AsyncTask/src/BackgroundTask.cpp
       ${PROJECT_ROOT}/lib/BoardSupport/src/TouchBackend.cpp
       ${PROJECT_ROOT}/lib/BoardSupport/src/X4ProBoard.cpp
       ${PROJECT_ROOT}/lib/BoardSupport/src/HardwareIdentity.cpp
       ${PROJECT_ROOT}/lib/BoardSupport/src/BoardProfiles.cpp
       ${TEST_HELPERS})
     target_include_directories(${TEST_NAME} PRIVATE ${PROJECT_ROOT}/lib/InputManager/include)
-    target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    if(TEST_NAME STREQUAL "HalButtonInputTest")
+      target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4CLASSIC=1)
+    else()
+      target_compile_definitions(${TEST_NAME} PRIVATE PAPYRIX_TARGET_X4PRO=1)
+    endif()
   elseif(TEST_NAME STREQUAL "PanelDispatchTest")
     foreach(PANEL_TARGET X4PRO X4CLASSIC)
       set(PANEL_TEST PanelDispatch${PANEL_TARGET}Test)
