@@ -1,3 +1,37 @@
+
+
+## v1.32.0 (2026-09-23)
+
+*  Add X4 v2 Classic support [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Fix button presses during display refresh [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Update docs [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Add saved Wi-Fi network management with edit, reorder, and forget [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Bump version [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+
+
+## v1.31.0 (2026-09-18)
+
+*  Set cover size limits for each display [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Add driverless network printer app [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Add the LocalSend receiver app for file transfer [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Add LocalSend and Printer logos [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Add image viewing with cached conversion to the file manager [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Add a FileManager support on UI for Printer and LocalSend [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  main: Stop ZIP underflow and rejected sleep loops [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Correct FileList Back to select the previous folder [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Bump bersion [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+
+
+## v1.30.0 (2026-09-13)
+
+*  Update docs [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Update changelog [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Add clock themes [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Add new logo and simplify boot/sleep screens [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Correct the Day and Night Moon display [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+*  Bump version [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
+
+
 ## v1.29.0 (2026-09-08)
 
 *  Add support for X3 UC8279. Issue #160 [[Pavel Liashkov](mailto:pavel.liashkov@protonmail.com)]
