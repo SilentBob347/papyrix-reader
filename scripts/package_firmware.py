@@ -17,7 +17,6 @@ ARTIFACTS = (
         "mcu": "ESP32-C3",
         "boards": ["X3", "X4"],
         "panels": ["SSD1677", "UC8253", "UC8279_X3"],
-        "hardware_status": "partial",
     },
     {
         "environment": "release_x4pro",
@@ -26,7 +25,6 @@ ARTIFACTS = (
         "mcu": "ESP32-S3",
         "boards": ["X4Pro"],
         "panels": ["UC8279_X4PRO", "UC8179_X4PRO"],
-        "hardware_status": "partial",
     },
     {
         "environment": "release_x4c",
@@ -35,7 +33,6 @@ ARTIFACTS = (
         "mcu": "ESP32-S3",
         "boards": ["X4Classic"],
         "panels": ["SSD1677", "UC8179_X4PRO", "UC8279_X4PRO"],
-        "hardware_status": "partial",
     },
 )
 
@@ -107,7 +104,6 @@ def package(root: Path, output: Path, build: bool = True, check_features: bool =
                 "mcu": artifact["mcu"],
                 "boards": artifact["boards"],
                 "panels": artifact["panels"],
-                "hardware_status": artifact["hardware_status"],
                 "sha256": digest,
             }
         )

@@ -36,11 +36,11 @@ If an X3 screen stays blank or shows an incorrect image, attach the serial log t
 
 Classic first reads the factory panel identity.
 If that value is missing or invalid, it probes the display.
-An unknown response leaves the display disabled instead of selecting an unverified controller.
+An unknown response leaves the display disabled.
 Headless SD recovery remains available.
 A panel without a supported grayscale waveform uses monochrome rendering.
 See the [Classic support matrix](device-support-matrix.md#x4-classic) and
-[hardware validation](x4-classic-hardware-validation.md) for current limits.
+[Classic specifications](x4-classic-specifications.md) for device details.
 
 ## Firmware Recovery
 
@@ -60,12 +60,10 @@ There is no boot-button recovery mode.
 
 The firmware performs one controller reset and initialization retry. If the
 second attempt fails, it closes the SD transport, disables display power, then
-disables storage power. USB serial and the power button remain active. The
+disables storage power. The power button remains active. The
 firmware waits without rebooting.
 
-Press the power button or send `retry` to restore storage power and retry
-display initialization. The last result and bounded attempt count are stored in
-RTC memory and the `papyrix_diag` NVS namespace.
+Press the power button to restore storage power and retry display initialization.
 
 ## Repeated Sleep at Startup
 

@@ -44,13 +44,20 @@ It is a community project.
   - Panel: 800×480 UC8279 or UC8179
 - **[Xteink X4 v2 Classic](docs/x4-classic-specifications.md)**
   - Release file: `papyrix-x4c.bin`
-  - Panel: 800×480 SSD1677, UC8179, or UC8279; partial hardware validation
+  - Panel: 800×480 SSD1677, UC8179, or UC8279
 
 See the [device support matrix](docs/device-support-matrix.md) for build targets and hardware services.
 Using the wrong binary can drive incorrect pins and can damage hardware.
 
 Page caches use profile-specific folders. Moving an SD card between supported
 devices does not reuse incompatible rendered pages.
+
+## Devices tested on hardware
+
+- Xteink X3
+- Xteink X4 (original)
+- Xteink X4 Pro
+- Xteink X4 v2 Classic
 
 ## Features
 
@@ -127,11 +134,12 @@ Download the binary that matches the device:
 
 - X3 or X4: `papyrix-xteink-c3.bin`
 - X4 Pro: `papyrix-x4pro.bin`
-- X4 v2 Classic: `papyrix-x4c.bin` (partial hardware validation)
+- X4 v2 Classic: `papyrix-x4c.bin`
 
 Pro and Classic images are not interchangeable.
-For Classic, read the [qualification and installation limits](docs/x4-classic-hardware-validation.md) first.
 Do not erase the chip or install a full-flash image from another device.
+For Classic partition and OTA-slot requirements, see the
+[Classic specifications](docs/x4-classic-specifications.md#installation).
 
 The usual installation method is
 **[papyrix-flasher](https://github.com/bigbag/papyrix-flasher)**:

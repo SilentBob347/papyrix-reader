@@ -14,7 +14,6 @@ Use the firmware file for the device:
 X3, the original X4, and X4 v2 Classic use physical buttons.
 Only X4 Pro has touch input and a front light.
 Pro and Classic firmware images are not interchangeable.
-See the [Classic hardware validation](x4-classic-hardware-validation.md) for its current support limits.
 
 ### Button and Touch Layout
 

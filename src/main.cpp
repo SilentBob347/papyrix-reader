@@ -239,9 +239,7 @@ void initializeDisplayWithRecovery() {
   auto result = display.begin();
   while (result != papyrix::hal::Display::InitResult::Ok) {
     const auto action = policy.recordFailure();
-    papyrix::crashdebug::markDisplayFailure(static_cast<uint8_t>(result), policy.failureCount());
-    LOG_ERR(TAG, "Display initialization failed: result=%u attempt=%u", static_cast<unsigned>(result),
-            static_cast<unsigned>(policy.failureCount()));
+    LOG_ERR(TAG, "Display initialization failed");
     if (action == papyrix::hal::DisplayRecoveryAction::ResetAndRetry) {
       result = display.recover();
       continue;
@@ -249,7 +247,6 @@ void initializeDisplayWithRecovery() {
 
     SdMan.end();
     papyrix::board::shutdownRecoveryRails(profile);
-    Serial.println("display and storage rails are off; USB serial remains active");
     papyrix::board::waitForRecoveryRetry(profile);
     papyrix::board::restoreRecoveryStorage(profile);
     if (!SdMan.begin()) LOG_ERR(TAG, "SD card did not recover");
@@ -259,7 +256,6 @@ void initializeDisplayWithRecovery() {
     result = display.recover();
   }
   policy.recordSuccess();
-  papyrix::crashdebug::clearDisplayFailure();
 }
 
 void setupDisplayAndFonts(bool allReaderSizes = true) {

@@ -25,8 +25,6 @@
 
 See the [device support matrix](device-support-matrix.md) for build targets and hardware services.
 Classic uses a separate board profile from the original X4 and X4 Pro.
-Its PSRAM capacity is not confirmed.
-See the [Classic hardware validation](x4-classic-hardware-validation.md) for verified functions and limits.
 
 ## Firmware
 
@@ -53,7 +51,6 @@ Other results select X4 for that boot without saving a detection result.
 
 C3 board and panel selections use the `papyrix_hw` NVS namespace.
 The C3 keys are `dev_ovr`, `dev_det`, `epd_ovr`, `epd_det`, and `epd_ver`.
-Recovery diagnostics use `papyrix_diag`.
 Classic reads the factory panel identity from `hw_calib/screenType` without changing it.
 A missing or invalid identity starts a bounded display probe.
 An unknown response leaves the display disabled.

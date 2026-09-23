@@ -22,7 +22,7 @@ Packaging checks target features before it copies an image.
 
 - **`papyrix-xteink-c3.bin`:** X3, X4
 - **`papyrix-x4pro.bin`:** X4 Pro
-- **`papyrix-x4c.bin`:** X4 v2 Classic; partial hardware validation
+- **`papyrix-x4c.bin`:** X4 v2 Classic
 
 The manifest contains the version, environment, MCU, flash offset, SHA-256,
 profile schema, board values, and panel values.
@@ -59,7 +59,6 @@ Settings > Screen contains Brightness and Warmth on X4 Pro.
 
 The CPU policy uses 10 MHz at idle.
 It restores 160 MHz on ESP32-C3 and 240 MHz on ESP32-S3 for active work.
-Classic PSRAM capacity and operation at the idle frequency are not verified.
 
 ## Touch Input
 
@@ -108,4 +107,3 @@ It has physical buttons, 1-bit SDMMC, a CW2017 battery gauge, and a BM8563 RTC.
 It has no touch input or front light.
 
 See the [Classic specifications](x4-classic-specifications.md) for pins, panel selection, and power policy.
-See [hardware validation](x4-classic-hardware-validation.md) for verified behavior and current limits.

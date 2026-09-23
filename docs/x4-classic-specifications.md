@@ -11,13 +11,11 @@ See [Device Specifications](device-specifications.md) for shared services.
 - Development environment: `x4c`
 - Release environment: `release_x4c`
 - MCU: ESP32-S3
-- Flash: 16 MB on the verified device
+- Flash: 16 MB
 - Board selection: fixed
 - Cache directory: `/.papyrix/cache/x4c/`
 
 The build enables octal PSRAM.
-PSRAM capacity and stability across CPU frequency changes are not verified on Classic hardware.
-A build setting does not establish the installed memory capacity.
 
 ```sh
 # Build development firmware
@@ -90,16 +88,24 @@ Classic does not program CW2017 BATINFO or restart the gauge to install a profil
 A running factory gauge supplies measurements.
 An unavailable or uninitialized gauge reports unknown charge.
 
-## Installation and Support Limits
+## Installation
 
 Use `papyrix-x4c.bin` only for Classic.
-Do not erase the chip or overwrite factory NVS and calibration.
+Pro and Classic images are not interchangeable.
+Do not erase the chip or install a full-flash image from another device.
 Check the partition table and active OTA slot before an application-only update.
-The standard application 0 offset is `0x10000`.
-Factory partition layouts can differ.
-See [installation requirements](x4-classic-hardware-validation.md#installation) before flashing.
+The application must fit the selected slot.
+Back up factory NVS and preserve it at `0x9000`.
+Factory NVS supplies the panel identity used by Classic.
 
-Classic support has partial hardware validation on a UC8279 variant `0x68` device.
-Other panel variants, sleep current, and battery accuracy are not verified.
-USB mass storage and motion-based navigation are not included.
-See [hardware validation](x4-classic-hardware-validation.md) for verified behavior and all current limits.
+The standard partition table uses these regions:
+
+- **NVS:** `0x9000`, size `0x5000`
+- **OTA metadata:** `0xE000`, size `0x2000`
+- **Application 0:** `0x10000`, size `0x640000`
+- **Application 1:** `0x650000`, size `0x640000`
+- **Internal filesystem:** `0xC90000`, size `0x360000`
+- **Core dump:** `0xFF0000`, size `0x10000`
+
+Factory partition layouts can differ.
+An application-only update does not change the partition table.
