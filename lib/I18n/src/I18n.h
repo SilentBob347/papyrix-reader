@@ -273,6 +273,15 @@ enum class StrId : uint8_t {
   STR_IMAGE_OPEN_FAILED,
   STR_IMAGE_INVALID,
 
+  STR_WIFI,
+  STR_SAVED_NETWORKS,
+  STR_EDIT_NETWORK,
+  STR_FORGET_NETWORK,
+  STR_ENTER_SSID,
+  STR_SAVE_FAILED,
+  STR_INVALID_SSID,
+  STR_NETWORK_LIMIT,
+  STR_SSID_ALREADY_SAVED,
   STR__COUNT
 };
 
@@ -286,7 +295,7 @@ class I18n {
   void resetToDefaults();
 
   int bufferUsed() const { return bufferUsed_; }
-  static constexpr int BUFFER_SIZE = 4096;
+  static constexpr int BUFFER_SIZE = 4608;
 
  private:
   I18n();

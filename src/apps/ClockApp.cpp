@@ -206,6 +206,7 @@ static void syncNtpAutoConnect(Core& core, bool manualSync) {
     LOG_INF(TAG, "Trying WiFi: %s", creds[i].ssid);
     auto connResult = core.wifi.connect(creds[i].ssid, creds[i].password);
     if (connResult.ok()) {
+      if (!WIFI_STORE.promoteCredential(creds[i].ssid)) LOG_ERR(TAG, "Could not save WiFi priority");
       connected = true;
       break;
     }

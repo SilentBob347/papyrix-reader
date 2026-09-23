@@ -26,6 +26,7 @@ struct NetworkModeView {
   static constexpr int ROW_SPACING = 20;
   ButtonBar buttons;
   int8_t selected = 0;
+  bool showSaved = false;
   int8_t itemCount = 2;
   bool needsRender = true;
 
@@ -56,6 +57,45 @@ struct NetworkModeView {
 };
 
 void render(const GfxRenderer& r, const Theme& t, const NetworkModeView& v);
+
+struct WifiMenuView {
+  struct Hit {
+    enum Type : uint8_t { None, Row, Back, Open, MoveUp, MoveDown };
+    Type type = None;
+    int index = -1;
+  };
+  static constexpr int MAX_ITEMS = 9;
+  ButtonBar buttons;
+  const char* title = "";
+  const char* items[MAX_ITEMS] = {};
+  uint8_t count = 0;
+  int8_t selected = 0;
+  bool needsRender = true;
+
+  void moveUp() {
+    if (selected > 0) {
+      selected--;
+      needsRender = true;
+    }
+  }
+  void moveDown() {
+    if (selected + 1 < count) {
+      selected++;
+      needsRender = true;
+    }
+  }
+  Hit hitTest(touch::Point point, int16_t width, int16_t height, int16_t pitch, bool frontLrbc = false) const {
+    const int action = touch::semanticButtonBarIndex(point, width, height, frontLrbc);
+    if (action == 0) return {Hit::Back, -1};
+    if (action == 1) return {Hit::Open, -1};
+    if (action == 2 && buttons.isActive(2)) return {Hit::MoveUp, -1};
+    if (action == 3 && buttons.isActive(3)) return {Hit::MoveDown, -1};
+    const int row = touch::rowAt(point, {0, 60, width, static_cast<int16_t>(height - 130)}, pitch, count);
+    return row < 0 ? Hit{} : Hit{Hit::Row, row};
+  }
+};
+
+void render(const GfxRenderer& r, const Theme& t, const WifiMenuView& v);
 
 // ============================================================================
 // WifiListView - Available network list

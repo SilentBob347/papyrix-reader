@@ -206,3 +206,45 @@ See the [Customization Guide](customization.md#custom-fonts) for the full proced
 
 - [Google Fonts](https://fonts.google.com/) - Free, open-source fonts
 - [Noto Fonts](https://fonts.google.com/noto) - Support for many languages
+
+## Regenerating built-in fonts
+
+Obtain static TTF files and place them at the paths below before you run these commands.
+After you regenerate a header, update its `*_FONT_ID` hash in `src/config.h`.
+Use the command in the comment above that hash.
+
+Use these fallback files:
+
+```bash
+FALL_R="fonts/Noto_Sans_Thai/static/NotoSansThai-Regular.ttf fonts/Noto_Sans_Arabic/static/NotoSansArabic-Regular.ttf"
+FALL_B="fonts/Noto_Sans_Thai/static/NotoSansThai-Bold.ttf fonts/Noto_Sans_Arabic/static/NotoSansArabic-Bold.ttf"
+FALL_V_R="fonts/Noto_Sans/static/NotoSans-Regular.ttf"
+FALL_V_B="fonts/Noto_Sans/static/NotoSans-Bold.ttf"
+```
+
+The reader uses 2-bit Roboto fonts:
+
+```bash
+uv run scripts/fontconvert.py reader_xsmall_regular_2b 12 fonts/Roboto/static/Roboto-Regular.ttf $FALL_R --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_xsmall_regular_2b.h
+uv run scripts/fontconvert.py reader_xsmall_bold_2b 12 fonts/Roboto/static/Roboto-Bold.ttf $FALL_B --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_xsmall_bold_2b.h
+uv run scripts/fontconvert.py reader_xsmall_italic_2b 12 fonts/Roboto/static/Roboto-Italic.ttf $FALL_R --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_xsmall_italic_2b.h
+uv run scripts/fontconvert.py reader_2b 14 fonts/Roboto/static/Roboto-Regular.ttf $FALL_R --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_2b.h
+uv run scripts/fontconvert.py reader_bold_2b 14 fonts/Roboto/static/Roboto-Bold.ttf $FALL_B --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_bold_2b.h
+uv run scripts/fontconvert.py reader_italic_2b 14 fonts/Roboto/static/Roboto-Italic.ttf $FALL_R --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_italic_2b.h
+uv run scripts/fontconvert.py reader_medium_2b 16 fonts/Roboto/static/Roboto-Regular.ttf $FALL_R --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_medium_2b.h
+uv run scripts/fontconvert.py reader_medium_bold_2b 16 fonts/Roboto/static/Roboto-Bold.ttf $FALL_B --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_medium_bold_2b.h
+uv run scripts/fontconvert.py reader_medium_italic_2b 16 fonts/Roboto/static/Roboto-Italic.ttf $FALL_R --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_medium_italic_2b.h
+uv run scripts/fontconvert.py reader_large_2b 18 fonts/Roboto/static/Roboto-Regular.ttf $FALL_R --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_large_2b.h
+uv run scripts/fontconvert.py reader_large_bold_2b 18 fonts/Roboto/static/Roboto-Bold.ttf $FALL_B --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_large_bold_2b.h
+uv run scripts/fontconvert.py reader_large_italic_2b 18 fonts/Roboto/static/Roboto-Italic.ttf $FALL_R --2bit --thai --arabic > lib/EpdFont/src/builtinFonts/reader_large_italic_2b.h
+```
+
+The UI uses 1-bit Ubuntu fonts. The small status font uses Noto Sans:
+
+```bash
+uv run scripts/fontconvert.py ui_10 10 fonts/Ubuntu/Ubuntu-Regular.ttf $FALL_V_R $FALL_R --thai --arabic > lib/EpdFont/src/builtinFonts/ui_10.h
+uv run scripts/fontconvert.py ui_bold_10 10 fonts/Ubuntu/Ubuntu-Bold.ttf $FALL_V_B $FALL_B --thai --arabic > lib/EpdFont/src/builtinFonts/ui_bold_10.h
+uv run scripts/fontconvert.py ui_12 12 fonts/Ubuntu/Ubuntu-Regular.ttf $FALL_V_R $FALL_R --thai --arabic > lib/EpdFont/src/builtinFonts/ui_12.h
+uv run scripts/fontconvert.py ui_bold_12 12 fonts/Ubuntu/Ubuntu-Bold.ttf $FALL_V_B $FALL_B --thai --arabic > lib/EpdFont/src/builtinFonts/ui_bold_12.h
+uv run scripts/fontconvert.py small14 8 fonts/Noto_Sans/static/NotoSans-Regular.ttf $FALL_R --thai --arabic > lib/EpdFont/src/builtinFonts/small14.h
+```

@@ -1,5 +1,9 @@
 #include <InputManager.h>
 #include <MappedInputManager.h>
+#include <freertos/task.h>
+
+#include <atomic>
+#include <thread>
 
 #include "hal/Input.h"
 #include "test_utils.h"
@@ -16,7 +20,13 @@ int main() {
   inputManager.begin();
   EventQueue queue;
   hal::Input input;
-  input.init(queue);
+  enableTaskCreateFailureGate();
+  std::atomic<bool> initialized{false};
+  std::thread initThread([&] { initialized = input.init(queue).ok(); });
+  waitForTaskCreateBlocked();
+  releaseTaskCreateFailureGate();
+  initThread.join();
+  runner.expectTrue(initialized.load(), "input initializes when sampler task creation fails");
   inputManager.stopSampling();
   const auto sample = [&](unsigned long time) {
     testManualMillisValue = time;

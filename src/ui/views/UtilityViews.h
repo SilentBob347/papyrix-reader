@@ -99,7 +99,7 @@ struct KeyboardView {
     int column = -1;
   };
   static constexpr int KEYBOARD_Y = 110;
-  static constexpr int MAX_INPUT_LEN = 64;
+  static constexpr int MAX_INPUT_LEN = 65;
   static constexpr int MAX_TITLE_LEN = 48;
 
   // Special control characters from keyboard

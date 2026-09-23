@@ -66,6 +66,7 @@ void SettingsState::enter(Core& core) {
   screenView_.needsRender = true;
   deviceView_.selected = 0;
   deviceView_.needsRender = true;
+  if (currentScreen_ == SettingsScreen::Device) loadDeviceSettings();
   cleanupView_.selected = 0;
   cleanupView_.needsRender = true;
   confirmView_.needsRender = true;
@@ -126,7 +127,9 @@ void SettingsState::handleTap(Core& core, const Event& event) {
     if (currentScreen_ == SettingsScreen::Device) deviceView_.selected = static_cast<int8_t>(hit.index);
     if (currentScreen_ == SettingsScreen::Cleanup) cleanupView_.selected = static_cast<int8_t>(hit.index);
     needsRender_ = true;
-    if (currentScreen_ == SettingsScreen::Menu || currentScreen_ == SettingsScreen::Cleanup) handleConfirm(core);
+    if (currentScreen_ == SettingsScreen::Menu || currentScreen_ == SettingsScreen::Cleanup ||
+        (currentScreen_ == SettingsScreen::Device && deviceView_.selected == 0))
+      handleConfirm(core);
   } else if (hit.type == ui::SettingsListHit::Type::Previous &&
              (currentScreen_ == SettingsScreen::Reader || currentScreen_ == SettingsScreen::Screen ||
               currentScreen_ == SettingsScreen::Device)) {
@@ -137,7 +140,8 @@ void SettingsState::handleTap(Core& core, const Event& event) {
     handleLeftRight(1);
   } else if (hit.type == ui::SettingsListHit::Type::Open &&
              (currentScreen_ == SettingsScreen::Menu || currentScreen_ == SettingsScreen::Cleanup ||
-              currentScreen_ == SettingsScreen::FirmwareUpdate)) {
+              currentScreen_ == SettingsScreen::FirmwareUpdate ||
+              (currentScreen_ == SettingsScreen::Device && deviceView_.selected == 0))) {
     handleConfirm(core);
   } else if (hit.type == ui::SettingsListHit::Type::Back) {
     if (currentScreen_ == SettingsScreen::Menu) {
@@ -531,6 +535,15 @@ void SettingsState::handleConfirm(Core& core) {
       break;
 
     case SettingsScreen::Device:
+      if (deviceView_.selected == 0) {
+        returnScreen_ = SettingsScreen::Device;
+        goBack(core);
+        core.pendingSync = SyncMode::WifiSetup;
+        goNetwork_ = true;
+      } else {
+        handleLeftRight(1);
+      }
+      break;
     case SettingsScreen::Screen:
       handleLeftRight(1);
       break;

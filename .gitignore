@@ -5,6 +5,7 @@
 lib/EpdFont/fontsrc
 *.generated.h
 CLAUDE.md
+AGENTS.md
 .claude/
 docs/superpowers/
 node_modules/

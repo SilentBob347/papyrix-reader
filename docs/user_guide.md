@@ -155,7 +155,8 @@ You get file transfer from the Home screen. Open **Apps** and select **File Tran
 
 When you go into the screen, the device asks you to select a network mode:
 
-* **Join Network:** Connect to a WiFi network that is there. You see a list of available networks. You can enter passwords when necessary. Networks that you saved before connect automatically.
+* **Recent:** Try saved networks in their saved order.
+* **Join Network:** Scan for available WiFi networks. Enter a password when required. The device uses a saved password if one exists.
 * **Create Hotspot:** The device makes its own WiFi network. You can connect to it from your computer or phone.
 
 ![On-screen Keyboard](images/keyboard.jpg)
@@ -275,6 +276,13 @@ Display settings, in menu order:
 #### Device
 
 Controls and device behavior, in menu order:
+
+- **WiFi**
+  - Open **Saved networks** to add or edit an SSID and password without a connection. You can save up to eight networks.
+  - Select a saved network to connect, edit, or forget it. Press **Left** or **Right** on the saved list to move it up or down.
+  - **Recent** tries saved networks in the list order. A successful connection moves that network to the first position. You can change the order again.
+  - **Join Network** scans for a network. **Create Hotspot** starts a WiFi access point.
+  - A connection starts the file-transfer server. Leave the screen to stop WiFi.
 
 - **Front Buttons** (default: B/C/L/R)
   - Options: B/C/L/R, L/R/B/C

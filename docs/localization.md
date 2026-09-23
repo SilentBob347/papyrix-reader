@@ -32,8 +32,8 @@ LOADING=Chargement...
 - Comments: lines that start with `#` or `;`.
 - UTF-8 encoding.
 - Maximum line length: 255 characters (longer lines are cut).
-- Override buffer: 4096 bytes total for all translated strings together.
-- Complete example locales must keep the UTF-8 byte total of all non-metadata values at 4096 bytes or less. Values that go above the limit keep their English defaults with no message.
+- Override buffer: 4608 bytes total for all translated strings together.
+- Complete example locales must keep the UTF-8 byte total of all non-metadata values at 4608 bytes or less. Values that go above the limit keep their English defaults with no message.
 
 ### Metadata keys
 

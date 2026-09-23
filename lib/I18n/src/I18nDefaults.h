@@ -272,6 +272,15 @@ static constexpr const char* DEFAULTS[static_cast<int>(StrId::STR__COUNT)] = {
     "Conversion failed",               // CONVERSION_FAILED
     "Failed to open image",            // IMAGE_OPEN_FAILED
     "Invalid image file",              // IMAGE_INVALID
+    "WiFi",                            // WIFI
+    "Saved",                           // SAVED_NETWORKS
+    "Edit",                            // EDIT_NETWORK
+    "Forget",                          // FORGET_NETWORK
+    "SSID",                            // ENTER_SSID
+    "Save failed",                     // SAVE_FAILED
+    "SSID: 1-32 characters",           // INVALID_SSID
+    "Network limit reached",           // NETWORK_LIMIT
+    "Already saved",                   // SSID_ALREADY_SAVED
 };
 // clang-format on
 

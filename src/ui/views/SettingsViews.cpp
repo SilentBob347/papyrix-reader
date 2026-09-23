@@ -224,12 +224,14 @@ void render(const GfxRenderer& r, const Theme& t, const DeviceSettingsView& v) {
   title(r, t, t.screenMarginTop, tr(DEVICE_SETTINGS));
 
   const int startY = SettingsListHit::LIST_START_Y;
-  for (int i = 0; i < v.visibleCount; i++) {
+  menuItem(r, t, startY, tr(WIFI), v.selected == 0);
+  for (int i = 1; i < v.visibleCount; i++) {
+    const int index = v.settingIndex(i);
     const int y = startY + i * (t.itemHeight + t.itemSpacing);
-    enumValue(r, t, y, DeviceSettingsView::DEFS[i].label, v.getCurrentValueStr(i), i == v.selected);
+    enumValue(r, t, y, DeviceSettingsView::DEFS[index].label, v.getCurrentValueStr(index), i == v.selected);
   }
 
-  ButtonBar btns{tr(BACK), "", "<", ">"};
+  ButtonBar btns{tr(BACK), v.selected == 0 ? tr(OPEN) : "", v.selected == 0 ? "" : "<", v.selected == 0 ? "" : ">"};
   buttonBar(r, t, btns);
 
   r.displayBuffer();

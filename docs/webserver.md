@@ -23,8 +23,8 @@ PapyriX Reader includes a built-in web server that lets you:
 
 ## Step 1: Accessing File Transfer
 
-1. From the Home screen, open **Apps** and select **File Transfer**.
-2. The device starts a scan for available networks.
+1. Open **Apps > File Transfer** or **Settings > Device > WiFi**.
+2. Select **Join Network** to scan, or select **Recent** to try saved networks in order.
 
 ---
 
@@ -66,10 +66,12 @@ The device shows "Connecting..." while it makes the connection. This usually tak
 
 ### Saving Credentials
 
-If this is a new network, the device asks you to save the password:
+In **Apps > File Transfer**, the device asks you to save the password for a new network:
 
-- Select **Yes** to save credentials for automatic connection the next time (NOTE: These are stored as plaintext on the SD card of the device. Do not use this for networks that are sensitive.)
+- Select **Yes** to save credentials for the next connection. The device stores passwords on the SD card with reversible obfuscation, not encryption. Do not save sensitive passwords.
 - Select **No** to connect with no save
+
+In **Settings > Device > WiFi**, the device saves a new password after a successful connection. Use **Saved networks > Add network** to save a password without connecting.
 
 ---
 

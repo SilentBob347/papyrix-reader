@@ -279,8 +279,9 @@ struct DeviceSettingsView {
   ButtonBar buttons{"", "", "<", ">"};
   uint8_t values[SETTING_COUNT] = {0};
   int8_t selected = 0;
-  int8_t visibleCount = SETTING_COUNT;
+  int8_t visibleCount = SETTING_COUNT + 1;
   bool needsRender = true;
+  int settingIndex(int row) const { return row - 1; }
 
   void moveUp() {
     selected = (selected == 0) ? visibleCount - 1 : selected - 1;
@@ -293,9 +294,10 @@ struct DeviceSettingsView {
   }
 
   void cycleValue(int delta) {
-    if (selected >= SETTING_COUNT) return;
-    const auto& def = DEFS[selected];
-    values[selected] = static_cast<uint8_t>((values[selected] + def.valueCount + delta) % def.valueCount);
+    const int index = settingIndex(selected);
+    if (index < 0 || index >= SETTING_COUNT) return;
+    const auto& def = DEFS[index];
+    values[index] = static_cast<uint8_t>((values[index] + def.valueCount + delta) % def.valueCount);
     needsRender = true;
   }
 

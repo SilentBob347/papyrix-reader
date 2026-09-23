@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 KEY_MAP = ROOT / "lib/I18n/src/I18n.cpp"
 LOCALE_DIR = ROOT / "docs/examples/locale"
-BUFFER_SIZE = 4096
+BUFFER_SIZE = 4608
 
 
 def i18n_keys() -> set[str]:

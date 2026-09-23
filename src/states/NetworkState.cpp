@@ -47,6 +47,7 @@ void NetworkState::enter(Core& core) {
   currentScreen_ = NetworkScreen::ModeSelect;
   modeView_.selected = 0;
   modeView_.needsRender = true;
+  savedMenu_.selected = 0;
   needsRender_ = true;
   goBack_ = false;
   passwordJustEntered_ = false;
@@ -55,13 +56,16 @@ void NetworkState::enter(Core& core) {
   scanRetryCount_ = 0;
   scanRetryAt_ = 0;
   selectedSSID_[0] = '\0';
+  connectingFromSaved_ = false;
+  editOriginalSSID_[0] = '\0';
+  editSSID_[0] = '\0';
 
-  returnState_ = StateId::AppLauncher;
+  returnState_ = core.pendingSync == SyncMode::WifiSetup ? StateId::Settings : StateId::AppLauncher;
 
   // Load saved credentials
   WIFI_STORE.loadFromFile();
-  modeView_.itemCount = WIFI_STORE.getCount() > 0 ? 3 : 2;
-
+  modeView_.showSaved = core.pendingSync == SyncMode::WifiSetup;
+  modeView_.itemCount = (WIFI_STORE.getCount() > 0 ? 3 : 2) + (modeView_.showSaved ? 1 : 0);
   // NtpSync: skip mode select, go straight to WiFi scan (hotspot is useless for NTP)
   if (core.pendingSync == SyncMode::NtpSync) {
     startWifiScan(core);
@@ -74,6 +78,8 @@ void NetworkState::exit(Core& core) {
 
   // Stop web server if running
   stopWebServer(core);
+  memset(keyboardView_.input, 0, sizeof(keyboardView_.input));
+  keyboardView_.inputLen = 0;
 
   // Don't shutdown WiFi if transitioning to CalibreSync or app that needs connection
   if (!goCalibreSync_ && !goApp_) {
@@ -106,6 +112,31 @@ void NetworkState::handleTap(Core& core, const Event& event) {
     return;
   }
 
+  if (currentScreen_ == NetworkScreen::SavedNetworks || currentScreen_ == NetworkScreen::SavedActions) {
+    auto& menu = currentScreen_ == NetworkScreen::SavedNetworks ? savedMenu_ : actionsMenu_;
+    const auto hit =
+        menu.hitTest({event.touch.x, event.touch.y}, width, height, THEME.itemHeight + THEME.itemSpacing, frontLrbc);
+    if (hit.type == ui::WifiMenuView::Hit::Row) {
+      menu.selected = static_cast<int8_t>(hit.index);
+      button = Button::Center;
+    } else if (hit.type == ui::WifiMenuView::Hit::Open) {
+      button = Button::Center;
+    } else if (hit.type == ui::WifiMenuView::Hit::Back) {
+      button = Button::Back;
+    } else if (hit.type == ui::WifiMenuView::Hit::MoveUp) {
+      button = Button::Left;
+    } else if (hit.type == ui::WifiMenuView::Hit::MoveDown) {
+      button = Button::Right;
+    } else {
+      return;
+    }
+    if (currentScreen_ == NetworkScreen::SavedNetworks)
+      handleSavedNetworks(core, button);
+    else
+      handleSavedActions(core, button);
+    return;
+  }
+
   if (currentScreen_ == NetworkScreen::WifiList) {
     const auto hit = wifiListView_.hitTest({event.touch.x, event.touch.y}, width, height,
                                            THEME.itemHeight + THEME.itemSpacing, frontLrbc);
@@ -127,17 +158,24 @@ void NetworkState::handleTap(Core& core, const Event& event) {
     return;
   }
 
-  if (currentScreen_ == NetworkScreen::PasswordEntry) {
+  if (currentScreen_ == NetworkScreen::PasswordEntry || currentScreen_ == NetworkScreen::EditSsid ||
+      currentScreen_ == NetworkScreen::EditPassword) {
     const auto hit =
         keyboardView_.hitTest({event.touch.x, event.touch.y}, width, height, THEME.screenMarginSide, frontLrbc);
-    if (hit.type == ui::KeyboardView::Hit::Type::Back) {
-      handlePasswordEntry(core, Button::Back);
-    } else if (hit.type == ui::KeyboardView::Hit::Type::Key) {
+    if (hit.type == ui::KeyboardView::Hit::Type::Key) {
       keyboardView_.keyboard.cursorY = static_cast<int8_t>(hit.row);
       keyboardView_.keyboard.cursorX =
           static_cast<int8_t>(hit.row == 0 ? (hit.column <= 2 ? 1 : (hit.column <= 6 ? 4 : 8)) : hit.column);
-      handlePasswordEntry(core, Button::Center);
+    } else if (hit.type != ui::KeyboardView::Hit::Type::Back) {
+      return;
     }
+    const Button pressed = hit.type == ui::KeyboardView::Hit::Type::Back ? Button::Back : Button::Center;
+    if (currentScreen_ == NetworkScreen::EditSsid)
+      handleEditSsid(core, pressed);
+    else if (currentScreen_ == NetworkScreen::EditPassword)
+      handleEditPassword(core, pressed);
+    else
+      handlePasswordEntry(core, pressed);
     return;
   }
 
@@ -158,6 +196,20 @@ void NetworkState::handleTap(Core& core, const Event& event) {
       handleSavePrompt(core, Button::Back);
     } else if (hit == ui::ConfirmView::Hit::Select) {
       handleSavePrompt(core, Button::Center);
+    }
+    return;
+  }
+
+  if (currentScreen_ == NetworkScreen::ForgetPrompt) {
+    const auto layout = ui::confirmationDialogBounds(renderer_, THEME, confirmView_.message);
+    const auto hit = confirmView_.hitTest({event.touch.x, event.touch.y}, layout, width, height, frontLrbc);
+    if (hit == ui::ConfirmView::Hit::Yes || hit == ui::ConfirmView::Hit::No) {
+      confirmView_.selected = hit == ui::ConfirmView::Hit::Yes ? 0 : 1;
+      handleForgetPrompt(core, Button::Center);
+    } else if (hit == ui::ConfirmView::Hit::Back) {
+      handleForgetPrompt(core, Button::Back);
+    } else if (hit == ui::ConfirmView::Hit::Select) {
+      handleForgetPrompt(core, Button::Center);
     }
     return;
   }
@@ -225,7 +277,9 @@ StateTransition NetworkState::update(Core& core) {
     if (e.type == EventType::ButtonRepeat) {
       // Repeat only for navigational screens
       if (currentScreen_ != NetworkScreen::ModeSelect && currentScreen_ != NetworkScreen::WifiList &&
-          currentScreen_ != NetworkScreen::PasswordEntry)
+          currentScreen_ != NetworkScreen::PasswordEntry && currentScreen_ != NetworkScreen::SavedNetworks &&
+          currentScreen_ != NetworkScreen::SavedActions && currentScreen_ != NetworkScreen::EditSsid &&
+          currentScreen_ != NetworkScreen::EditPassword)
         continue;
     } else if (e.type != EventType::ButtonPress) {
       continue;
@@ -234,6 +288,21 @@ StateTransition NetworkState::update(Core& core) {
     switch (currentScreen_) {
       case NetworkScreen::ModeSelect:
         handleModeSelect(core, e.button);
+        break;
+      case NetworkScreen::SavedNetworks:
+        handleSavedNetworks(core, e.button);
+        break;
+      case NetworkScreen::SavedActions:
+        handleSavedActions(core, e.button);
+        break;
+      case NetworkScreen::EditSsid:
+        handleEditSsid(core, e.button);
+        break;
+      case NetworkScreen::EditPassword:
+        handleEditPassword(core, e.button);
+        break;
+      case NetworkScreen::ForgetPrompt:
+        handleForgetPrompt(core, e.button);
         break;
       case NetworkScreen::WifiList:
         handleWifiList(core, e.button);
@@ -280,6 +349,19 @@ void NetworkState::render(Core& core) {
       case NetworkScreen::ModeSelect:
         viewNeedsRender = modeView_.needsRender;
         break;
+      case NetworkScreen::SavedNetworks:
+        viewNeedsRender = savedMenu_.needsRender;
+        break;
+      case NetworkScreen::SavedActions:
+        viewNeedsRender = actionsMenu_.needsRender;
+        break;
+      case NetworkScreen::EditSsid:
+      case NetworkScreen::EditPassword:
+        viewNeedsRender = keyboardView_.needsRender;
+        break;
+      case NetworkScreen::ForgetPrompt:
+        viewNeedsRender = confirmView_.needsRender;
+        break;
       case NetworkScreen::WifiList:
         viewNeedsRender = wifiListView_.needsRender;
         break;
@@ -303,6 +385,23 @@ void NetworkState::render(Core& core) {
     case NetworkScreen::ModeSelect:
       ui::render(renderer_, THEME, modeView_);
       modeView_.needsRender = false;
+      break;
+    case NetworkScreen::SavedNetworks:
+      ui::render(renderer_, THEME, savedMenu_);
+      savedMenu_.needsRender = false;
+      break;
+    case NetworkScreen::SavedActions:
+      ui::render(renderer_, THEME, actionsMenu_);
+      actionsMenu_.needsRender = false;
+      break;
+    case NetworkScreen::EditSsid:
+    case NetworkScreen::EditPassword:
+      ui::render(renderer_, THEME, keyboardView_);
+      keyboardView_.needsRender = false;
+      break;
+    case NetworkScreen::ForgetPrompt:
+      ui::render(renderer_, THEME, confirmView_);
+      confirmView_.needsRender = false;
       break;
     case NetworkScreen::WifiList:
       ui::render(renderer_, THEME, wifiListView_);
@@ -345,7 +444,11 @@ void NetworkState::handleModeSelect(Core& core, Button button) {
       const int joinIdx = modeView_.itemCount - 2;
       const int hotspotIdx = modeView_.itemCount - 1;
 
-      if (modeView_.selected < joinIdx) {
+      if (modeView_.showSaved && modeView_.selected == 0) {
+        refreshSavedNetworks();
+        currentScreen_ = NetworkScreen::SavedNetworks;
+        needsRender_ = true;
+      } else if (modeView_.selected < joinIdx) {
         tryAutoConnect(core);
       } else if (modeView_.selected == joinIdx) {
         startWifiScan(core);
@@ -364,6 +467,233 @@ void NetworkState::handleModeSelect(Core& core, Button button) {
     default:
       break;
   }
+}
+void NetworkState::refreshSavedNetworks() {
+  savedMenu_.title = tr(SAVED_NETWORKS);
+  savedMenu_.buttons = ui::ButtonBar{tr(BACK), tr(OPEN), "<", ">"};
+  savedMenu_.count = static_cast<uint8_t>(WIFI_STORE.getCount() + 1);
+  const auto* credentials = WIFI_STORE.getCredentials();
+  for (int i = 0; i < WIFI_STORE.getCount(); i++) savedMenu_.items[i] = credentials[i].ssid;
+  savedMenu_.items[WIFI_STORE.getCount()] = tr(ADD);
+  if (savedMenu_.selected >= savedMenu_.count) savedMenu_.selected = savedMenu_.count - 1;
+  savedMenu_.needsRender = true;
+  modeView_.itemCount = (WIFI_STORE.getCount() > 0 ? 3 : 2) + (modeView_.showSaved ? 1 : 0);
+}
+
+void NetworkState::startEdit(const char* ssid) {
+  snprintf(editOriginalSSID_, sizeof(editOriginalSSID_), "%s", ssid ? ssid : "");
+  keyboardView_.clear();
+  if (ssid) {
+    snprintf(keyboardView_.input, sizeof(keyboardView_.input), "%s", ssid);
+    keyboardView_.inputLen = strlen(keyboardView_.input);
+  }
+  keyboardView_.setPassword(false);
+  keyboardView_.setTitle(tr(ENTER_SSID));
+  currentScreen_ = NetworkScreen::EditSsid;
+  needsRender_ = true;
+}
+
+void NetworkState::handleSavedNetworks(Core& core, Button button) {
+  switch (button) {
+    case Button::Up:
+      savedMenu_.moveUp();
+      break;
+    case Button::Down:
+      savedMenu_.moveDown();
+      break;
+    case Button::Left:
+    case Button::Right: {
+      const int direction = button == Button::Left ? -1 : 1;
+      const int next = savedMenu_.selected + direction;
+      if (savedMenu_.selected < WIFI_STORE.getCount() && next >= 0 && next < WIFI_STORE.getCount()) {
+        const char* ssid = WIFI_STORE.getCredentials()[savedMenu_.selected].ssid;
+        const bool moved = WIFI_STORE.moveCredential(ssid, direction);
+        if (moved) savedMenu_.selected = static_cast<int8_t>(next);
+        refreshSavedNetworks();
+        if (!moved) savedMenu_.title = tr(SAVE_FAILED);
+      }
+      break;
+    }
+    case Button::Center:
+      if (savedMenu_.selected == WIFI_STORE.getCount()) {
+        if (WIFI_STORE.getCount() >= WifiCredentialStore::MAX_NETWORKS) {
+          savedMenu_.title = tr(NETWORK_LIMIT);
+          savedMenu_.needsRender = true;
+        } else {
+          startEdit(nullptr);
+        }
+      } else {
+        const auto& credential = WIFI_STORE.getCredentials()[savedMenu_.selected];
+        snprintf(selectedSSID_, sizeof(selectedSSID_), "%s", credential.ssid);
+        actionsMenu_.title = selectedSSID_;
+        actionsMenu_.items[0] = tr(CONNECT);
+        actionsMenu_.items[1] = tr(EDIT_NETWORK);
+        actionsMenu_.items[2] = tr(FORGET_NETWORK);
+        actionsMenu_.count = 3;
+        actionsMenu_.selected = 0;
+        actionsMenu_.buttons = ui::ButtonBar{tr(BACK), tr(OPEN)};
+        actionsMenu_.needsRender = true;
+        currentScreen_ = NetworkScreen::SavedActions;
+      }
+      break;
+    case Button::Back:
+      currentScreen_ = NetworkScreen::ModeSelect;
+      connectingFromSaved_ = false;
+      modeView_.needsRender = true;
+      break;
+    default:
+      break;
+  }
+  needsRender_ = true;
+}
+
+void NetworkState::handleSavedActions(Core& core, Button button) {
+  switch (button) {
+    case Button::Up:
+      actionsMenu_.moveUp();
+      break;
+    case Button::Down:
+      actionsMenu_.moveDown();
+      break;
+    case Button::Center:
+      switch (actionsMenu_.selected) {
+        case 0: {
+          const auto* credential = WIFI_STORE.findCredential(selectedSSID_);
+          if (!credential) {
+            refreshSavedNetworks();
+            currentScreen_ = NetworkScreen::SavedNetworks;
+            break;
+          }
+          connectingFromSaved_ = true;
+          passwordJustEntered_ = false;
+          connectToNetwork(core, selectedSSID_, credential->password);
+          break;
+        }
+        case 1:
+          startEdit(selectedSSID_);
+          break;
+        case 2:
+          confirmView_.setTitle(tr(FORGET_NETWORK));
+          confirmView_.setMessage(selectedSSID_);
+          confirmView_.selectNo();
+          confirmView_.needsRender = true;
+          currentScreen_ = NetworkScreen::ForgetPrompt;
+          break;
+      }
+      break;
+    case Button::Back:
+      currentScreen_ = NetworkScreen::SavedNetworks;
+      savedMenu_.needsRender = true;
+      break;
+    default:
+      break;
+  }
+  needsRender_ = true;
+}
+
+void NetworkState::handleEditSsid(Core& core, Button button) {
+  switch (button) {
+    case Button::Up:
+      keyboardView_.moveUp();
+      break;
+    case Button::Down:
+      keyboardView_.moveDown();
+      break;
+    case Button::Left:
+      keyboardView_.moveLeft();
+      break;
+    case Button::Right:
+      keyboardView_.moveRight();
+      break;
+    case Button::Center:
+      if (!keyboardView_.confirmKey()) break;
+      if (keyboardView_.inputLen == 0 || keyboardView_.inputLen > 32) {
+        keyboardView_.setTitle(tr(INVALID_SSID));
+        break;
+      }
+      if (strcmp(editOriginalSSID_, keyboardView_.input) != 0 && WIFI_STORE.hasSavedCredential(keyboardView_.input)) {
+        keyboardView_.setTitle(tr(SSID_ALREADY_SAVED));
+        break;
+      }
+      snprintf(editSSID_, sizeof(editSSID_), "%s", keyboardView_.input);
+      keyboardView_.clear();
+      if (const auto* credential = WIFI_STORE.findCredential(editOriginalSSID_)) {
+        snprintf(keyboardView_.input, sizeof(keyboardView_.input), "%s", credential->password);
+        keyboardView_.inputLen = strlen(keyboardView_.input);
+      }
+      keyboardView_.setPassword(true);
+      keyboardView_.setTitle(tr(ENTER_PASSWORD));
+      currentScreen_ = NetworkScreen::EditPassword;
+      break;
+    case Button::Back:
+      currentScreen_ = editOriginalSSID_[0] ? NetworkScreen::SavedActions : NetworkScreen::SavedNetworks;
+      break;
+    default:
+      break;
+  }
+  keyboardView_.needsRender = true;
+  needsRender_ = true;
+}
+
+void NetworkState::handleEditPassword(Core& core, Button button) {
+  if (button != Button::Center && button != Button::Back) {
+    handleEditSsid(core, button);
+    return;
+  }
+  if (button == Button::Back) {
+    keyboardView_.clear();
+    snprintf(keyboardView_.input, sizeof(keyboardView_.input), "%s", editSSID_);
+    keyboardView_.inputLen = strlen(keyboardView_.input);
+    keyboardView_.setPassword(false);
+    keyboardView_.setTitle(tr(ENTER_SSID));
+    currentScreen_ = NetworkScreen::EditSsid;
+  } else if (keyboardView_.confirmKey()) {
+    const bool saved = editOriginalSSID_[0]
+                           ? WIFI_STORE.updateCredential(editOriginalSSID_, editSSID_, keyboardView_.input)
+                           : WIFI_STORE.addCredential(editSSID_, keyboardView_.input);
+    if (!saved) {
+      keyboardView_.setTitle(tr(SAVE_FAILED));
+    } else {
+      keyboardView_.clear();
+      refreshSavedNetworks();
+      if (!editOriginalSSID_[0]) savedMenu_.selected = WIFI_STORE.getCount() - 1;
+      currentScreen_ = NetworkScreen::SavedNetworks;
+    }
+  }
+  keyboardView_.needsRender = true;
+  needsRender_ = true;
+}
+
+void NetworkState::handleForgetPrompt(Core& core, Button button) {
+  switch (button) {
+    case Button::Left:
+      confirmView_.selectYes();
+      break;
+    case Button::Right:
+      confirmView_.selectNo();
+      break;
+    case Button::Center:
+      if (confirmView_.isYesSelected()) {
+        if (!WIFI_STORE.removeCredential(selectedSSID_)) {
+          confirmView_.setTitle(tr(SAVE_FAILED));
+          confirmView_.needsRender = true;
+          break;
+        }
+        refreshSavedNetworks();
+        if (WIFI_STORE.getCount() > 0 && savedMenu_.selected >= WIFI_STORE.getCount())
+          savedMenu_.selected = WIFI_STORE.getCount() - 1;
+        currentScreen_ = NetworkScreen::SavedNetworks;
+        break;
+      }
+      [[fallthrough]];
+    case Button::Back:
+      currentScreen_ = NetworkScreen::SavedActions;
+      actionsMenu_.needsRender = true;
+      break;
+    default:
+      break;
+  }
+  needsRender_ = true;
 }
 
 void NetworkState::handleWifiList(Core& core, Button button) {
@@ -390,7 +720,7 @@ void NetworkState::handleWifiList(Core& core, Button button) {
           connectToNetwork(core, cred->ssid, cred->password);
         } else if (wifiListView_.networks[wifiListView_.selected].secured) {
           keyboardView_.setTitle(tr(ENTER_PASSWORD));
-          keyboardView_.setPassword(false);
+          keyboardView_.setPassword(true);
           keyboardView_.clear();
           keyboardView_.needsRender = true;
           currentScreen_ = NetworkScreen::PasswordEntry;
@@ -469,8 +799,11 @@ void NetworkState::handleConnecting(Core& core, Button button) {
     if (connectingView_.buttons.isActive(0)) {
       if (connectingView_.status == ui::WifiConnectingView::Status::Failed ||
           connectingView_.status == ui::WifiConnectingView::Status::Connected) {
-        currentScreen_ = NetworkScreen::WifiList;
-        wifiListView_.needsRender = true;
+        currentScreen_ = connectingFromSaved_ ? NetworkScreen::SavedActions : NetworkScreen::WifiList;
+        if (connectingFromSaved_)
+          actionsMenu_.needsRender = true;
+        else
+          wifiListView_.needsRender = true;
         needsRender_ = true;
       }
     }
@@ -479,15 +812,17 @@ void NetworkState::handleConnecting(Core& core, Button button) {
       if (connectingView_.status == ui::WifiConnectingView::Status::Connected) {
         if (core.pendingSync == SyncMode::WifiSetup) {
           if (!WIFI_STORE.hasSavedCredential(selectedSSID_) && passwordJustEntered_) {
-            WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input);
+            if (WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input))
+              WIFI_STORE.promoteCredential(selectedSSID_);
           }
-          goBack_ = true;
+          startWebServer(core);
           return;
         }
 
         if (core.pendingSync == SyncMode::CalibreWireless) {
           if (!WIFI_STORE.hasSavedCredential(selectedSSID_) && passwordJustEntered_) {
-            WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input);
+            if (WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input))
+              WIFI_STORE.promoteCredential(selectedSSID_);
           }
           memset(keyboardView_.input, 0, sizeof(keyboardView_.input));
           keyboardView_.inputLen = 0;
@@ -497,7 +832,8 @@ void NetworkState::handleConnecting(Core& core, Button button) {
 
         if (core.pendingSync == SyncMode::NtpSync) {
           if (!WIFI_STORE.hasSavedCredential(selectedSSID_) && passwordJustEntered_) {
-            WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input);
+            if (WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input))
+              WIFI_STORE.promoteCredential(selectedSSID_);
           }
           memset(keyboardView_.input, 0, sizeof(keyboardView_.input));
           keyboardView_.inputLen = 0;
@@ -507,7 +843,8 @@ void NetworkState::handleConnecting(Core& core, Button button) {
 
         if (core.pendingSync == SyncMode::PrinterSetup) {
           if (!WIFI_STORE.hasSavedCredential(selectedSSID_) && passwordJustEntered_) {
-            WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input);
+            if (WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input))
+              WIFI_STORE.promoteCredential(selectedSSID_);
           }
           memset(keyboardView_.input, 0, sizeof(keyboardView_.input));
           keyboardView_.inputLen = 0;
@@ -517,7 +854,8 @@ void NetworkState::handleConnecting(Core& core, Button button) {
 
         if (core.pendingSync == SyncMode::LocalsendSetup) {
           if (!WIFI_STORE.hasSavedCredential(selectedSSID_) && passwordJustEntered_) {
-            WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input);
+            if (WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input))
+              WIFI_STORE.promoteCredential(selectedSSID_);
           }
           memset(keyboardView_.input, 0, sizeof(keyboardView_.input));
           keyboardView_.inputLen = 0;
@@ -536,9 +874,15 @@ void NetworkState::handleConnecting(Core& core, Button button) {
           startWebServer(core);
         }
       } else if (connectingView_.status == ui::WifiConnectingView::Status::Failed) {
-        keyboardView_.clear();
-        keyboardView_.needsRender = true;
-        currentScreen_ = NetworkScreen::PasswordEntry;
+        if (connectingFromSaved_) {
+          currentScreen_ = NetworkScreen::SavedActions;
+          actionsMenu_.selected = 1;
+          actionsMenu_.needsRender = true;
+        } else {
+          keyboardView_.clear();
+          keyboardView_.needsRender = true;
+          currentScreen_ = NetworkScreen::PasswordEntry;
+        }
         needsRender_ = true;
       }
     }
@@ -559,11 +903,9 @@ void NetworkState::handleSavePrompt(Core& core, Button button) {
 
     case Button::Center:
       if (confirmView_.isYesSelected()) {
-        WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input);
+        if (WIFI_STORE.addCredential(selectedSSID_, keyboardView_.input)) WIFI_STORE.promoteCredential(selectedSSID_);
       }
-      if (core.pendingSync == SyncMode::WifiSetup) {
-        goBack_ = true;
-      } else if (core.pendingSync == SyncMode::NtpSync) {
+      if (core.pendingSync == SyncMode::NtpSync) {
         goApp_ = true;
       } else if (core.pendingSync == SyncMode::PrinterSetup) {
         goApp_ = true;
@@ -575,9 +917,7 @@ void NetworkState::handleSavePrompt(Core& core, Button button) {
       break;
 
     case Button::Back:
-      if (core.pendingSync == SyncMode::WifiSetup) {
-        goBack_ = true;
-      } else if (core.pendingSync == SyncMode::NtpSync) {
+      if (core.pendingSync == SyncMode::NtpSync) {
         goApp_ = true;
       } else if (core.pendingSync == SyncMode::PrinterSetup) {
         goApp_ = true;
@@ -602,6 +942,7 @@ void NetworkState::handleServerRunning(Core& core, Button button) {
 
 void NetworkState::startWifiScan(Core& core) {
   LOG_INF(TAG, "Starting WiFi scan");
+  connectingFromSaved_ = false;
 
   scanRetryCount_ = 0;
   scanRetryAt_ = 0;
@@ -633,6 +974,10 @@ void NetworkState::connectToNetwork(Core& core, const char* ssid, const char* pa
     core.wifi.getIpAddress(ip, sizeof(ip));
     connectingView_.setConnected(ip);
     LOG_INF(TAG, "Connected, IP: %s", ip);
+    if (WIFI_STORE.hasSavedCredential(selectedSSID_)) {
+      if (!WIFI_STORE.promoteCredential(selectedSSID_)) LOG_ERR(TAG, "Could not save connected network priority");
+      if (connectingFromSaved_) savedMenu_.selected = 0;
+    }
   } else {
     connectingView_.setFailed(tr(CONNECTION_FAILED));
     LOG_ERR(TAG, "Connection failed");
@@ -667,11 +1012,10 @@ void NetworkState::tryAutoConnect(Core& core) {
 
       strncpy(selectedSSID_, creds[i].ssid, sizeof(selectedSSID_) - 1);
       selectedSSID_[sizeof(selectedSSID_) - 1] = '\0';
+      if (!WIFI_STORE.promoteCredential(selectedSSID_)) LOG_ERR(TAG, "Could not save connected network priority");
 
       // Route to the correct next screen based on why NetworkState was entered
-      if (core.pendingSync == SyncMode::WifiSetup) {
-        goBack_ = true;
-      } else if (core.pendingSync == SyncMode::CalibreWireless) {
+      if (core.pendingSync == SyncMode::CalibreWireless) {
         goCalibreSync_ = true;
       } else if (core.pendingSync == SyncMode::NtpSync) {
         goApp_ = true;

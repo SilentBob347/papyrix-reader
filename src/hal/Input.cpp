@@ -16,7 +16,7 @@ Result<void> Input::init(EventQueue& eventQueue) {
   if (initialized_) {
     return Ok();
   }
-  if (!inputManager.startSampling()) return ErrVoid(Error::OutOfMemory);
+  (void)inputManager.startSampling();
 
   queue_ = &eventQueue;
   lastActivityMs_ = millis();

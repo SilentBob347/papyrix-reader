@@ -26,7 +26,10 @@ class WifiCredentialStore {
   bool loadFromFile();
 
   bool addCredential(const char* ssid, const char* password);
+  bool updateCredential(const char* currentSsid, const char* newSsid, const char* password);
   bool removeCredential(const char* ssid);
+  bool moveCredential(const char* ssid, int direction);
+  bool promoteCredential(const char* ssid);
   const WifiCredential* findCredential(const char* ssid) const;
   bool hasSavedCredential(const char* ssid) const;
 

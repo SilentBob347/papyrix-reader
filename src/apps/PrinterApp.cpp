@@ -546,6 +546,7 @@ void connectAndServe() {
     if (s_core->wifi.connect(creds[i].ssid, creds[i].password).ok()) {
       strncpy(state.ssid, creds[i].ssid, sizeof(state.ssid) - 1);
       state.ssid[sizeof(state.ssid) - 1] = '\0';
+      if (!WIFI_STORE.promoteCredential(state.ssid)) LOG_ERR(TAG, "Could not save WiFi priority");
       startServices();
       return;
     }

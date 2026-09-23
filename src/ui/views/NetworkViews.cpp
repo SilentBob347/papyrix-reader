@@ -50,7 +50,9 @@ void render(const GfxRenderer& r, const Theme& t, const NetworkModeView& v) {
   for (int i = 0; i < v.itemCount; i++) {
     const int y = startY + i * (t.itemHeight + NetworkModeView::ROW_SPACING);
     const char* label;
-    if (i < joinIdx)
+    if (v.showSaved && i == 0)
+      label = tr(SAVED_NETWORKS);
+    else if (i < joinIdx)
       label = tr(RECENT_NETWORK);
     else if (i == joinIdx)
       label = tr(JOIN_NETWORK);
@@ -62,13 +64,23 @@ void render(const GfxRenderer& r, const Theme& t, const NetworkModeView& v) {
   const int descY = startY + v.itemCount * (t.itemHeight + NetworkModeView::ROW_SPACING) + 40;
   if (v.selected == hotspotIdx) {
     centeredText(r, t, descY, tr(CREATE_WIFI_HOTSPOT));
-  } else {
+  } else if (!v.showSaved || v.selected != 0) {
     centeredText(r, t, descY, tr(CONNECT_WIFI));
   }
 
   ButtonBar btns{tr(BACK), tr(SELECT), "", ""};
   buttonBar(r, t, btns);
 
+  r.displayBuffer();
+}
+
+void render(const GfxRenderer& r, const Theme& t, const WifiMenuView& v) {
+  r.clearScreen(t.backgroundColor);
+  title(r, t, t.screenMarginTop, v.title);
+  for (int i = 0; i < v.count; ++i) {
+    menuItem(r, t, 60 + i * (t.itemHeight + t.itemSpacing), v.items[i], i == v.selected);
+  }
+  buttonBar(r, t, v.buttons);
   r.displayBuffer();
 }
 

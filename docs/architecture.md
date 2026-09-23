@@ -51,6 +51,7 @@ See the [device support matrix](device-support-matrix.md).
 
 `InputManager` samples physical buttons in a `BackgroundTask` above the main-loop priority.
 The task uses a 5 ms interval and the existing 20 ms debounce.
+If the task cannot start, the main loop samples buttons.
 A fixed queue stores up to 32 state changes with their timestamps.
 On overflow, the queue discards the oldest change and retains the newest state.
 The main loop consumes one change per update and remains the sole producer of button events.
